@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "types": ["node", "mocha", "chai", "bitcoin-vault"],
+        "downlevelIteration": true,
+        "noImplicitAny": false,
+        "outDir": "lib",
+        "rootDir": ".",
+        "lib": ["es2019"],
+        "typeRoots": ["./node_modules/@types"]
+    },
+    "include": ["./src/**/*", "./test/**/*"]
+}
