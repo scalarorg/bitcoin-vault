@@ -1,0 +1,14 @@
+{
+    "name": "bitcoin-vault",
+    "version": "0.1.0",
+    "browser": "dist/bitcoin-vault-web.js",
+    "main": "dist/bitcoin-vault-node.js",
+    "files": [
+        "dist/*.ts",
+        "dist/*.wasm",
+        "dist/*.js"
+    ],
+    "scripts": {
+        "build": "./build.sh && node web-wasm.js"
+    }
+}
