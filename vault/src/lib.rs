@@ -3,6 +3,8 @@ mod staking;
 pub use staking::*;
 
 #[cfg(test)]
+mod utils;
+#[cfg(test)]
 mod tests {
     #[test]
     fn it_works() {

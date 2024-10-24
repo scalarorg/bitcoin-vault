@@ -14,5 +14,8 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0.91"
 bitcoin = { version = "0.32.3", features = ["serde"] }
+dotenv = "0.15.0"
 lazy_static = "1.5.0"
+serde = "1.0.213"
 thiserror = "1.0.65"
+validator = { version = "0.18.1", features = ["derive"] }
