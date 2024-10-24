@@ -3,6 +3,16 @@ name = "bitcoin-vault"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "bitcoin_vault"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bitcoin_vault"
+path = "src/main.rs"
+
 [dependencies]
+anyhow = "1.0.91"
 bitcoin = { version = "0.32.3", features = ["serde"] }
-thiserror = "^1.0"
+lazy_static = "1.5.0"
+thiserror = "1.0.65"
