@@ -1,4 +1,4 @@
-use bitcoin::{Amount, OutPoint, Script};
+use bitcoin::{Amount, OutPoint};
 
 pub struct UTXO {
     pub outpoint: OutPoint, // txid, vout

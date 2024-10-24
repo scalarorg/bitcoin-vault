@@ -1,2 +1,5 @@
 [workspace]
-members = ["vault", "wasm"]
+members = [
+    "vault",
+    "wasm",
+]
