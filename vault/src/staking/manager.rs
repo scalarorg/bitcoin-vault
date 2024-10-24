@@ -16,8 +16,8 @@ use bitcoin::{
 use lazy_static::lazy_static;
 
 use super::{
-    CreateStakingParams, DestinationAddress, DestinationChainId, StakingError,
-    EMBEDDED_DATA_SCRIPT_SIZE, NUM_OUTPUTS, TAG_HASH_SIZE, UTXO,
+    BuildStakingOutputParams, CreateStakingParams, DestinationAddress, DestinationChainId,
+    StakingError, EMBEDDED_DATA_SCRIPT_SIZE, NUM_OUTPUTS, TAG_HASH_SIZE, UTXO,
 };
 
 lazy_static! {
@@ -34,6 +34,10 @@ pub trait Staking {
 
     fn new(tag: Vec<u8>, version: u8) -> Self;
     fn create(&self, params: &CreateStakingParams) -> Result<Psbt, Self::Error>;
+    fn build_staking_outputs(
+        &self,
+        params: &BuildStakingOutputParams,
+    ) -> Result<Vec<TxOut>, Self::Error>;
 }
 
 pub struct StakingManager {
@@ -50,9 +54,51 @@ impl Staking for StakingManager {
         Self { secp, tag, version }
     }
 
+    fn build_staking_outputs(
+        &self,
+        params: &BuildStakingOutputParams,
+    ) -> Result<Vec<TxOut>, Self::Error> {
+        // TODO: 0.validate params by use validator create
+        let user_pub_key_x_only = params.user_pub_key.inner.x_only_public_key().0;
+        let protocol_pub_key_x_only = params.protocol_pub_key.inner.x_only_public_key().0;
+        let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = params
+            .covenant_pubkeys
+            .iter()
+            .map(|pk| pk.inner.x_only_public_key().0)
+            .collect();
+
+        let lock_script = Self::create_locking_script(
+            &self.secp,
+            &user_pub_key_x_only,
+            &protocol_pub_key_x_only,
+            &covenant_pubkeys_x_only,
+            params.covenant_quorum,
+            params.have_only_covenants,
+        )?;
+
+        let embedded_data_script = Self::create_embedded_data_script(
+            &self.tag,
+            self.version,
+            &params.destination_chain_id,
+            &params.destination_address,
+            &params.destination_recipient_address,
+        )?;
+
+        Ok(vec![
+            TxOut {
+                value: Amount::from_sat(params.staking_amount),
+                script_pubkey: lock_script,
+            },
+            TxOut {
+                value: Amount::from_sat(0),
+                script_pubkey: embedded_data_script,
+            },
+        ])
+    }
+
     // This function is used to create an unsigned PSBT for staking
     fn create(&self, params: &CreateStakingParams) -> Result<Psbt, Self::Error> {
-        // TODO: 0.validate params
+        // TODO: 0.validate params by use validator create
         let user_pub_key_x_only = params.user_pub_key.inner.x_only_public_key().0;
         let protocol_pub_key_x_only = params.protocol_pub_key.inner.x_only_public_key().0;
         let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = params
@@ -93,6 +139,7 @@ impl Staking for StakingManager {
             params.fee_rate,
             lock_script,
             embedded_data_script,
+            params.script_pubkey.clone(),
         )?;
 
         // 4. Construct the transaction
@@ -141,6 +188,7 @@ impl StakingManager {
         fee_rate: u64,
         lock_script: ScriptBuf,
         embedded_data_script: ScriptBuf,
+        script_pubkey: ScriptBuf,
     ) -> Result<Vec<TxOut>, StakingError> {
         let fee_amount = Self::calculate_fee_amount(num_inputs, NUM_OUTPUTS, fee_rate)?;
         let change_amount = total_input_amount - staking_amount - fee_amount;
@@ -151,12 +199,12 @@ impl StakingManager {
                 script_pubkey: lock_script,
             },
             TxOut {
-                value: Amount::from_sat(change_amount),
-                script_pubkey: ScriptBuf::default(),
+                value: Amount::from_sat(0),
+                script_pubkey: embedded_data_script,
             },
             TxOut {
-                value: Amount::from_sat(fee_amount),
-                script_pubkey: embedded_data_script,
+                value: Amount::from_sat(change_amount),
+                script_pubkey,
             },
         ])
     }
@@ -369,5 +417,76 @@ impl StakingManager {
         let fee_amount = weight * fee_rate / 4;
 
         Ok(fee_amount)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::*;
+    fn load_params() -> CreateStakingParams {
+        let env = get_env();
+        println!("user: {}", env.user_private_key);
+        println!("{}", env.protocol_private_key);
+        println!("{:?}", env.covenant_private_keys);
+        println!("{}", env.utxo_tx_id);
+        println!("{}", env.utxo_amount);
+        println!("{}", env.script_pubkey);
+        todo!()
+    }
+
+    #[test]
+    fn test_create_unsigned_psbt() {
+        let params = load_params();
+
+        // Create a StakingManager instance
+        // Create a dummy CreateStakingParams
+        // let params = CreateStakingParams {
+        //     user_pub_key: PublicKey::from_slice(&[3; 33]).unwrap(),
+        //     protocol_pub_key: PublicKey::from_slice(&[4; 33]).unwrap(),
+        //     covenant_pubkeys: vec![
+        //         PublicKey::from_slice(&[5; 33]).unwrap(),
+        //         PublicKey::from_slice(&[6; 33]).unwrap(),
+        //     ],
+        //     covenant_quorum: 1,
+        //     have_only_covenants: false,
+        //     utxos: vec![UTXO {
+        //         outpoint: bitcoin::OutPoint {
+        //             txid: bitcoin::Txid::default(),
+        //             vout: 0,
+        //         },
+        //         amount_in_sats: Amount::from_sat(100000),
+        //     }],
+        //     staking_amount: 50000,
+        //     fee_rate: 1,
+        //     rbf: true,
+        //     script_pubkey: ScriptBuf::new_p2wpkh(
+        //         &bitcoin::PublicKey::from_slice(&[3; 33]).unwrap(),
+        //     ),
+        //     destination_chain_id: DestinationChainId::from_slice(&[0; 32]).unwrap(),
+        //     destination_address: DestinationAddress::from_slice(&[1; 32]).unwrap(),
+        //     destination_recipient_address: DestinationAddress::from_slice(&[2; 32]).unwrap(),
+        // };
+
+        // // Create a StakingManager instance
+        // let staking_manager = StakingManager::new(vec![1, 2, 3], 1);
+
+        // // Create the unsigned PSBT
+        // let unsigned_psbt = staking_manager
+        //     .create(&params)
+        //     .expect("Failed to create PSBT");
+
+        // // Verify that the PSBT is unsigned
+        // for input in unsigned_psbt.inputs.iter() {
+        //     assert!(input.final_script_sig.is_none());
+        //     assert!(input.final_script_witness.is_none());
+        // }
+
+        // // Print the unsigned PSBT for debugging purposes
+        // println!("Unsigned PSBT: {}", unsigned_psbt);
+
+        // // Here, you would typically pass the unsigned_psbt to the user for signing
+        // // For testing purposes, we'll just assert that it's created successfully
+        // assert!(!unsigned_psbt.inputs.is_empty());
     }
 }
