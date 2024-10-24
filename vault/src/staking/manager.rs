@@ -55,7 +55,7 @@ impl Staking for StakingManager {
         // TODO: 0.validate params
         let user_pub_key_x_only = params.user_pub_key.inner.x_only_public_key().0;
         let protocol_pub_key_x_only = params.protocol_pub_key.inner.x_only_public_key().0;
-        let covenant_pubkeys_x_only = params
+        let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = params
             .covenant_pubkeys
             .iter()
             .map(|pk| pk.inner.x_only_public_key().0)
@@ -165,7 +165,7 @@ impl StakingManager {
         secp: &Secp256k1<All>,
         user_pub_key: &XOnlyPublicKey,
         protocol_pub_key: &XOnlyPublicKey,
-        covenant_pubkeys: &Vec<XOnlyPublicKey>,
+        covenant_pubkeys: &[XOnlyPublicKey],
         covenant_quorum: u8,
         have_only_covenants: bool,
     ) -> Result<ScriptBuf, StakingError> {
@@ -205,15 +205,15 @@ impl StakingManager {
         service_pub_key: &XOnlyPublicKey,
     ) -> ScriptBuf {
         script::Builder::new()
-            .push_x_only_key(&user_pub_key)
+            .push_x_only_key(user_pub_key)
             .push_opcode(OP_CHECKSIGVERIFY)
-            .push_x_only_key(&service_pub_key)
+            .push_x_only_key(service_pub_key)
             .push_opcode(OP_CHECKSIG)
             .into_script()
     }
 
     fn covenants_protocol_branch(
-        covenant_pubkeys: &Vec<XOnlyPublicKey>,
+        covenant_pubkeys: &[XOnlyPublicKey],
         covenant_quorum: u8,
         protocol_pub_key: &XOnlyPublicKey,
     ) -> Result<ScriptBuf, StakingError> {
@@ -221,7 +221,7 @@ impl StakingManager {
     }
 
     fn covenants_user_branch(
-        covenant_pubkeys: &Vec<XOnlyPublicKey>,
+        covenant_pubkeys: &[XOnlyPublicKey],
         covenant_quorum: u8,
         user_pub_key: &XOnlyPublicKey,
     ) -> Result<ScriptBuf, StakingError> {
@@ -229,14 +229,14 @@ impl StakingManager {
     }
 
     fn only_covenants_branch(
-        covenant_pubkeys: &Vec<XOnlyPublicKey>,
+        covenant_pubkeys: &[XOnlyPublicKey],
         covenant_quorum: u8,
     ) -> Result<ScriptBuf, StakingError> {
         Self::create_covenant_branch(covenant_pubkeys, covenant_quorum, None)
     }
 
     fn create_covenant_branch(
-        covenant_pubkeys: &Vec<XOnlyPublicKey>,
+        covenant_pubkeys: &[XOnlyPublicKey],
         covenant_quorum: u8,
         initial_key: Option<&XOnlyPublicKey>,
     ) -> Result<ScriptBuf, StakingError> {
@@ -250,8 +250,8 @@ impl StakingManager {
         }
 
         // Sort covenant public keys
-        let mut sorted_pks = covenant_pubkeys.clone();
-        sorted_pks.sort_by(|a, b| a.cmp(b));
+        let mut sorted_pks = covenant_pubkeys.to_owned();
+        sorted_pks.sort();
 
         // Check for duplicates
         for i in 0..sorted_pks.len() - 1 {
@@ -284,23 +284,23 @@ impl StakingManager {
         destination_address: &DestinationAddress,
         destination_recipient_address: &DestinationAddress,
     ) -> Result<ScriptBuf, StakingError> {
-        let hash: [u8; TAG_HASH_SIZE];
         let tag_bytes = tag.as_slice();
-        if tag.len() <= TAG_HASH_SIZE {
-            hash = tag_bytes[0..TAG_HASH_SIZE]
+
+        let hash: [u8; TAG_HASH_SIZE] = if tag.len() <= TAG_HASH_SIZE {
+            tag_bytes[0..TAG_HASH_SIZE]
                 .try_into()
-                .map_err(|_| StakingError::InvalidTag)?;
+                .map_err(|_| StakingError::InvalidTag)?
         } else {
-            hash = Sha256dHash::hash(tag_bytes)[0..TAG_HASH_SIZE]
+            Sha256dHash::hash(tag_bytes)[0..TAG_HASH_SIZE]
                 .try_into()
-                .map_err(|_| StakingError::InvalidTag)?;
-        }
+                .map_err(|_| StakingError::InvalidTag)?
+        };
 
         let embedded_data_script = script::Builder::new()
             .push_opcode(OP_RETURN)
             .push_int(EMBEDDED_DATA_SCRIPT_SIZE as i64)
             .push_slice(hash)
-            .push_slice(&version.to_le_bytes())
+            .push_slice(version.to_le_bytes())
             .push_slice(destination_chain_id)
             .push_slice(destination_address)
             .push_slice(destination_recipient_address)
@@ -310,7 +310,7 @@ impl StakingManager {
     }
 
     fn calculate_total_input_amount(
-        utxos: &Vec<UTXO>,
+        utxos: &[UTXO],
         staking_amount: u64,
     ) -> Result<u64, StakingError> {
         let total_input_amount: u64 = utxos.iter().map(|utxo| utxo.amount_in_sats.to_sat()).sum();
