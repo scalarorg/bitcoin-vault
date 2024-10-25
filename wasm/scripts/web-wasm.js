@@ -1,7 +1,7 @@
 const fs = require('fs');
 
-const wasmFile = './dist/bitcoin-vault-web_bg.wasm';
-const jsFile   = './dist/bitcoin-vault-web.js';
+const wasmFile = './pkg/bitcoin-vault-web_bg.wasm';
+const jsFile   = './pkg/bitcoin-vault-web.js';
 
 const wasmData = fs.readFileSync(wasmFile);
 

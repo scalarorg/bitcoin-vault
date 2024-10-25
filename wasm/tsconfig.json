@@ -14,9 +14,11 @@
         "outDir": "dist",
         "rootDir": "./src_ts",
         "lib": ["es2019","dom"],
+        "skipLibCheck": true,
         "paths": {
-            "bitcoin-vault": ["./dist/bitcoin-vault-node.js"]
+            "wasm/*": ["./pkg/*"]
         }        
     },
-    "exclude": ["example/**"]
+    "include": ["./src_ts/**/*.ts", "./pkg/*.*"],
+    "exclude": ["./example/**", "./test/**/*"]
 }

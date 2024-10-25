@@ -6,11 +6,10 @@
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": true,
     "moduleResolution": "node",
-    "baseUrl": "src_ts",
+    "baseUrl": "./",
     "typeRoots": ["./node_modules/@types"],
     "paths": {
       "@/*": ["./src_ts/*"],
     }
-  },
-  "include": ["./src_ts/**/*.ts", "./test/**/*"]
+  }
 }

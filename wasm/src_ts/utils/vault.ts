@@ -1,4 +1,4 @@
-import { VaultWasm } from "bitcoin-vault";
+import { VaultWasm } from "wasm/bitcoin-vault-web";
 import { BTC_DUST_SAT, BTC_PUBKEY_SIZE } from "./constants";
 import { PsbtOutputExtended } from "../types/psbt";
 import { Network, networks, Psbt } from "bitcoinjs-lib";

@@ -1,11 +1,17 @@
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
-import { btcClient, getAddressUtxos, mempoolClient } from "../../src_ts/client";
-import * as vault from "../../src_ts/utils/vault";
-
+import {
+    btcClient, getAddressUtxos,
+    logToJSON,
+    getStakingTxInputUTXOsAndFees,
+    addressToOutputScript,
+    getPublicKeyNoCoord,
+    signPsbt,
+    UTXO, 
+    defaultMempoolClient
+} from "bitcoin-vault";
+import { vault } from "bitcoin-vault";
+import { getDefaultEthAddress } from "./eth";
 import { globalParams } from "./params";
-// import { UTXO } from "./types/btc";
-import { logToJSON, getDefaultEthAddress, getStakingTxInputUTXOsAndFees, ECPair, addressToOutputScript, getPublicKeyNoCoord, signPsbt } from "../../src_ts/utils"
-import { UTXO } from "../../src_ts/types/btc";
 
 
 /*
@@ -59,7 +65,7 @@ async function createBondingTransaction(bondingAmount: number): Promise<{
     }));
     
     //const regularUTXOs = await addresses.getAddressTxsUtxo({address: globalParams.bondHolderAddress});
-    const { fees } = mempoolClient;
+    const { fees } = defaultMempoolClient;
     const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
     const rbf = true; // Replace by fee, need to be true if we want to replace the transaction when the fee is low
     let vaultWasm = vault.createVaultWasm(globalParams.tag, globalParams.version);

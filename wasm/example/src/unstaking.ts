@@ -1,8 +1,12 @@
-import { btcClient, mempoolClient } from "../../src_ts/client";
-import * as vault from "../../src_ts/utils/vault";
+import {
+  btcClient,
+  defaultMempoolClient as mempoolClient,
+  addressToOutputScript,
+  getPublicKeyNoCoord,
+  signPsbt
+} from "bitcoin-vault";
+import * as vault from "bitcoin-vault";
 import { globalParams } from "./params";
-import { addressToOutputScript, getPublicKeyNoCoord, signPsbt } from "../../src_ts/utils";
-
 
 async function createUnbondingServiceTransaction(
   stakerAddress: string,
