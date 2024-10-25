@@ -1,5 +1,5 @@
 {
-  "name": "bitcoin-vault",
+  "name": "@scalar/workspace",
   "private": true,
   "workspaces": [
     "wasm",

@@ -1,5 +1,5 @@
 {
-    "name": "bitcoin-vault",
+    "name": "@scalar/bitcoin-vault",
     "version": "0.1.0",
     "browser": "dist/index.js",
     "main": "dist/node.js",
