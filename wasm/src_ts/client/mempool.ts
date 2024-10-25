@@ -6,7 +6,6 @@ import { useFees } from '@mempool/mempool.js/lib/app/bitcoin/fees';
 import { useMempool } from '@mempool/mempool.js/lib/app/bitcoin/mempool';
 import { useTransactions } from '@mempool/mempool.js/lib/app/bitcoin/transactions';
 import axios, { AxiosRequestConfig } from 'axios';
-import { globalParams } from '../params';
 import { MempoolInstance } from '@mempool/mempool.js/lib/interfaces/bitcoin/mempool';
 import { AddressInstance } from '@mempool/mempool.js/lib/interfaces/bitcoin/addresses';
 import { BlockInstance } from '@mempool/mempool.js/lib/interfaces/bitcoin/blocks';
@@ -38,6 +37,7 @@ class BtcMempool {
 
 }
 
+export const defaultMempoolClient = new BtcMempool('https://mempool.space/api');
 export default BtcMempool
 
 // export type BtcMempoolInstance = {

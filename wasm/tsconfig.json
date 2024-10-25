@@ -1,0 +1,22 @@
+{
+    "extends": "./tsconfig-base.json",
+    "compilerOptions": {
+        "target": "ES2015",
+        "module": "ES2020",
+        "checkJs": false,
+        "strict": false,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noPropertyAccessFromIndexSignature": false,
+        "declaration": true,
+        "downlevelIteration": true,
+        "noImplicitAny": false,
+        "outDir": "dist",
+        "rootDir": "./src_ts",
+        "lib": ["es2019","dom"],
+        "paths": {
+            "bitcoin-vault": ["./dist/bitcoin-vault-node.js"]
+        }        
+    },
+    "exclude": ["example/**"]
+}

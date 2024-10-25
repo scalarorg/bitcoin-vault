@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "moduleResolution": "node",
+    "baseUrl": "src_ts",
+    "typeRoots": ["./node_modules/@types"],
+    "paths": {
+      "@/*": ["./src_ts/*"],
+    }
+  },
+  "include": ["./src_ts/**/*.ts", "./test/**/*"]
+}

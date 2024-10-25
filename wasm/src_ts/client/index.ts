@@ -1,10 +1,7 @@
 import { AddressTxsUtxo } from '@mempool/mempool.js/lib/interfaces/bitcoin/addresses';
-import { globalParams } from '../params';
-import { default as BtcMempool } from './mempool';
+import { default as BtcMempool, defaultMempoolClient } from './mempool';
 import { default as btcClient } from './bitcoin';;
-export { BtcMempool, btcClient };
-    
-export const mempoolClient = new BtcMempool(globalParams.mempoolUrl || 'https://mempool.space/api');
+export { BtcMempool, btcClient, defaultMempoolClient };
 
 export async function getAddressUtxos(address: string): Promise<AddressTxsUtxo[]> {
   //First try get utxo from bitcoin node
@@ -13,7 +10,7 @@ export async function getAddressUtxos(address: string): Promise<AddressTxsUtxo[]
   //Then try get utxo from mempool
   if (utxos.length == 0) {
      console.log(`getAddressTxsUtxo of the address ${address} from the mempool`);
-    utxos = await mempoolClient.addresses.getAddressTxsUtxo({ address });
+    utxos = await defaultMempoolClient.addresses.getAddressTxsUtxo({ address });
   }
   return utxos;
 }

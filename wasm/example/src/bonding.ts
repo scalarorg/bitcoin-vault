@@ -1,11 +1,11 @@
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
-import { btcClient, getAddressUtxos, mempoolClient } from "./client";
-import * as vault from "./utils/vault";
+import { btcClient, getAddressUtxos, mempoolClient } from "../../src_ts/client";
+import * as vault from "../../src_ts/utils/vault";
 
 import { globalParams } from "./params";
 // import { UTXO } from "./types/btc";
-import { logToJSON, getDefaultEthAddress, getStakingTxInputUTXOsAndFees, ECPair, addressToOutputScript, getPublicKeyNoCoord, signPsbt } from "./utils"
-import { UTXO } from "./types/btc";
+import { logToJSON, getDefaultEthAddress, getStakingTxInputUTXOsAndFees, ECPair, addressToOutputScript, getPublicKeyNoCoord, signPsbt } from "../../src_ts/utils"
+import { UTXO } from "../../src_ts/types/btc";
 
 
 /*

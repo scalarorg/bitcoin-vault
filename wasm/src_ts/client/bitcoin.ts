@@ -1,17 +1,17 @@
 
 import Client from "bitcoin-core-ts";
-import { globalParams } from "../params";
 import { BtcUnspent } from "../types/btc";
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
 
-export const defaultClient = new Client({
-    network: globalParams.networkName,
-    host: globalParams.btcHost,
-    port: globalParams.btcPort,
-    wallet: globalParams.walletName,
-    username: globalParams.btcRpcUser,
-    password: globalParams.btcRpcPassword
-});
+const defaultParams = {
+    network: "regtest",
+    host: "localhost",
+    port: "18332",
+    wallet: "legacy",
+    username: "user",
+    password: "password"
+}
+export const defaultClient = new Client(defaultParams);
 
 export const getUnspentTransactionOutputs = async (address: string, btcClient?: Client): Promise<AddressTxsUtxo[]> => {
     const client = btcClient || defaultClient;
