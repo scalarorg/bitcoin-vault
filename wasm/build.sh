@@ -5,7 +5,7 @@
 # generate bindings
 
 set -e
-OUT_DIR=pkg
+OUT_DIR=dist
 which wasm-pack || cargo install wasm-pack
 
 # pack for bundler

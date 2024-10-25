@@ -1,9 +1,9 @@
 {
-  "name": "@scalar/bitcoin-vault-example",
+  "name": "@scalar/bitcoin-vault",
   "license": "MIT",
   "dependencies": {
     "@mempool/mempool.js": "^2.3.0",
-    "@scalar/bitcoin-vault": "link:@scalar/bitcoin-vault",
+    "@scalar/bitcoin-wasm": "link:@scalar/bitcoin-wasm",
     "bip174": "^3.0.0-rc.1",
     "bip32": "^5.0.0-rc.0",
     "bitcoin-core-ts": "^3.0.3",
@@ -13,9 +13,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.1.12",
-    "@types/mocha": "^10.0.9",
     "ethers": "^6.13.4",
-    "mocha": "^10.7.3",
     "typescript": "^5.6.3",
     "ts-node": "^10.9.2"
   },

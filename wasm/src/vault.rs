@@ -79,12 +79,12 @@ impl VaultWasm {
     #[wasm_bindgen]
     pub fn build_unstaking_output(
         &self,
-        stakerPubkey: &[u8],
-        protocolPubkey: &[u8],
-        custodialPubkeys: &[u8],
-        covenantQuorum: u8,
-        haveOnlyCovenant: bool,
-        txHex: &[u8],
+        staker_pubkey: &[u8],
+        protocol_pubkey: &[u8],
+        custodial_pubkeys: &[u8],
+        covenant_quorum: u8,
+        have_only_covenants: bool,
+        tx_hex: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
         Ok(vec![])
     }

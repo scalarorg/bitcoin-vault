@@ -1,12 +1,1 @@
-{
-  "name": "@scalar/workspace",
-  "private": true,
-  "workspaces": [
-    "wasm",
-    "example"
-  ],
-  "scripts": {
-    "build:wasm": "bun run --cwd wasm build",
-    "test": "bun run --cwd example test"
-  }
-}
+{"dependencies": {}}

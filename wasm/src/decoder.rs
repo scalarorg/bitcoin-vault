@@ -1,6 +1,6 @@
 use bitcoin::{
     key::constants::{PUBLIC_KEY_SIZE, SCHNORR_PUBLIC_KEY_SIZE},
-    Address, Amount, Network, OutPoint, PublicKey, Script, ScriptBuf, XOnlyPublicKey,
+    Address, Amount, Network, OutPoint, PublicKey, ScriptBuf, XOnlyPublicKey,
 };
 
 use super::errors::VaultABIError;
@@ -63,7 +63,7 @@ impl Decoder {
     pub fn decode_utxo_list(input: &[u8]) -> Result<Vec<OutPoint>, VaultABIError> {
         let utxo_len = 32 + 4 + Amount::SIZE; //44
         let number_of_items = input.len() / utxo_len;
-        let mut utxos = Vec::with_capacity(number_of_items);
+        let utxos = Vec::with_capacity(number_of_items);
         for i in 0..number_of_items {
             let offset = i * utxo_len;
             let txid = &input[offset..(offset + 32)];
