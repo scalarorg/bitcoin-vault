@@ -24,21 +24,6 @@ async function createBondingTransaction(bondingAmount: number): Promise<{
   hexTxfromPsbt: string;
   fee: number;
 }> {
-  if (!globalParams.bondHolderAddress) {
-    throw new Error("Bond holder address is not provided");
-  }
-  if (!globalParams.bondHolderPrivKey) {
-    throw new Error("Bond holder private key is not provided");
-  }
-  if (!globalParams.bondHolderPublicKey) {
-    throw new Error("Bond holder public key is not provided");
-  }
-  if (!globalParams.protocolPublicKey) {
-    throw new Error("Protocol public key is not provided");
-  }
-  if (!globalParams.covenantPublicKeys) {
-    throw new Error("Covenant public keys are not provided");
-  }
   // const stakerPubKey = "032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d";
   // const stakerPrivKey = "cUKxQGWboxiXBW3iXQ9pTzwCdMK7Un9mdLeDKepZkdVf5V7JNd9a"
   // const bondHolderPublicKey = "032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d";
@@ -90,8 +75,8 @@ async function createBondingTransaction(bondingAmount: number): Promise<{
     globalParams.covenantPublicKeys,
     globalParams.covenantQuorum,
     false,
-    globalParams.destChainId || "1",
-    globalParams.destSmartContractAddress || "",
+    globalParams.destChainId,
+    globalParams.destSmartContractAddress,
     userAddress
   );
   const scriptPubKey = addressToOutputScript(
