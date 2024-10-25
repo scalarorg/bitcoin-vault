@@ -1,3 +1,7 @@
+#! /bin/bash
+rustup toolchain install stable --target wasm32-unknown-unknown --component clippy --component rustfmt
+rustup target add wasm32-unknown-unknown
+
 # generate bindings
 
 set -e
@@ -14,4 +18,3 @@ wasm-pack build --release --target=web --out-name=bitcoin-vault-web --out-dir=${
 wasm-pack build --release --target=nodejs --out-name=bitcoin-vault-node --out-dir=${OUT_DIR}
 
 rm ${OUT_DIR}/package.json ${OUT_DIR}/.gitignore
-

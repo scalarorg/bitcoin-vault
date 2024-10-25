@@ -1,24 +1,20 @@
 {
-    "extends": "./tsconfig-base.json",
-    "compilerOptions": {
-        "target": "ES2015",
-        "module": "ES2020",
-        "checkJs": false,
-        "strict": false,
-        "noUnusedLocals": false,
-        "noUnusedParameters": false,
-        "noPropertyAccessFromIndexSignature": false,
-        "declaration": true,
-        "downlevelIteration": true,
-        "noImplicitAny": false,
-        "outDir": "dist",
-        "rootDir": "./src_ts",
-        "lib": ["es2019","dom"],
-        "skipLibCheck": true,
-        "paths": {
-            "wasm/*": ["./pkg/*"]
-        }        
-    },
-    "include": ["./src_ts/**/*.ts", "./pkg/*.*"],
-    "exclude": ["./example/**", "src_ts/test/**/*"]
+  "extends": "./tsconfig-base.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "declaration": true,
+    "downlevelIteration": true,
+    "outDir": "dist",
+    "rootDir": "./src_ts",
+    "lib": ["es2019", "dom"],
+    "paths": {
+      "wasm/*": ["./pkg/*"]
+    }
+  },
+  "include": ["./src_ts/**/*.ts", "./pkg/*.*"],
+  "exclude": ["./example/**", "src_ts/test/**/*"]
 }

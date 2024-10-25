@@ -1,0 +1,8 @@
+{
+  "name": "bitcoin-vault",
+  "private": true,
+  "workspaces": [
+    "wasm",
+    "example"
+  ]
+}

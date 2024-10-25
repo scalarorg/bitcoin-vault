@@ -42,7 +42,7 @@ impl VaultWasm {
         destination_smartcontract_address: &[u8],
         destination_recipient_address: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
-        let destination_address: DestinationAddress = destination_smartcontract_address
+        let destination_contract_address: DestinationAddress = destination_smartcontract_address
             .try_into()
             .map_err(|e| JsValue::from(format!("{:?}", e)))?;
         let destination_recipient_address: DestinationAddress = destination_recipient_address
@@ -56,7 +56,7 @@ impl VaultWasm {
             covenant_quorum,
             have_only_covenants,
             destination_chain_id: destination_chain_id.to_be_bytes(),
-            destination_address,
+            destination_contract_address,
             destination_recipient_address,
         };
 

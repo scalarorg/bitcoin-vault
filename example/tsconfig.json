@@ -1,12 +1,17 @@
 {
-    "compilerOptions": {
-        "types": ["node", "mocha", "chai", "bitcoin-vault"],
-        "downlevelIteration": true,
-        "noImplicitAny": false,
-        "outDir": "lib",
-        "rootDir": ".",
-        "lib": ["es2019"],
-        "typeRoots": ["./node_modules/@types"]
-    },
-    "include": ["./src/**/*", "./test/**/*"]
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "target": "ESNext",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "types": ["bun-types"]
+  },
+  "include": ["src/**/*.ts", "**/*.test.ts"],
+  "exclude": ["node_modules", "dist"]
 }
