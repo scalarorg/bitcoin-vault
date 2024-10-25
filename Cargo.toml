@@ -9,3 +9,9 @@ opt-level = "s"
 lto = true
 # Strip debug symbols
 strip = true
+
+[profile.dev]
+debug = true
+
+[profile.test]
+debug = true

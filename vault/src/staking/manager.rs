@@ -54,6 +54,14 @@ impl Staking for StakingManager {
         Self { secp, tag, version }
     }
 
+    /// This function is used to build the staking outputs
+    ///
+    /// ### Arguments
+    /// * `params` - The parameters for building the staking outputs
+    ///
+    /// ### Returns
+    /// * `Result<Vec<TxOut>, Self::Error>` - The staking outputs or an error
+    ///
     fn build_staking_outputs(
         &self,
         params: &BuildStakingOutputParams,
@@ -80,7 +88,7 @@ impl Staking for StakingManager {
             &self.tag,
             self.version,
             &params.destination_chain_id,
-            &params.destination_address,
+            &params.destination_contract_address,
             &params.destination_recipient_address,
         )?;
 
@@ -96,7 +104,14 @@ impl Staking for StakingManager {
         ])
     }
 
-    // This function is used to create an unsigned PSBT for staking
+    /// This function is used to create an unsigned PSBT for staking
+    ///
+    /// ### Arguments
+    /// * `params` - The parameters for creating the staking transaction
+    ///
+    /// ### Returns
+    /// * `Result<Psbt, Self::Error>` - The unsigned PSBT or an error
+    ///
     fn create(&self, params: &CreateStakingParams) -> Result<Psbt, Self::Error> {
         // TODO: 0.validate params by use validator create
         let user_pub_key_x_only = params.user_pub_key.inner.x_only_public_key().0;
@@ -122,7 +137,7 @@ impl Staking for StakingManager {
             &self.tag,
             self.version,
             &params.destination_chain_id,
-            &params.destination_address,
+            &params.destination_contract_address,
             &params.destination_recipient_address,
         )?;
 
@@ -209,6 +224,57 @@ impl StakingManager {
         ])
     }
 
+    /// Creates a Taproot locking script with multiple spending conditions.
+    ///
+    /// This function constructs a Taproot script tree with different spending paths:
+    /// - Covenants + Protocol
+    /// - Covenants + User
+    /// - User + Protocol
+    /// - Only Covenants (optional)
+    ///
+    /// The resulting tree structure depends on the `have_only_covenants` parameter:
+    ///
+    /// When `have_only_covenants` is `false`:
+    /// ```text
+    ///        Root
+    ///       /    \
+    ///      /      \
+    ///     /        \
+    ///    /          \
+    ///   1            2
+    ///   |           / \
+    ///   |          /   \
+    ///   |         /     \
+    ///   |        3       4
+    ///   |        |       |
+    /// U + P    C + P   C + U
+    /// ```
+    ///
+    /// When `have_only_covenants` is `true`:
+    /// ```text
+    ///         Root
+    ///        /    \
+    ///       /      \
+    ///      /        \
+    ///     2          2
+    ///    / \        / \
+    ///   /   \      /   \
+    ///  3     4    5     6
+    ///  |     |    |     |
+    /// C+P   C+U  U+P  Only C
+    /// ```
+    ///
+    /// ### Arguments
+    /// * `secp` - The secp256k1 context
+    /// * `user_pub_key` - The user's public key
+    /// * `protocol_pub_key` - The protocol's public key
+    /// * `covenant_pubkeys` - A slice of covenant public keys
+    /// * `covenant_quorum` - The number of covenant signatures required
+    /// * `have_only_covenants` - Whether to include an "Only Covenants" spending path
+    ///
+    /// ### Returns
+    /// * `Result<ScriptBuf, StakingError>` - The resulting Taproot script or an error
+    ///
     fn create_locking_script(
         secp: &Secp256k1<All>,
         user_pub_key: &XOnlyPublicKey,
@@ -225,16 +291,16 @@ impl StakingManager {
         let covenants_user_branch =
             Self::covenants_user_branch(covenant_pubkeys, covenant_quorum, user_pub_key)?;
 
-        builder = builder.add_leaf(0, user_protocol_branch)?;
-        builder = builder.add_leaf(1, covenants_protocol_branch)?;
+        builder = builder.add_leaf(2, covenants_protocol_branch)?;
+        builder = builder.add_leaf(2, covenants_user_branch)?;
 
         if have_only_covenants {
-            builder = builder.add_leaf(2, covenants_user_branch)?;
+            builder = builder.add_leaf(2, user_protocol_branch)?;
             let only_covenants_branch =
                 Self::only_covenants_branch(covenant_pubkeys, covenant_quorum)?;
             builder = builder.add_leaf(2, only_covenants_branch)?;
         } else {
-            builder = builder.add_leaf(1, covenants_user_branch)?;
+            builder = builder.add_leaf(1, user_protocol_branch)?;
         }
 
         let taproot_spend_info = builder
@@ -246,6 +312,57 @@ impl StakingManager {
             taproot_spend_info.internal_key(),
             taproot_spend_info.merkle_root(),
         ))
+    }
+
+    /// Creates an embedded data script for the staking transaction.
+    ///
+    /// This script is used to embed additional data in the staking transaction.
+    ///
+    /// # Arguments
+    /// * `tag` - The tag for the embedded data: 4 bytes
+    /// * `version` - The version of the embedded data: 1 byte
+    /// * `destination_chain_id` - The destination chain ID: 8 bytes
+    /// * `destination_contract_address` - The destination address: 20 bytes
+    /// * `destination_recipient_address` - The destination recipient address: 20 bytes
+    ///
+    /// # The script is constructed as follows:
+    /// ```text
+    /// OP_RETURN <embedded_data_script_size> <hash> <version> <destination_chain_id> <destination_contract_address> <destination_recipient_address>
+    /// ```
+    ///
+    /// # Returns
+    /// * `Result<ScriptBuf, StakingError>` - The resulting embedded data script or an error
+    ///
+    fn create_embedded_data_script(
+        tag: &Vec<u8>,
+        version: u8,
+        destination_chain_id: &DestinationChainId,
+        destination_contract_address: &DestinationAddress,
+        destination_recipient_address: &DestinationAddress,
+    ) -> Result<ScriptBuf, StakingError> {
+        let tag_bytes = tag.as_slice();
+
+        let hash: [u8; TAG_HASH_SIZE] = if tag.len() <= TAG_HASH_SIZE {
+            tag_bytes[0..TAG_HASH_SIZE]
+                .try_into()
+                .map_err(|_| StakingError::InvalidTag)?
+        } else {
+            Sha256dHash::hash(tag_bytes)[0..TAG_HASH_SIZE]
+                .try_into()
+                .map_err(|_| StakingError::InvalidTag)?
+        };
+
+        let embedded_data_script = script::Builder::new()
+            .push_opcode(OP_RETURN)
+            .push_int(EMBEDDED_DATA_SCRIPT_SIZE as i64)
+            .push_slice(hash)
+            .push_slice(version.to_le_bytes())
+            .push_slice(destination_chain_id)
+            .push_slice(destination_contract_address)
+            .push_slice(destination_recipient_address)
+            .into_script();
+
+        Ok(embedded_data_script)
     }
 
     fn user_protocol_banch(
@@ -325,38 +442,6 @@ impl StakingManager {
         Ok(builder.into_script())
     }
 
-    fn create_embedded_data_script(
-        tag: &Vec<u8>,
-        version: u8,
-        destination_chain_id: &DestinationChainId,
-        destination_address: &DestinationAddress,
-        destination_recipient_address: &DestinationAddress,
-    ) -> Result<ScriptBuf, StakingError> {
-        let tag_bytes = tag.as_slice();
-
-        let hash: [u8; TAG_HASH_SIZE] = if tag.len() <= TAG_HASH_SIZE {
-            tag_bytes[0..TAG_HASH_SIZE]
-                .try_into()
-                .map_err(|_| StakingError::InvalidTag)?
-        } else {
-            Sha256dHash::hash(tag_bytes)[0..TAG_HASH_SIZE]
-                .try_into()
-                .map_err(|_| StakingError::InvalidTag)?
-        };
-
-        let embedded_data_script = script::Builder::new()
-            .push_opcode(OP_RETURN)
-            .push_int(EMBEDDED_DATA_SCRIPT_SIZE as i64)
-            .push_slice(hash)
-            .push_slice(version.to_le_bytes())
-            .push_slice(destination_chain_id)
-            .push_slice(destination_address)
-            .push_slice(destination_recipient_address)
-            .into_script();
-
-        Ok(embedded_data_script)
-    }
-
     fn calculate_total_input_amount(
         utxos: &[UTXO],
         staking_amount: u64,
@@ -422,59 +507,70 @@ impl StakingManager {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use bitcoin::{OutPoint, PrivateKey, Txid};
+
     use super::*;
     use crate::utils::*;
+
+    static STAKING_AMOUNT: u64 = 1000;
+    static COVENANT_QUORUM: u8 = 1;
+    static RBF: bool = true;
+    static FEE_RATE: u64 = 1;
+    static HAVE_ONLY_COVENANTS: bool = false;
+    static DESTINATION_CHAIN_ID: [u8; 8] = [3; 8];
+    static DESTINATION_CONTRACT_ADDRESS: [u8; 20] = [4; 20];
+    static DESTINATION_RECIPIENT_ADDRESS: [u8; 20] = [5; 20];
+
     fn load_params() -> CreateStakingParams {
         let env = get_env();
-        println!("user: {}", env.user_private_key);
-        println!("{}", env.protocol_private_key);
-        println!("{:?}", env.covenant_private_keys);
-        println!("{}", env.utxo_tx_id);
-        println!("{}", env.utxo_amount);
-        println!("{}", env.script_pubkey);
-        todo!()
+        let secp = &Secp256k1::new();
+
+        let user_privkey = PrivateKey::from_wif(&env.user_private_key).unwrap();
+        let user_pub_key = user_privkey.public_key(secp);
+
+        let protocol_privkey = PrivateKey::from_wif(&env.protocol_private_key).unwrap();
+        let protocol_pub_key = protocol_privkey.public_key(secp);
+
+        let covenant_pubkeys: Vec<PublicKey> = env
+            .covenant_private_keys
+            .iter()
+            .map(|k| PrivateKey::from_wif(k).unwrap().public_key(secp))
+            .collect();
+
+        CreateStakingParams {
+            user_pub_key,
+            protocol_pub_key,
+            covenant_pubkeys,
+            covenant_quorum: COVENANT_QUORUM,
+            staking_amount: STAKING_AMOUNT,
+            utxos: vec![UTXO {
+                outpoint: OutPoint {
+                    txid: Txid::from_str(&env.utxo_tx_id).unwrap(),
+                    vout: env.utxo_vout,
+                },
+                amount_in_sats: Amount::from_sat(env.utxo_amount),
+            }],
+            script_pubkey: ScriptBuf::from_hex(&env.script_pubkey).unwrap(),
+            rbf: RBF,
+            fee_rate: FEE_RATE,
+            have_only_covenants: HAVE_ONLY_COVENANTS,
+            destination_chain_id: DESTINATION_CHAIN_ID,
+            destination_contract_address: DESTINATION_CONTRACT_ADDRESS,
+            destination_recipient_address: DESTINATION_RECIPIENT_ADDRESS,
+        }
     }
 
     #[test]
     fn test_create_unsigned_psbt() {
         let params = load_params();
 
-        // Create a StakingManager instance
-        // Create a dummy CreateStakingParams
-        // let params = CreateStakingParams {
-        //     user_pub_key: PublicKey::from_slice(&[3; 33]).unwrap(),
-        //     protocol_pub_key: PublicKey::from_slice(&[4; 33]).unwrap(),
-        //     covenant_pubkeys: vec![
-        //         PublicKey::from_slice(&[5; 33]).unwrap(),
-        //         PublicKey::from_slice(&[6; 33]).unwrap(),
-        //     ],
-        //     covenant_quorum: 1,
-        //     have_only_covenants: false,
-        //     utxos: vec![UTXO {
-        //         outpoint: bitcoin::OutPoint {
-        //             txid: bitcoin::Txid::default(),
-        //             vout: 0,
-        //         },
-        //         amount_in_sats: Amount::from_sat(100000),
-        //     }],
-        //     staking_amount: 50000,
-        //     fee_rate: 1,
-        //     rbf: true,
-        //     script_pubkey: ScriptBuf::new_p2wpkh(
-        //         &bitcoin::PublicKey::from_slice(&[3; 33]).unwrap(),
-        //     ),
-        //     destination_chain_id: DestinationChainId::from_slice(&[0; 32]).unwrap(),
-        //     destination_address: DestinationAddress::from_slice(&[1; 32]).unwrap(),
-        //     destination_recipient_address: DestinationAddress::from_slice(&[2; 32]).unwrap(),
-        // };
+        let staking_manager = StakingManager::new(vec![7, 7, 7, 7], 1);
 
-        // // Create a StakingManager instance
-        // let staking_manager = StakingManager::new(vec![1, 2, 3], 1);
+        let unsigned_psbt = staking_manager.create(&params).unwrap();
 
-        // // Create the unsigned PSBT
-        // let unsigned_psbt = staking_manager
-        //     .create(&params)
-        //     .expect("Failed to create PSBT");
+        println!("Unsigned PSBT: {:?}", unsigned_psbt);
 
         // // Verify that the PSBT is unsigned
         // for input in unsigned_psbt.inputs.iter() {

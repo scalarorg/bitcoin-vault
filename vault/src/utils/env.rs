@@ -6,6 +6,15 @@ use validator::{Validate, ValidationError};
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct Env {
+    #[validate(length(min = 10))]
+    pub btc_node_address: String,
+
+    #[validate(length(min = 3))]
+    pub btc_node_user: String,
+
+    #[validate(length(min = 3))]
+    pub btc_node_password: String,
+
     #[validate(length(equal = 52))]
     pub user_private_key: String,
 
@@ -21,7 +30,10 @@ pub struct Env {
     #[validate(range(min = 0))]
     pub utxo_amount: u64,
 
-    #[validate(length(min = 64))]
+    #[validate(range(min = 0))]
+    pub utxo_vout: u32,
+
+    #[validate(length(min = 44))]
     pub script_pubkey: String,
 }
 
@@ -49,6 +61,9 @@ impl Env {
         }
 
         let env = Env {
+            btc_node_address: env::var("BTC_NODE_ADDRESS").unwrap(),
+            btc_node_user: env::var("BTC_NODE_USER").unwrap(),
+            btc_node_password: env::var("BTC_NODE_PASSWORD").unwrap(),
             user_private_key: env::var("USER_PRIVATE_KEY").unwrap(),
             protocol_private_key: env::var("PROTOCOL_PRIVATE_KEY").unwrap(),
             covenant_private_keys: env::var("COVENANT_PRIVATE_KEYS")
@@ -58,6 +73,7 @@ impl Env {
                 .collect(),
             utxo_tx_id: env::var("UTXO_TX_ID").unwrap(),
             utxo_amount: env::var("UTXO_AMOUNT").unwrap().parse().unwrap(),
+            utxo_vout: env::var("UTXO_VOUT").unwrap().parse().unwrap(),
             script_pubkey: env::var("SCRIPT_PUBKEY").unwrap(),
         };
 

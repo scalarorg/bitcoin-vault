@@ -19,7 +19,7 @@ pub struct CreateStakingParams {
     pub fee_rate: u64, // in sat/vbyte
     pub have_only_covenants: bool,
     pub destination_chain_id: DestinationChainId,
-    pub destination_address: DestinationAddress,
+    pub destination_contract_address: DestinationAddress,
     pub destination_recipient_address: DestinationAddress,
 }
 
@@ -32,6 +32,6 @@ pub struct BuildStakingOutputParams {
     pub staking_amount: u64,
     pub have_only_covenants: bool,
     pub destination_chain_id: DestinationChainId,
-    pub destination_address: DestinationAddress,
+    pub destination_contract_address: DestinationAddress,
     pub destination_recipient_address: DestinationAddress,
 }
