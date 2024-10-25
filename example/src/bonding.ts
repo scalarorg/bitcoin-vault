@@ -13,7 +13,7 @@ import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addre
 // import { vault } from "bitcoin-vault";
 import { getDefaultEthAddress } from "./eth";
 import { globalParams } from "./params";
-import {vault} from "bitcoin-vault"
+import {vault} from "@scalar/bitcoin-vault/dist"
 
 /*
  *  bondingAmount in shatoshi
