@@ -1,6 +1,6 @@
 #! /bin/bash
-rustup toolchain install stable --target wasm32-unknown-unknown --component clippy --component rustfmt
-rustup target add wasm32-unknown-unknown
+# rustup toolchain install stable --target wasm32-unknown-unknown --component clippy --component rustfmt
+# rustup target add wasm32-unknown-unknown
 
 # generate bindings
 

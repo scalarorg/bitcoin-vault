@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
     "target": "ESNext",
     "module": "commonjs",
     "esModuleInterop": true,
@@ -10,8 +9,10 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "declaration": true,
+    "rootDir": ".",
+    "rootDirs": ["./src", "./test"],
     "types": ["bun-types"]
   },
-  "include": ["src/**/*.ts", "**/*.test.ts"],
+  "include": ["**/*.ts", "**/*.test.ts"],
   "exclude": ["node_modules", "dist"]
 }

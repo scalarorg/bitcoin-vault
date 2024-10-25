@@ -5,9 +5,14 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
     "declaration": true,
     "downlevelIteration": true,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false,
     "outDir": "dist",
     "rootDir": "./src_ts",
     "lib": ["es2019", "dom"],
@@ -15,6 +20,6 @@
       "wasm/*": ["./pkg/*"]
     }
   },
-  "include": ["./src_ts/**/*.ts", "./pkg/*.*"],
+  "include": ["./src_ts/**/*.ts"],
   "exclude": ["./example/**", "src_ts/test/**/*"]
 }

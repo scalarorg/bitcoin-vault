@@ -4,5 +4,8 @@
   "workspaces": [
     "wasm",
     "example"
-  ]
+  ],
+  "scripts": {
+    "build": "cd wasm && bun run build"
+  }
 }
