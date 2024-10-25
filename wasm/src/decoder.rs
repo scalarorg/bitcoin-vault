@@ -1,6 +1,6 @@
 use bitcoin::{
     key::constants::{PUBLIC_KEY_SIZE, SCHNORR_PUBLIC_KEY_SIZE},
-    Address, Network, PublicKey, XOnlyPublicKey,
+    Address, Amount, Network, OutPoint, PublicKey, Script, ScriptBuf, XOnlyPublicKey,
 };
 
 use super::errors::VaultABIError;
@@ -16,6 +16,9 @@ impl Decoder {
             .expect("a valid address")
             .require_network(Network::Bitcoin)
             .map_err(|e| VaultABIError::DecodingError(format!("{}", e)))
+    }
+    pub fn decode_script_pubkey(input: &[u8]) -> ScriptBuf {
+        ScriptBuf::from_bytes(input.to_vec())
     }
     pub fn decode_33bytes_pubkey(input: &[u8]) -> Result<PublicKey, VaultABIError> {
         PublicKey::from_slice(input).map_err(|e| VaultABIError::DecodingError(format!("{}", e)))
@@ -56,6 +59,21 @@ impl Decoder {
             }
         }
         Ok(pubkeys)
+    }
+    pub fn decode_utxo_list(input: &[u8]) -> Result<Vec<OutPoint>, VaultABIError> {
+        let utxo_len = 32 + 4 + Amount::SIZE; //44
+        let number_of_items = input.len() / utxo_len;
+        let mut utxos = Vec::with_capacity(number_of_items);
+        for i in 0..number_of_items {
+            let offset = i * utxo_len;
+            let txid = &input[offset..(offset + 32)];
+            let vout = &input[offset + 32..(offset + 32 + 4)];
+            let amount = &input[offset + 36..(offset + 36 + Amount::SIZE)];
+        }
+        if input.is_empty() || input.len() % utxo_len != 0 {
+            return Err(VaultABIError::InvalidInputData);
+        }
+        Ok(utxos)
     }
 }
 
