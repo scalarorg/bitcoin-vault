@@ -1,19 +1,18 @@
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
-// import {
-//   btcClient,
-//   getAddressUtxos,
-//   logToJSON,
-//   getStakingTxInputUTXOsAndFees,
-//   addressToOutputScript,
-//   getPublicKeyNoCoord,
-//   signPsbt,
-//   UTXO,
-//   defaultMempoolClient,
-// } from "bitcoin-vault";
-// import { vault } from "bitcoin-vault";
+import {
+  addressToOutputScript,
+  btcClient,
+  defaultMempoolClient,
+  getAddressUtxos,
+  getPublicKeyNoCoord,
+  getStakingTxInputUTXOsAndFees,
+  logToJSON,
+  signPsbt,
+  UTXO,
+  vault,
+} from "@scalar/bitcoin-vault";
 import { getDefaultEthAddress } from "./eth";
 import { globalParams } from "./params";
-import {vault} from "@scalar/bitcoin-vault/dist"
 
 /*
  *  bondingAmount in shatoshi
