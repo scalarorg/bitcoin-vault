@@ -3,18 +3,21 @@
   "license": "MIT",
   "dependencies": {
     "@mempool/mempool.js": "^2.3.0",
+    "@scalar/bitcoin-vault": "link:@scalar/bitcoin-vault",
     "bip174": "^3.0.0-rc.1",
     "bip32": "^5.0.0-rc.0",
     "bitcoin-core-ts": "^3.0.3",
     "bitcoinjs-lib": "^7.0.0-rc.0",
     "ecpair": "^3.0.0-rc.0",
-    "tiny-secp256k1": "^2.2.3",
-    "@scalar/bitcoin-vault": "workspace:*"
+    "tiny-secp256k1": "^2.2.3"
   },
   "devDependencies": {
     "@types/bun": "^1.1.12",
+    "@types/mocha": "^10.0.9",
     "ethers": "^6.13.4",
-    "typescript": "^5.6.3"
+    "mocha": "^10.7.3",
+    "typescript": "^5.6.3",
+    "ts-node": "^10.9.2"
   },
   "scripts": {
     "build": "tsc -b",

@@ -21,7 +21,7 @@ async function createUnbondingServiceTransaction(
     const rbf = true; // Replace by fee, need to be true if we want to replace the transaction when the fee is low
     let vaultWasm = vault.createVaultWasm(globalParams.tag, globalParams.version);
     const scriptPubKey = addressToOutputScript(globalParams.bondHolderAddress, globalParams.network);
-    const publicKeyNoCoord = getPublicKeyNoCoord(globalParams.bondHolderPublicKey);
+    const publicKeyNoCoord = getPublicKeyNoCoord(globalParams.bondHolderPublicKey!);
 
     const unstakingOuput = vault.buildUnstakingOutput(vaultWasm, receiveAddress, stakerAddress, globalParams.covenantPublicKeys!, globalParams.covenantQuorum, false, hexTx);
     
@@ -60,7 +60,7 @@ async function createUnbondingServiceTransaction(
 //     stakerSignedPsbt.toBase64(),
 //     true
 //   );
-    const serviceSignedPsbt = signPsbt(globalParams.network, globalParams.protocolPrivKey, unsignedPsbt);
+    const serviceSignedPsbt = signPsbt(globalParams.network, globalParams.protocolPrivKey!, unsignedPsbt);
     const hexTxfromPsbt = serviceSignedPsbt.extractTransaction().toHex();
     //Todo: Calculate fee
   let fee = 0;

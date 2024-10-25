@@ -1,8 +1,8 @@
 import ECPairFactory from "ecpair";
 import * as ecc from "tiny-secp256k1";
 import * as bitcoin from "bitcoinjs-lib";
-
-import { describe, it, beforeEach } from "bun:test";
+import { describe, it, before } from "mocha";
+// import { describe, it, beforeEach } from "bun:test";
 import { createVaultWasm } from "@scalar/bitcoin-vault";
 
 describe("Bitcoin-Vault", () => {
@@ -31,7 +31,7 @@ describe("Bitcoin-Vault", () => {
   const dst_chain_id = BigInt(11155111);
   const dst_user_address = "130C4810D57140e1E62967cBF742CaEaE91b6ecE";
   const dst_smart_contract_address = "1F98C06D8734D5A9FF0b53e3294626E62e4d232C";
-  beforeEach(() => {
+  before(() => {
     for (let i = 0; i < custodial_number; i++) {
       const custodialKeyPair = ECPair.makeRandom();
       customdialKeypairs[i] = custodialKeyPair;
