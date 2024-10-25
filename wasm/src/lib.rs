@@ -1,10 +1,9 @@
 mod decoder;
 mod errors;
 pub mod vault;
+
 // #[cfg(test)]
 // mod tests;
-
-pub use bitcoin_vault::errors::VaultError;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.

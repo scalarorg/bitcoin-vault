@@ -6,7 +6,10 @@
         "outDir": "lib",
         "rootDir": ".",
         "lib": ["es2019"],
-        "typeRoots": ["./node_modules/@types"]
+        "typeRoots": ["./node_modules/@types"],
+        "paths": {
+            "@/*": ["./src/*"],
+        }
     },
-    "include": ["./src/**/*", "./test/**/*"]
+    "include": ["./src/**/*.ts", "./test/**/*", "src/utils.ts"]
 }
