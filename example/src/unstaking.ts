@@ -4,8 +4,8 @@ import {
   addressToOutputScript,
   getPublicKeyNoCoord,
   signPsbt
-} from "bitcoin-vault";
-import * as vault from "bitcoin-vault";
+} from "@scalar/bitcoin-vault";
+import * as vault from "@scalar/bitcoin-vault";
 import { globalParams } from "./params";
 
 async function createUnbondingServiceTransaction(
