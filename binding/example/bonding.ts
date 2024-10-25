@@ -1,18 +1,20 @@
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
 import {
   addressToOutputScript,
-  btcClient,
-  defaultMempoolClient,
-  getAddressUtxos,
+  buildStakingOutput,
+  createVaultWasm,
   getPublicKeyNoCoord,
   getStakingTxInputUTXOsAndFees,
   logToJSON,
   signPsbt,
-  UTXO,
-  vault,
-} from "@scalar/bitcoin-vault";
+  defaultMempoolClient,
+  getAddressUtxos,
+  createStakingPsbt,
+  btcClient,
+} from "../src";
 import { getDefaultEthAddress } from "./eth";
 import { globalParams } from "./params";
+import { UTXO } from "../src/types/btc";
 
 /*
  *  bondingAmount in shatoshi
@@ -79,8 +81,8 @@ async function createBondingTransaction(bondingAmount: number): Promise<{
   const { fees } = defaultMempoolClient;
   const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
   const rbf = true; // Replace by fee, need to be true if we want to replace the transaction when the fee is low
-  let vaultWasm = vault.createVaultWasm(globalParams.tag, globalParams.version);
-  const outputs = vault.buildStakingOutput(
+  let vaultWasm = createVaultWasm(globalParams.tag, globalParams.version);
+  const outputs = buildStakingOutput(
     vaultWasm,
     BigInt(bondingAmount),
     globalParams.bondHolderPublicKey,
@@ -107,17 +109,16 @@ async function createBondingTransaction(bondingAmount: number): Promise<{
   const publicKeyNoCoord = getPublicKeyNoCoord(
     globalParams.bondHolderPublicKey
   );
-  const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
-    vault.createStakingPsbt(
-      globalParams.network,
-      publicKeyNoCoord,
-      selectedUTXOs,
-      scriptPubKey,
-      outputs,
-      bondingAmount,
-      fee,
-      globalParams.bondHolderAddress
-    );
+  const { psbt: unsignedVaultPsbt, fee: estimatedFee } = createStakingPsbt(
+    globalParams.network,
+    publicKeyNoCoord,
+    selectedUTXOs,
+    scriptPubKey,
+    outputs,
+    bondingAmount,
+    fee,
+    globalParams.bondHolderAddress
+  );
   // const { psbt: unsignedVaultPsbt, feeEstimate: fee } =
   //     await staker.getUnsignedVaultPsbt(
   //         regularUTXOs,

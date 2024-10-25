@@ -1,5 +1,4 @@
 {
-  "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
     "target": "ESNext",
@@ -12,9 +11,11 @@
     "declaration": true,
     "rootDir": ".",
     "rootDirs": ["./src", "./test"],
-    "types": ["bun-types"]
+    "types": ["bun-types"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["**/*.ts", "**/*.test.ts"],
-  "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../wasm" }]
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

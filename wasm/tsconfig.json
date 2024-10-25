@@ -1,5 +1,4 @@
 {
-  "extends": "../tsconfig.json",
   "compilerOptions": {
     "target": "ESNext",
     "module": "commonjs",
@@ -14,12 +13,8 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
     "outDir": "dist",
-    "rootDir": "./src_ts",
-    "lib": ["es2019", "dom"],
-    "paths": {
-      "wasm/*": ["./pkg/*"]
-    }
+    "rootDir": "./src",
+    "lib": ["es2019", "dom"]
   },
-  "include": ["./src_ts/**/*.ts"],
-  "exclude": ["./example/**", "src_ts/test/**/*"]
+  "exclude": ["node_modules"]
 }
