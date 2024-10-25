@@ -6,6 +6,7 @@
     "example"
   ],
   "scripts": {
-    "build": "cd wasm && bun run build"
+    "build:wasm": "bun run --cwd wasm build",
+    "test": "bun run --cwd example test"
   }
 }
