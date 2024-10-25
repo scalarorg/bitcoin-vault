@@ -1,5 +1,5 @@
 import * as bitcoin from "bitcoinjs-lib";
-import { extractPublicKeyFromWIF } from "bitcoin-vault";
+import { extractPublicKeyFromWIF } from "@scalar/bitcoin-vault";
 export interface ConfigParams {
     networkName: string;
     network: bitcoin.Network;
