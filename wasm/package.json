@@ -2,7 +2,7 @@
     "name": "bitcoin-vault",
     "version": "0.1.0",
     "browser": "dist/index.js",
-    "main": "dist/index-node.js",
+    "main": "dist/node.js",
     "files": [
         "dist/*.ts",
         "dist/*.wasm",

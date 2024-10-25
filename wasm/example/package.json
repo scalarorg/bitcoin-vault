@@ -1,5 +1,5 @@
 {
-    "name": "bitcoin-vault",
+    "name": "bitcoin-vault-example",
     "license": "MIT",
     "dependencies": {
         "@mempool/mempool.js": "^2.3.0",

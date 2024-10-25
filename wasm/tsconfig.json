@@ -20,5 +20,5 @@
         }        
     },
     "include": ["./src_ts/**/*.ts", "./pkg/*.*"],
-    "exclude": ["./example/**", "./test/**/*"]
+    "exclude": ["./example/**", "src_ts/test/**/*"]
 }

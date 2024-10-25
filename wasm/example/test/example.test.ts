@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import ECPairFactory from "ecpair";
 import * as ecc from "tiny-secp256k1";
-import { VaultWasm } from "bitcoin-vault";
+import { vault } from "bitcoin-vault";
 import * as bitcoin from 'bitcoinjs-lib';
 
 describe("Bitcoin-Vault", () => {
@@ -15,7 +15,7 @@ describe("Bitcoin-Vault", () => {
     const privkeys = [];
     const pubkeys = [];
     const signers = [];
-    const vault = VaultWasm.new(new Uint8Array(Buffer.from(tag)), version);
+    const vaultWasm = vault.createVaultWasm(tag, version);
     // we will use them during MPC
     const pre_commitments = [];
     const commitments = [];
@@ -46,7 +46,7 @@ describe("Bitcoin-Vault", () => {
         console.log("Staker public key length:", stakerKeyPair.publicKey.length);
         const utxos = new Uint8Array(0);
         try {
-            const psbt = vault.create_unsigned_vault_psbt(
+            const psbt = vaultWasm.create_unsigned_vault_psbt(
                 new Uint8Array(Buffer.from(stakerAddress)),
                 stakerKeyPair.publicKey,
                 protocolKeyPair.publicKey,
