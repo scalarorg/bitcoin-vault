@@ -10,6 +10,7 @@
   ],
   "types": "dist/bitcoin-vault-web.d.ts",
   "scripts": {
-    "build": "./build.sh && node scripts/web-wasm.js"
+    "build": "./build.sh && node scripts/web-wasm.js",
+    "test": "./scripts/test.sh"
   }
 }

@@ -11,21 +11,13 @@ describe("Bitcoin-Vault", () => {
   const customdialKeypairs = [];
   const tag = "01020304";
   const version = 1;
-  const message = new Uint8Array(Buffer.from("my message"));
   const privkeys = [];
   const pubkeys = [];
-  const signers = [];
   const vaultWasm = createVaultWasm(tag, version);
   // we will use them during MPC
-  const pre_commitments = [];
-  const commitments = [];
-  const aggregated_commitments = [];
-  const signature_shares = [];
-  const aggregated_signatures = [];
 
   const custodial_number = 4;
   const custodial_pubkeys = new Uint8Array(33 * custodial_number);
-  const num_bytes = 32;
   // Destination info
   const dst_chain_id = BigInt(11155111);
   const dst_user_address = "130C4810D57140e1E62967cBF742CaEaE91b6ecE";

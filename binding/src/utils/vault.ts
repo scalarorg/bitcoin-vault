@@ -3,39 +3,40 @@ import { BTC_DUST_SAT, BTC_PUBKEY_SIZE } from "./constants";
 import { PsbtOutputExtended } from "../types/psbt";
 import { Network, Psbt } from "bitcoinjs-lib";
 import { UTXO } from "../types/btc";
+import { hexToBytes } from "./encode";
 
 export const createVaultWasm = (tag: string, version: number) => {
-  return VaultWasm.new(new Uint8Array(Buffer.from(tag)), version);
+  return VaultWasm.new(hexToBytes(tag), version);
 };
 export const buildStakingOutput = (
   vault: VaultWasm,
   stakingAmount: bigint,
-  stakerPubkey: String,
-  protocolPubkey: String,
-  custodialPubkeys: String[],
+  stakerPubkey: string,
+  protocolPubkey: string,
+  custodialPubkeys: string[],
   covenantQuorum: number,
   haveOnlyCovenants: boolean,
-  destinationChainId: string,
-  destinationSmartContractAddress: String,
-  destinationRecipientAddress: String
+  destinationChainId: bigint,
+  destinationSmartContractAddress: string,
+  destinationRecipientAddress: string
 ) => {
   const pubkeys = new Uint8Array(custodialPubkeys.length * BTC_PUBKEY_SIZE);
   for (let i = 0; i < custodialPubkeys.length; i++) {
     pubkeys.set(
-      new Uint8Array(Buffer.from(custodialPubkeys[i])),
+      hexToBytes(custodialPubkeys[i]),
       i * BTC_PUBKEY_SIZE
     );
   }
   const output_buffer = vault.build_staking_output(
     stakingAmount,
-    new Uint8Array(Buffer.from(stakerPubkey)),
-    new Uint8Array(Buffer.from(protocolPubkey)),
+    hexToBytes(stakerPubkey),
+    hexToBytes(protocolPubkey),
     pubkeys,
     covenantQuorum,
     haveOnlyCovenants,
-    BigInt(destinationChainId),
-    new Uint8Array(Buffer.from(destinationSmartContractAddress)),
-    new Uint8Array(Buffer.from(destinationRecipientAddress))
+    destinationChainId,
+    hexToBytes(destinationSmartContractAddress),
+    hexToBytes(destinationRecipientAddress)
   );
   // Decode the output buffer to a PsbtOutputExtended list
   return decodeStakingOutput(output_buffer);
@@ -141,7 +142,7 @@ export const createUnStakingPsbt = (
 export const inputValueSum = (inputUTXOs: UTXO[]): number => {
   return inputUTXOs.reduce((acc, utxo) => acc + utxo.value, 0);
 };
-const decodeStakingOutput = (output_buffer: Uint8Array) => {
+export const decodeStakingOutput = (output_buffer: Uint8Array) => {
   let len = output_buffer.length;
   let offset = 0;
   let psbt_outputs: PsbtOutputExtended[] = [];

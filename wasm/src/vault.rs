@@ -1,10 +1,11 @@
 use std::convert::TryInto;
 
-use crate::decoder::Decoder;
 use crate::errors::VaultABIError;
+use crate::{decoder::Decoder, encoder::Encoder};
 use bitcoin::{Amount, TxOut};
 use bitcoin_vault::{BuildStakingOutputParams, DestinationAddress, Staking, StakingManager};
 use wasm_bindgen::prelude::*;
+use web_sys::console;
 impl From<VaultABIError> for JsValue {
     fn from(err: VaultABIError) -> Self {
         JsValue::from(err.to_string())
@@ -42,9 +43,22 @@ impl VaultWasm {
         destination_smartcontract_address: &[u8],
         destination_recipient_address: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
+        console::debug_1(&"Wasm#build_staking_output".into());
+        // let destination_smartcontract_address_str =
+        //     String::from_utf8(destination_smartcontract_address.to_vec())
+        //         .map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        // console::debug_1(
+        //     &format!(
+        //         "input destination_smartcontract_address length: {:?}",
+        //         destination_smartcontract_address.len()
+        //     )
+        //     .into(),
+        // );
+        // console::debug_1(&destination_smartcontract_address_str.into());
         let destination_contract_address: DestinationAddress = destination_smartcontract_address
             .try_into()
             .map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        console::debug_1(&"Wasm#parsed destination_contract_address".into());
         let destination_recipient_address: DestinationAddress = destination_recipient_address
             .try_into()
             .map_err(|e| JsValue::from(format!("{:?}", e)))?;
@@ -60,21 +74,10 @@ impl VaultWasm {
             destination_recipient_address,
         };
 
-        let mut buffer = Vec::new();
-        if let Ok(tx_outs) = self.staking.build_staking_outputs(&params) {
-            for TxOut {
-                script_pubkey,
-                value,
-            } in tx_outs.into_iter()
-            {
-                //Put 2 bytes for the length of the script_pubkey
-                let length = (script_pubkey.len() + Amount::SIZE) as u16;
-                buffer.extend_from_slice(&length.to_be_bytes());
-                buffer.extend_from_slice(&value.to_sat().to_be_bytes());
-                buffer.extend_from_slice(script_pubkey.as_bytes());
-            }
+        match self.staking.build_staking_outputs(&params) {
+            Ok(tx_outs) => Ok(Encoder::serialize_tx_outs(&tx_outs)),
+            Err(_) => Ok(vec![]),
         }
-        Ok(buffer)
     }
     #[wasm_bindgen]
     pub fn build_unstaking_output(

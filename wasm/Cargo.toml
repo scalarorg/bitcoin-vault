@@ -1,5 +1,5 @@
 [package]
-name = "bitcoin-vault-bindings"
+name = "bitcoin-vault-wasm"
 version = "0.1.0"
 authors = ["Scalar Team <dev@scalar.org>"]
 edition = "2018"
@@ -11,9 +11,6 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
-# `wasm-bindgen` have to be set to exact version because of the following issue: https://github.com/rustwasm/wasm-pack/issues/886
-# Exact comment with solution: https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-689597345
-wasm-bindgen = "=0.2.60"
 bitcoin = { version = "0.32.3", features = ["serde"] }
 bitcoin-vault = { package = "bitcoin-vault", path = "../vault" }
 
@@ -30,10 +27,12 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
 wee_alloc = { version = "0.4.5", optional = true }
 hex = "0.4.3"
+wasm-bindgen = { version = "0.2.95" }
+web-sys = { version = "0.3.72", features = ["console"] }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.10"
 byteorder = "1.3.4"
+wasm-bindgen-test = "0.3.45"
 
 # [profile.release]
 # # Tell `rustc` to optimize for small code size.

@@ -10,11 +10,12 @@ import {
   defaultMempoolClient,
   getAddressUtxos,
   createStakingPsbt,
-  btcClient,
 } from "../src";
 import { getDefaultEthAddress } from "./eth";
 import { globalParams } from "./params";
 import { UTXO } from "../src/types/btc";
+import { sendrawtransaction } from "../src/client/bitcoin";
+import Client from "bitcoin-core-ts";
 
 /*
  *  bondingAmount in shatoshi
@@ -130,6 +131,14 @@ async function createBondingTransactions(
   bondingAmount: number,
   numberTxs: number
 ) {
+  const btcClient = new Client({
+    network: "regtest",
+    host: "localhost",
+    port: "18332",
+    wallet: "legacy",
+    username: "user",
+    password: "password"
+  });
   for (let i = 0; i < numberTxs; i++) {
     // Create a bonding transaction
     await createBondingTransaction(
@@ -139,11 +148,11 @@ async function createBondingTransactions(
         console.log(
           `Signed Tx in Hex: ${hexTxfromPsbt} with estimated fee ${fee}`
         );
-        const testRes = await btcClient.rpcClient.command("testmempoolaccept", [
+        const testRes = await btcClient.command("testmempoolaccept", [
           hexTxfromPsbt,
         ]);
         console.log(testRes);
-        return btcClient.sendrawtransaction(hexTxfromPsbt);
+        return sendrawtransaction(hexTxfromPsbt);
       })
       .then((txid) => {
         console.log(`Transaction ID: ${txid}`);
