@@ -135,7 +135,9 @@ const getEstimatedSize = (
   // Estimate the input size
   const inputSize = inputUtxos.reduce((acc: number, u: UTXO): number => {
     const script = scriptPubKey;
+    console.log("getEstimatedSize#script", script);
     const decompiledScript = bitcoinScript.decompile(script);
+    console.log("decompiledScript", decompiledScript);
     if (!decompiledScript) {
       throw new Error(
         "Failed to decompile script when estimating fees for inputs",

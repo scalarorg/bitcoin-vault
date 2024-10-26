@@ -1,14 +1,15 @@
 
 import * as bitcoin from "bitcoinjs-lib";
-import { addressToOutputScript, buildStakingOutput, createStakingPsbt, createVaultWasm, decodeStakingOutput, getPublicKeyNoCoord, getStakingTxInputUTXOsAndFees, logToJSON, signPsbt } from "@/utils";
-import { hexToBytes } from "@/utils/encode";
-import { defaultMempoolClient, getAddressUtxos } from "@/client";
+import { buildStakingOutput, createStakingPsbt, createVaultWasm, decodeStakingOutput, ECPair, getPublicKeyNoCoord, getStakingTxInputUTXOsAndFees, logToJSON, publicKeyToP2trScript, signPsbt } from "@/utils";
+import { bytesToHex, hexToBytes } from "@/utils/encode";
+import { defaultMempoolClient, getAddressUtxos, sendrawtransaction } from "@/client";
 import { UTXO } from "@/types";
 import { PsbtOutputExtended } from "bip174";
 import Client from "bitcoin-core-ts";
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
 
 import { describe, it, beforeEach, expect } from "bun:test";
+
 //Start local regtest bitcoin node before running the test
 describe("Vault-Staking", () => {
     const tag = "01020304";
@@ -49,6 +50,10 @@ describe("Vault-Staking", () => {
             custodialPubkeysBuffer.set(hexToBytes(custodialPubkeys[i]), i * 33);
         }
     });
+    it("shoult config with correct params", () => { 
+        const keyPair = ECPair.fromWIF(stakerPrivKey, network);
+        expect(bytesToHex(keyPair.publicKey)).toBe(stakerPubkey);
+    })
     it("should create staking output", () => {
         let stakingOutputBuffer = vaultWasm.build_staking_output(stakingAmount,
             hexToBytes(stakerPubkey),
@@ -61,6 +66,7 @@ describe("Vault-Staking", () => {
         logToJSON(stakingOutputs);
         expect(stakingOutputs.length).toBe(2);
         expect(stakingOutputs[0].value).toBe(stakingAmount);
+        const psbt = new bitcoin.Psbt({ network });
     });
     it("should create staking psbt", async () => {
         const addressUtxos = await getAddressUtxos(stakerAddress, btcRegtestClient);
@@ -88,10 +94,14 @@ describe("Vault-Staking", () => {
             dstSmartContractAddress,
             dstUserAddress
         );
-        const scriptPubKey = addressToOutputScript(
-            stakerAddress,
+
+        //Create pay to taproot script pubkey
+        const scriptPubKey = publicKeyToP2trScript(
+            stakerPubkey,
             network
         );
+        
+        console.log("scriptPubKey", scriptPubKey);
         const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
             network,
             regularUTXOs,
@@ -100,6 +110,8 @@ describe("Vault-Staking", () => {
             feeRate,
             outputs
         );
+        console.log("selectedUTXOs:", selectedUTXOs);
+        console.log("fee", fee)
         const publicKeyNoCoord = getPublicKeyNoCoord(
             stakerPubkey
         );
@@ -113,7 +125,9 @@ describe("Vault-Staking", () => {
             fee,
             stakerAddress
         );
-        console.log(unsignedVaultPsbt);
+        console.log("TxInputs", unsignedVaultPsbt.txInputs);
+        console.log("TxOutputs", unsignedVaultPsbt.txOutputs);
+        // logToJSON(unsignedVaultPsbt);
         // Simulate signing
         const signedPsbt = signPsbt(
             network,
@@ -122,7 +136,10 @@ describe("Vault-Staking", () => {
         );
         // --- Sign with staker
         const hexTxfromPsbt = signedPsbt.extractTransaction().toHex();
-        logToJSON({hexTxfromPsbt, fee});
+        logToJSON({ hexTxfromPsbt, fee });
+        // Broadcast the transaction
+        const txid = await sendrawtransaction(hexTxfromPsbt, btcRegtestClient);
+        console.log("txid", txid);
     });
     // it("should sign staking psbt", () => {
     //     vaultWasm.build_staking_output(BigInt(10000100000), stakerKeyPair.publicKey, protocolKeyPair.publicKey, custodial_pubkeys, 1, false, dst_chain_id, dst_smart_contract_address, dst_user_address)

@@ -4,8 +4,8 @@ import * as bitcoin from "bitcoinjs-lib";
 import * as ecc from "tiny-secp256k1";
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
 
+bitcoin.initEccLib(ecc);
 export const ECPair = ECPairFactory(ecc);
-
 
 const BASE_BYTES = 10.5;
 const INPUT_BYTES_BASE = 57.5;
@@ -20,7 +20,16 @@ export const getPublicKeyNoCoord = (pkHex: string): Buffer => {
   const publicKey = Buffer.from(pkHex, "hex");
   return publicKey.subarray(1, 33);
 };
-
+export const publicKeyToP2trScript = (publicKey: string, network: bitcoin.Network): Uint8Array => {
+  const p2pktr = bitcoin.payments.p2tr({
+    pubkey: getPublicKeyNoCoord(publicKey),
+    network
+  });
+  if (!p2pktr.output) {
+    throw new Error("Failed to create p2tr script");
+  }
+  return p2pktr.output;   
+};
 export const addressToOutputScript = (address: string, network: bitcoin.Network): Uint8Array => {
   return bitcoin.address.toOutputScript(address, network);
 };
