@@ -67,9 +67,9 @@ async function createBondingTransaction(bondingAmount: number): Promise<{
   const { fees } = defaultMempoolClient;
   const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
   const rbf = true; // Replace by fee, need to be true if we want to replace the transaction when the fee is low
-  let vaultWasm = createVaultWasm(globalParams.tag, globalParams.version);
   const outputs = buildStakingOutput(
-    vaultWasm,
+    globalParams.tag,
+    globalParams.version,
     BigInt(bondingAmount),
     globalParams.bondHolderPublicKey,
     globalParams.bondHolderPublicKey,

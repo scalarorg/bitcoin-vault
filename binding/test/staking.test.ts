@@ -1,6 +1,16 @@
 
 import * as bitcoin from "bitcoinjs-lib";
-import { buildStakingOutput, createStakingPsbt, createVaultWasm, decodeStakingOutput, ECPair, getPublicKeyNoCoord, getStakingTxInputUTXOsAndFees, logToJSON, publicKeyToP2trScript, signPsbt } from "@/utils";
+import {
+    buildStakingOutput,
+    createStakingPsbt,
+    createVaultWasm,
+    decodeStakingOutput,
+    ECPair,
+    getStakingTxInputUTXOsAndFees,
+    logToJSON,
+    prepareExtraInputByAddress,
+    signPsbt
+} from "@/utils";
 import { bytesToHex, hexToBytes } from "@/utils/encode";
 import { defaultMempoolClient, getAddressUtxos, sendrawtransaction } from "@/client";
 import { UTXO } from "@/types";
@@ -9,6 +19,7 @@ import Client from "bitcoin-core-ts";
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
 
 import { describe, it, beforeEach, expect } from "bun:test";
+import { buildUnsignedStakingPsbt } from "@/staking";
 
 //Start local regtest bitcoin node before running the test
 describe("Vault-Staking", () => {
@@ -68,7 +79,7 @@ describe("Vault-Staking", () => {
         expect(stakingOutputs[0].value).toBe(stakingAmount);
         const psbt = new bitcoin.Psbt({ network });
     });
-    it("should create staking psbt", async () => {
+    it("should create then sign staking psbt", async () => {
         const addressUtxos = await getAddressUtxos(stakerAddress, btcRegtestClient);
         console.log("utxos size:", addressUtxos.length);
         const regularUTXOs: UTXO[] = addressUtxos.map(
@@ -81,9 +92,9 @@ describe("Vault-Staking", () => {
         const { fees } = defaultMempoolClient;
         const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
         const rbf = true; // Replace by fee, need to be true if we want to replace the transaction when the fee is low
-        let vaultWasm = createVaultWasm(tag, version);
         const outputs = buildStakingOutput(
-            vaultWasm,
+            tag,
+            version,
             stakingAmount,
             stakerPubkey,
             protocolPubkey,
@@ -96,34 +107,37 @@ describe("Vault-Staking", () => {
         );
 
         //Create pay to taproot script pubkey
-        const scriptPubKey = publicKeyToP2trScript(
-            stakerPubkey,
-            network
-        );
+        // const scriptPubKey = publicKeyToP2trScript(
+        //     stakerPubkey,
+        //     network
+        // );
         
-        console.log("scriptPubKey", scriptPubKey);
+        // console.log("scriptPubKey", scriptPubKey);
+        const inputByAddress = prepareExtraInputByAddress(stakerAddress, stakerPubkey, network);
         const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
             network,
             regularUTXOs,
-            Buffer.from(scriptPubKey),
+            inputByAddress.outputScriptSize,
             Number(stakingAmount),
             feeRate,
             outputs
         );
         console.log("selectedUTXOs:", selectedUTXOs);
         console.log("fee", fee)
-        const publicKeyNoCoord = getPublicKeyNoCoord(
-            stakerPubkey
-        );
+        // const publicKeyNoCoord = getPublicKeyNoCoord(
+        //     stakerPubkey
+        // );
+        
         const { psbt: unsignedVaultPsbt, fee: estimatedFee } = createStakingPsbt(
             network,
-            publicKeyNoCoord,
+            inputByAddress,
             selectedUTXOs,
-            scriptPubKey,
+            //scriptPubKey,
             outputs,
             Number(stakingAmount),
             fee,
-            stakerAddress
+            stakerAddress,
+            rbf
         );
         console.log("TxInputs", unsignedVaultPsbt.txInputs);
         console.log("TxOutputs", unsignedVaultPsbt.txOutputs);
@@ -134,17 +148,40 @@ describe("Vault-Staking", () => {
             stakerPrivKey,
             unsignedVaultPsbt
         );
-        // --- Sign with staker
-        const hexTxfromPsbt = signedPsbt.extractTransaction().toHex();
-        logToJSON({ hexTxfromPsbt, fee });
-        // Broadcast the transaction
-        const txid = await sendrawtransaction(hexTxfromPsbt, btcRegtestClient);
+    });
+    it("should create, signed and broadcast staking psbt", async() => {
+        const addressUtxos = await getAddressUtxos(stakerAddress, btcRegtestClient);
+        console.log("utxos size:", addressUtxos.length);
+        const { fees } = defaultMempoolClient;
+        const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
+        //1. Build the unsigned psbt
+        const { psbt: unsignedVaultPsbt, fee: estimatedFee } = buildUnsignedStakingPsbt(
+            tag,
+            version,
+            network,
+            stakerAddress,
+            stakerPubkey,
+            protocolPubkey,
+            custodialPubkeys,
+            custodialQuorum,
+            dstChainId,
+            dstSmartContractAddress,
+            dstUserAddress,
+            addressUtxos,
+            feeRate,
+            stakingAmount
+        );
+        //2. Sign the psbt
+        const signedPsbt = signPsbt(
+            network,
+            stakerPrivKey,
+            unsignedVaultPsbt
+        );
+        //3. Extract the transaction and broadcast
+        const txHexfromPsbt = signedPsbt.extractTransaction().toHex();
+        logToJSON({ txHexfromPsbt, fee: estimatedFee });
+        //4. Broadcast the transaction
+        const txid = await sendrawtransaction(txHexfromPsbt, btcRegtestClient);
         console.log("txid", txid);
     });
-    // it("should sign staking psbt", () => {
-    //     vaultWasm.build_staking_output(BigInt(10000100000), stakerKeyPair.publicKey, protocolKeyPair.publicKey, custodial_pubkeys, 1, false, dst_chain_id, dst_smart_contract_address, dst_user_address)
-    //     const amount_bytes = new Uint8Array([0, 0, 0, 2, 84, 13, 106, 160]); // 10_000_100_000
-    //     const amount = new DataView(amount_bytes.buffer).getBigUint64(0);
-    //     expect(amount).toBe(BigInt(10000100000))
-    // });
 });

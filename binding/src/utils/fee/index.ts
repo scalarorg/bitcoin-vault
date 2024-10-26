@@ -41,7 +41,7 @@ import {
 export const getStakingTxInputUTXOsAndFees = (
   network: Network,
   availableUTXOs: UTXO[],
-  scriptPubKey: Buffer,
+  outputScriptSize: number,
   stakingAmount: number,
   feeRate: number,
   outputs: PsbtOutputExtended[],
@@ -64,7 +64,7 @@ export const getStakingTxInputUTXOsAndFees = (
     accumulatedValue += utxo.value;
 
     // Calculate the fee for the current set of UTXOs and outputs
-    const estimatedSize = getEstimatedSize(network, selectedUTXOs, scriptPubKey, outputs);
+    const estimatedSize = getEstimatedSize(network, selectedUTXOs, outputScriptSize, outputs);
     estimatedFee = estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);
     // Check if there will be any change left after the staking amount and fee.
     // If there is, a change output needs to be added, which also comes with an additional fee.
@@ -129,21 +129,20 @@ export const getWithdrawTxFee = (feeRate: number): number => {
 const getEstimatedSize = (
   network: Network,
   inputUtxos: UTXO[],
-  scriptPubKey: Buffer,
+  //scriptPubKey: Buffer,
+  outputScriptSize: number,
   outputs: PsbtOutputExtended[],
 ): number => {
   // Estimate the input size
   const inputSize = inputUtxos.reduce((acc: number, u: UTXO): number => {
-    const script = scriptPubKey;
-    console.log("getEstimatedSize#script", script);
-    const decompiledScript = bitcoinScript.decompile(script);
-    console.log("decompiledScript", decompiledScript);
-    if (!decompiledScript) {
-      throw new Error(
-        "Failed to decompile script when estimating fees for inputs",
-      );
-    }
-    return acc + getInputSizeByScript(script);
+    // const script = scriptPubKey;
+    // const decompiledScript = bitcoinScript.decompile(script);
+    // if (!decompiledScript) {
+    //   throw new Error(
+    //     "Failed to decompile script when estimating fees for inputs",
+    //   );
+    // }
+    return acc + outputScriptSize//getInputSizeByScript(script);
   }, 0);
 
   // Estimate the output size

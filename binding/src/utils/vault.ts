@@ -2,14 +2,17 @@ import { VaultWasm } from "@scalar/bitcoin-wasm";
 import { BTC_DUST_SAT, BTC_PUBKEY_SIZE } from "./constants";
 import { PsbtOutputExtended } from "../types/psbt";
 import { Network, Psbt } from "bitcoinjs-lib";
-import { UTXO } from "../types/btc";
+import { InputByAddress, UTXO } from "../types/btc";
 import { hexToBytes } from "./encode";
+import { fromBase58Check } from "bitcoinjs-lib/src/cjs/address";
+import { prepareExtraInputByAddress } from "./btc";
 
 export const createVaultWasm = (tag: string, version: number) => {
   return VaultWasm.new(hexToBytes(tag), version);
 };
 export const buildStakingOutput = (
-  vault: VaultWasm,
+  tag: string,
+  version: number,
   stakingAmount: bigint,
   stakerPubkey: string,
   protocolPubkey: string,
@@ -27,6 +30,7 @@ export const buildStakingOutput = (
       i * BTC_PUBKEY_SIZE
     );
   }
+  const vault = VaultWasm.new(hexToBytes(tag), version);
   const output_buffer = vault.build_staking_output(
     stakingAmount,
     hexToBytes(stakerPubkey),
@@ -69,32 +73,21 @@ export const buildUnstakingOutput = (
 };
 export const createStakingPsbt = (
   network: Network,
-  publicKeyNoCoord: Buffer,
+  inputByAddress:InputByAddress,
   selectedUTXOs: UTXO[],
-  //ScriptPubkey of all UTXOs
-  scriptPubKey: Uint8Array,
   psbtOutputs: PsbtOutputExtended[],
   amount: number,
   fee: number,
-  changeAddress: string
+  changeAddress: string,
+  rbf: boolean = true
   //lockHeight: number,
 ) => {
   // Create a partially signed transaction
   const psbt = new Psbt({ network });
   // Add the UTXOs provided as inputs to the transaction
   for (let i = 0; i < selectedUTXOs.length; ++i) {
-    const input = selectedUTXOs[i];
-    psbt.addInput({
-      hash: input.txid,
-      index: input.vout,
-      witnessUtxo: {
-        script: scriptPubKey,
-        value: BigInt(input.value),
-      },
-      // this is needed only if the wallet is in taproot mode
-      ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
-      sequence: 0xfffffffd, // Enable locktime by setting the sequence value to (RBF-able)
-    });
+    const input = utxoToInput(selectedUTXOs[i], inputByAddress, rbf);
+    psbt.addInput(input);
   }
 
   // Add the staking output to the transaction
@@ -138,6 +131,18 @@ export const createUnStakingPsbt = (
   return {
     psbt,
   };
+};
+const utxoToInput = (utxo: UTXO, inputByAddress: InputByAddress, rbf: boolean = true) => {
+  let baseInput = {
+    hash: utxo.txid,
+    index: utxo.vout,
+    witnessUtxo: {
+      script: inputByAddress.outputScript,
+      value: BigInt(utxo.value),
+    },
+  }
+  let input = inputByAddress.tapInternalKey ? { ...baseInput, tapInternalKey: inputByAddress.tapInternalKey } : (inputByAddress.redeemScript ? {...baseInput, redeemScript: inputByAddress.redeemScript} : baseInput);
+  return rbf ? { ...input, sequence: 0xfffffffd } : input;
 };
 export const inputValueSum = (inputUTXOs: UTXO[]): number => {
   return inputUTXOs.reduce((acc, utxo) => acc + utxo.value, 0);

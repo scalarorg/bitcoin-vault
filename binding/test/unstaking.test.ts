@@ -1,6 +1,6 @@
 
 import * as bitcoin from "bitcoinjs-lib";
-import { addressToOutputScript, buildStakingOutput, createStakingPsbt, createVaultWasm, decodeStakingOutput, getPublicKeyNoCoord, getStakingTxInputUTXOsAndFees, logToJSON, signPsbt } from "@/utils";
+import { buildStakingOutput, createStakingPsbt, createVaultWasm, decodeStakingOutput, getStakingTxInputUTXOsAndFees, logToJSON, signPsbt } from "@/utils";
 import { hexToBytes } from "@/utils/encode";
 import { defaultMempoolClient, getAddressUtxos } from "@/client";
 import { UTXO } from "@/types";

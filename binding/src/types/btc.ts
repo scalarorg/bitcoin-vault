@@ -20,6 +20,12 @@ export interface UTXO {
   // scriptPubKey: string;
 }
 
+export type InputByAddress = {
+  outputScript: Uint8Array,
+  outputScriptSize: number,
+  tapInternalKey?: Buffer,
+  redeemScript?: Uint8Array
+}
 
 // export interface BuildTxOptions {
 //   regularUTXOs: UTXO[];
