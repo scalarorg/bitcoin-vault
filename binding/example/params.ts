@@ -17,7 +17,7 @@ const getChainID = () => {
   if (destChainId.length % 2) {
     destChainId = "0" + destChainId;
   }
-  return destChainId;
+  return Number(destChainId);
 };
 
 const ConfigParamsSchema = z.object({
@@ -40,7 +40,7 @@ const ConfigParamsSchema = z.object({
   covenantQuorum: z.number().optional().default(1),
   tag: z.string().optional().default("01020304"),
   version: z.number().optional().default(0),
-  destChainId: z.string().min(1).default("11111111111"),
+  destChainId: z.bigint().min(BigInt(1)).default(BigInt(1337)),
   destUserAddress: z
     .string()
     .length(40)
