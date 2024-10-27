@@ -1,5 +1,8 @@
+use std::collections::BTreeMap;
+
 use bitcoin::{
     absolute,
+    consensus::Decodable,
     hashes::{sha256d::Hash as Sha256dHash, Hash},
     key::Secp256k1,
     opcodes::all::{
@@ -8,7 +11,7 @@ use bitcoin::{
     psbt::{Input, PsbtSighashType},
     script,
     secp256k1::All,
-    taproot::TaprootBuilder,
+    taproot::{ControlBlock, LeafVersion, TaprootBuilder},
     transaction, Amount, Psbt, PublicKey, ScriptBuf, Sequence, TapSighashType, Transaction, TxIn,
     TxOut, Witness, XOnlyPublicKey,
 };
@@ -365,6 +368,202 @@ impl StakingManager {
         Ok(embedded_data_script)
     }
 
+    /// Creates PSBT for User + Protocol spending
+    pub fn create_user_protocol_spend(
+        &self,
+        input_utxo: &UTXO,
+        staking_output: &TxOut,
+        user_pub_key: &PublicKey,
+        protocol_pub_key: &PublicKey,
+        have_only_covenants: bool,
+    ) -> Result<Psbt, StakingError> {
+        let (script, control_block) = Self::get_user_protocol_control_block(
+            &self.secp,
+            &user_pub_key.inner.x_only_public_key().0,
+            &protocol_pub_key.inner.x_only_public_key().0,
+            have_only_covenants,
+        )?;
+
+        self.create_user_protocol_psbt(
+            input_utxo,
+            staking_output,
+            user_pub_key,
+            protocol_pub_key,
+            control_block,
+            script,
+        )
+    }
+
+    fn create_user_protocol_psbt(
+        &self,
+        input_utxo: &UTXO,
+        staking_output: &TxOut,
+        user_pubkey: &PublicKey,
+        protocol_pubkey: &PublicKey,
+        control_block: ControlBlock,
+        script: ScriptBuf,
+    ) -> Result<Psbt, StakingError> {
+        let mut builder = TaprootBuilder::new();
+        builder = builder.add_leaf(1, script.clone())?;
+        let spend_info = builder
+            .finalize(&self.secp, *NUMS_BIP_341)
+            .map_err(|_| StakingError::TaprootFinalizationFailed)?;
+
+        // 1. Create the unsigned transaction
+        let unsigned_tx = Transaction {
+            version: transaction::Version::TWO,
+            lock_time: absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: input_utxo.outpoint,
+                script_sig: ScriptBuf::default(),
+                sequence: Sequence::MAX,
+                witness: Witness::default(),
+            }],
+            output: vec![staking_output.clone()],
+        };
+
+        // 2. Create base PSBT from unsigned transaction
+        let mut psbt =
+            Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| StakingError::FailedToCreatePSBT)?;
+
+        // 3. Create the PSBT input with Taproot-specific fields
+        let mut input = Input {
+            // Add the UTXO being spent
+            witness_utxo: Some(TxOut {
+                value: input_utxo.amount_in_sats,
+                script_pubkey: staking_output.script_pubkey.clone(),
+            }),
+
+            // Add Taproot-specific data
+            tap_internal_key: Some(control_block.internal_key),
+            tap_merkle_root: spend_info.merkle_root(),
+
+            // Add the script we're using to spend
+            tap_scripts: {
+                let mut map = BTreeMap::new();
+                map.insert(
+                    control_block.clone(),
+                    (script.clone(), LeafVersion::TapScript),
+                );
+                map
+            },
+
+            // Set default sighash type for Taproot
+            sighash_type: Some(PsbtSighashType::from(TapSighashType::All)),
+
+            ..Default::default()
+        };
+
+        // 4. Add key origin information for both user and protocol keys
+        let mut tap_key_origins = BTreeMap::new();
+
+        // Add user key origin
+        tap_key_origins.insert(
+            user_pubkey.inner.x_only_public_key().0,
+            (
+                vec![script.tapscript_leaf_hash()],
+                ([0u8; 4].into(), vec![].into()), // ? Check this
+            ), // Use [0u8; 4] for fingerprint
+        );
+
+        // Add protocol key origin
+        tap_key_origins.insert(
+            protocol_pubkey.inner.x_only_public_key().0,
+            (
+                vec![script.tapscript_leaf_hash()],
+                ([0u8; 4].into(), vec![].into()), // Use [0u8; 4] for fingerprint
+            ),
+        );
+
+        input.tap_key_origins = tap_key_origins;
+
+        // 5. Set the input in the PSBT
+        psbt.inputs = vec![input];
+
+        Ok(psbt)
+    }
+
+    fn get_user_protocol_control_block(
+        secp: &Secp256k1<All>,
+        user_pub_key: &XOnlyPublicKey,
+        protocol_pub_key: &XOnlyPublicKey,
+        have_only_covenants: bool,
+    ) -> Result<(ScriptBuf, ControlBlock), StakingError> {
+        let mut builder = TaprootBuilder::new();
+
+        // Create the script
+        let script = Self::user_protocol_banch(user_pub_key, protocol_pub_key);
+
+        // Add to builder with correct depth based on tree structure
+        if have_only_covenants {
+            builder = builder.add_leaf(2, script.clone())?;
+        } else {
+            builder = builder.add_leaf(1, script.clone())?;
+        }
+
+        // Finalize and get control block
+        let spend_info = builder
+            .finalize(secp, *NUMS_BIP_341)
+            .map_err(|_| StakingError::TaprootFinalizationFailed)?;
+
+        let control_block = spend_info
+            .control_block(&(script.clone(), LeafVersion::TapScript))
+            .ok_or(StakingError::ControlBlockNotFound)?;
+
+        Ok((script, control_block))
+    }
+
+    /// Gets control block for Covenants + User spending path
+    fn get_covenants_user_control_block(
+        secp: &Secp256k1<All>,
+        user_pub_key: &XOnlyPublicKey,
+        covenant_pubkeys: &[XOnlyPublicKey],
+        covenant_quorum: u8,
+    ) -> Result<(ScriptBuf, ControlBlock), StakingError> {
+        let mut builder = TaprootBuilder::new();
+
+        // Create the script
+        let script = Self::covenants_user_branch(covenant_pubkeys, covenant_quorum, user_pub_key)?;
+
+        // Always at depth 2 in the tree
+        builder = builder.add_leaf(2, script.clone())?;
+
+        let spend_info = builder
+            .finalize(secp, *NUMS_BIP_341)
+            .map_err(|_| StakingError::TaprootFinalizationFailed)?;
+
+        let control_block = spend_info
+            .control_block(&(script.clone(), LeafVersion::TapScript))
+            .ok_or(StakingError::ControlBlockNotFound)?;
+
+        Ok((script, control_block))
+    }
+
+    /// Gets control block for Only Covenants spending path
+    fn get_only_covenants_control_block(
+        secp: &Secp256k1<All>,
+        covenant_pubkeys: &[XOnlyPublicKey],
+        covenant_quorum: u8,
+    ) -> Result<(ScriptBuf, ControlBlock), StakingError> {
+        let mut builder = TaprootBuilder::new();
+
+        // Create the script
+        let script = Self::only_covenants_branch(covenant_pubkeys, covenant_quorum)?;
+
+        // Always at depth 2 in the tree
+        builder = builder.add_leaf(2, script.clone())?;
+
+        let spend_info = builder
+            .finalize(secp, *NUMS_BIP_341)
+            .map_err(|_| StakingError::TaprootFinalizationFailed)?;
+
+        let control_block = spend_info
+            .control_block(&(script.clone(), LeafVersion::TapScript))
+            .ok_or(StakingError::ControlBlockNotFound)?;
+
+        Ok((script, control_block))
+    }
+
     fn user_protocol_banch(
         user_pub_key: &XOnlyPublicKey,
         service_pub_key: &XOnlyPublicKey,
@@ -503,4 +702,276 @@ impl StakingManager {
 
         Ok(fee_amount)
     }
+
+    /// Creates PSBT for Covenants + Protocol spending
+    pub fn create_covenants_protocol_spend(
+        &self,
+        input_utxo: &UTXO,
+        staking_output: &TxOut,
+        protocol_pub_key: &PublicKey,
+        covenant_pubkeys: &[PublicKey],
+        covenant_quorum: u8,
+    ) -> Result<Psbt, StakingError> {
+        let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = covenant_pubkeys
+            .iter()
+            .map(|pk| pk.inner.x_only_public_key().0)
+            .collect();
+
+        let (script, control_block) = Self::get_covenants_protocol_control_block(
+            &self.secp,
+            &protocol_pub_key.inner.x_only_public_key().0,
+            &covenant_pubkeys_x_only,
+            covenant_quorum,
+        )?;
+
+        self.create_covenant_spend_psbt(
+            input_utxo,
+            staking_output,
+            protocol_pub_key,
+            covenant_pubkeys,
+            control_block,
+            script,
+        )
+    }
+
+    /// Creates PSBT for Covenants + User spending
+    pub fn create_covenants_user_spend(
+        &self,
+        input_utxo: &UTXO,
+        staking_output: &TxOut,
+        user_pub_key: &PublicKey,
+        covenant_pubkeys: &[PublicKey],
+        covenant_quorum: u8,
+    ) -> Result<Psbt, StakingError> {
+        let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = covenant_pubkeys
+            .iter()
+            .map(|pk| pk.inner.x_only_public_key().0)
+            .collect();
+
+        let (script, control_block) = Self::get_covenants_user_control_block(
+            &self.secp,
+            &user_pub_key.inner.x_only_public_key().0,
+            &covenant_pubkeys_x_only,
+            covenant_quorum,
+        )?;
+
+        self.create_covenant_spend_psbt(
+            input_utxo,
+            staking_output,
+            user_pub_key,
+            covenant_pubkeys,
+            control_block,
+            script,
+        )
+    }
+
+    /// Helper function to create PSBT for covenant spending paths
+    fn create_covenant_spend_psbt(
+        &self,
+        input_utxo: &UTXO,
+        staking_output: &TxOut,
+        main_pubkey: &PublicKey,
+        covenant_pubkeys: &[PublicKey],
+        control_block: ControlBlock,
+        script: ScriptBuf,
+    ) -> Result<Psbt, StakingError> {
+        let mut builder = TaprootBuilder::new();
+        builder = builder.add_leaf(2, script.clone())?;
+        let spend_info = builder
+            .finalize(&self.secp, *NUMS_BIP_341)
+            .map_err(|_| StakingError::TaprootFinalizationFailed)?;
+
+        // Create the unsigned transaction
+        let unsigned_tx = Transaction {
+            version: transaction::Version::TWO,
+            lock_time: absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: input_utxo.outpoint,
+                script_sig: ScriptBuf::default(),
+                sequence: Sequence::MAX,
+                witness: Witness::default(),
+            }],
+            output: vec![staking_output.clone()],
+        };
+
+        let mut psbt =
+            Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| StakingError::FailedToCreatePSBT)?;
+
+        // Create PSBT input with Taproot-specific fields
+        let mut input = Input {
+            witness_utxo: Some(TxOut {
+                value: input_utxo.amount_in_sats,
+                script_pubkey: staking_output.script_pubkey.clone(),
+            }),
+            tap_internal_key: Some(control_block.internal_key),
+            tap_merkle_root: spend_info.merkle_root(),
+            tap_scripts: {
+                let mut map = BTreeMap::new();
+                map.insert(
+                    control_block.clone(),
+                    (script.clone(), LeafVersion::TapScript),
+                );
+                map
+            },
+            sighash_type: Some(PsbtSighashType::from(TapSighashType::All)),
+            ..Default::default()
+        };
+
+        // Add key origin information for all keys
+        let script_hash = script.tapscript_leaf_hash();
+        let mut tap_key_origins = BTreeMap::new();
+
+        // Add main key (user or protocol)
+        tap_key_origins.insert(
+            main_pubkey.inner.x_only_public_key().0,
+            (
+                vec![script_hash], // Use TapLeafHash directly instead of converting to bytes
+                ([0u8; 4].into(), vec![].into()),
+            ),
+        );
+
+        // Add covenant keys
+        for pubkey in covenant_pubkeys {
+            tap_key_origins.insert(
+                pubkey.inner.x_only_public_key().0,
+                (
+                    vec![script_hash], // Use TapLeafHash directly instead of converting to bytes
+                    ([0u8; 4].into(), vec![].into()),
+                ),
+            );
+        }
+
+        input.tap_key_origins = tap_key_origins;
+        psbt.inputs = vec![input];
+
+        Ok(psbt)
+    }
+
+    /// Gets control block for Covenants + Protocol spending path
+    fn get_covenants_protocol_control_block(
+        secp: &Secp256k1<All>,
+        protocol_pub_key: &XOnlyPublicKey,
+        covenant_pubkeys: &[XOnlyPublicKey],
+        covenant_quorum: u8,
+    ) -> Result<(ScriptBuf, ControlBlock), StakingError> {
+        let mut builder = TaprootBuilder::new();
+
+        // Create the script
+        let script =
+            Self::covenants_protocol_branch(covenant_pubkeys, covenant_quorum, protocol_pub_key)?;
+
+        // Always at depth 2 in the tree
+        builder = builder.add_leaf(2, script.clone())?;
+
+        let spend_info = builder
+            .finalize(secp, *NUMS_BIP_341)
+            .map_err(|_| StakingError::TaprootFinalizationFailed)?;
+
+        let control_block = spend_info
+            .control_block(&(script.clone(), LeafVersion::TapScript))
+            .ok_or(StakingError::ControlBlockNotFound)?;
+
+        Ok((script, control_block))
+    }
+
+    /// Parses embedded data from a transaction's OP_RETURN output
+    ///
+    /// # Arguments
+    /// * `tx_hex` - The transaction hex string
+    ///
+    /// # Returns
+    /// * `Result<EmbeddedData, StakingError>` - The parsed embedded data or an error
+    ///
+    pub fn parse_embedded_data(tx_hex: Vec<u8>) -> Result<EmbeddedData, StakingError> {
+        // 1. Decode the transaction hex
+
+        let tx: Transaction = Decodable::consensus_decode(&mut tx_hex.as_slice())
+            .map_err(|_| StakingError::InvalidTransactionHex)?;
+
+        // 2. Find the OP_RETURN output
+        let op_return_output = tx
+            .output
+            .iter()
+            .find(|output| output.script_pubkey.is_op_return() && !output.script_pubkey.is_empty())
+            .ok_or(StakingError::NoEmbeddedData)?;
+
+        // 3. Get the script instructions
+        let mut instructions = op_return_output.script_pubkey.instructions();
+
+        // Skip OP_RETURN
+        instructions.next();
+
+        // Skip embedded data size
+        instructions.next();
+
+        // 4. Parse each field
+        let hash = instructions
+            .next()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .map_err(|_| StakingError::InvalidEmbeddedData)?
+            .push_bytes()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .to_owned()
+            .try_into()
+            .map_err(|_| StakingError::InvalidEmbeddedData)?;
+
+        let version = instructions
+            .next()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .map_err(|_| StakingError::InvalidEmbeddedData)?
+            .to_owned()
+            .push_bytes()
+            .ok_or(StakingError::InvalidEmbeddedData)?[0];
+
+        let destination_chain_id = instructions
+            .next()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .map_err(|_| StakingError::InvalidEmbeddedData)?
+            .push_bytes()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .to_owned()
+            .as_bytes()
+            .try_into()
+            .map_err(|_| StakingError::InvalidEmbeddedData)?;
+
+        let destination_contract = instructions
+            .next()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .map_err(|_| StakingError::InvalidEmbeddedData)?
+            .push_bytes()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .to_owned()
+            .as_bytes()
+            .try_into()
+            .map_err(|_| StakingError::InvalidEmbeddedData)?;
+
+        let destination_recipient = instructions
+            .next()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .map_err(|_| StakingError::InvalidEmbeddedData)?
+            .push_bytes()
+            .ok_or(StakingError::InvalidEmbeddedData)?
+            .to_owned()
+            .as_bytes()
+            .try_into()
+            .map_err(|_| StakingError::InvalidEmbeddedData)?;
+
+        Ok(EmbeddedData {
+            tag: hash,
+            version,
+            destination_chain_id,
+            destination_contract,
+            destination_recipient,
+        })
+    }
+}
+
+/// Struct to hold the parsed embedded data
+#[derive(Debug, Clone, PartialEq)]
+pub struct EmbeddedData {
+    pub tag: Vec<u8>,
+    pub version: u8,
+    pub destination_chain_id: DestinationChainId,
+    pub destination_contract: DestinationAddress,
+    pub destination_recipient: DestinationAddress,
 }
