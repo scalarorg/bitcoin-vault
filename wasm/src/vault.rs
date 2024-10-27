@@ -43,7 +43,7 @@ impl VaultWasm {
         destination_smartcontract_address: &[u8],
         destination_recipient_address: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
-        console::debug_1(&"Wasm#build_staking_output".into());
+        // console::debug_1(&"Wasm#build_staking_output".into());
         // let destination_smartcontract_address_str =
         //     String::from_utf8(destination_smartcontract_address.to_vec())
         //         .map_err(|e| JsValue::from(format!("{:?}", e)))?;
@@ -58,7 +58,7 @@ impl VaultWasm {
         let destination_contract_address: DestinationAddress = destination_smartcontract_address
             .try_into()
             .map_err(|e| JsValue::from(format!("{:?}", e)))?;
-        console::debug_1(&"Wasm#parsed destination_contract_address".into());
+        // console::debug_1(&"Wasm#parsed destination_contract_address".into());
         let destination_recipient_address: DestinationAddress = destination_recipient_address
             .try_into()
             .map_err(|e| JsValue::from(format!("{:?}", e)))?;

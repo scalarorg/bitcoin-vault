@@ -38,10 +38,7 @@ export const buildUnsignedStakingPsbt = (
   );
   // 2. Get the selected utxos and fees
   const inputByAddress = prepareExtraInputByAddress(stakerAddress, stakerPubkey, network);
-  // Todo: 
-  // Taivv: 2024-10-27 - Testing with p2wpkh on regtest due to dumprivate key for signing
  
-  console.log("inputByAddress", inputByAddress);
   const regularUTXOs: UTXO[] = addressUtxos.map(
       ({ txid, vout, value }: AddressTxsUtxo) => ({
           txid,
