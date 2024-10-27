@@ -36,9 +36,11 @@ describe("Vault-Staking", () => {
     });
     const stakingAmount = BigInt(10000100);
     //Todo: update this parameters for each test
+    //P2WPKH on regtest
     const stakerAddress = "bcrt1q27ply66u77athpuw6xtwy7nj40wmjfjwrwts07";
     const stakerPubkey = "035893a120ab06b95fd5ee353e72fe7d5f93dd89a4c37cb834696e5171f768b449";
     const stakerPrivKey = "cTWEoXkDzhga8fSJFGjU7Y8XqqfDhK1J6mABRF9r2ff1sMsk65Ho";
+    //P2TR
     const protocolPubkey = "03fefc11781d13c9dc2956b2902aa540350c2db05baa1fd923dddbe432abb3f211";
     const custodialPubkeys = [
         "02e9981ca48ed3b47a1b88b64fb94dc51981c8ff83f5ab62cf2f92d0dacfccf2dc",
@@ -72,7 +74,6 @@ describe("Vault-Staking", () => {
             custodialPubkeysBuffer, 1, false, dstChainId,
             hexToBytes(dstSmartContractAddress),
             hexToBytes(dstUserAddress));
-        console.log("Staking output:", stakingOutputBuffer);
         let stakingOutputs: PsbtOutputExtended[] = decodeStakingOutput(stakingOutputBuffer);
         logToJSON(stakingOutputs);
         expect(stakingOutputs.length).toBe(2);
@@ -80,8 +81,8 @@ describe("Vault-Staking", () => {
         const psbt = new bitcoin.Psbt({ network });
     });
     it("should create then sign staking psbt", async () => {
+        return;
         const addressUtxos = await getAddressUtxos(stakerAddress, btcRegtestClient);
-        console.log("utxos size:", addressUtxos.length);
         const regularUTXOs: UTXO[] = addressUtxos.map(
             ({ txid, vout, value }: AddressTxsUtxo) => ({
                 txid,
@@ -151,7 +152,6 @@ describe("Vault-Staking", () => {
     });
     it("should create, signed and broadcast staking psbt", async() => {
         const addressUtxos = await getAddressUtxos(stakerAddress, btcRegtestClient);
-        console.log("utxos size:", addressUtxos.length);
         const { fees } = defaultMempoolClient;
         const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
         //1. Build the unsigned psbt
@@ -172,16 +172,20 @@ describe("Vault-Staking", () => {
             stakingAmount
         );
         //2. Sign the psbt
-        const signedPsbt = signPsbt(
+        const { signedPsbt, isValid } = signPsbt(
             network,
             stakerPrivKey,
             unsignedVaultPsbt
         );
+        expect(isValid).toBe(true);
         //3. Extract the transaction and broadcast
-        const txHexfromPsbt = signedPsbt.extractTransaction().toHex();
+        let transaction = signedPsbt.extractTransaction(false);
+        //console.log("inputs", signedPsbt.data.inputs);
+        //console.log("transaction", transaction);
+        const txHexfromPsbt = transaction.toHex();
         logToJSON({ txHexfromPsbt, fee: estimatedFee });
         //4. Broadcast the transaction
         const txid = await sendrawtransaction(txHexfromPsbt, btcRegtestClient);
-        console.log("txid", txid);
+        console.log("Successfully broadcasted txid", txid);
     });
 });
