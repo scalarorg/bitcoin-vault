@@ -1,7 +1,19 @@
 import { z } from "zod";
 import * as bitcoin from "bitcoinjs-lib";
-import { createVaultWasm, ECPair, hexToBytes } from "@/utils";
+import {
+  createVaultWasm,
+  ECPair,
+  hexToBytes,
+  logToJSON,
+  signPsbt,
+} from "@/utils";
 import Client from "bitcoin-core-ts";
+import {
+  defaultMempoolClient,
+  getAddressUtxos,
+  sendrawtransaction,
+} from "@/client";
+import { buildUnsignedStakingPsbt } from "@/staking";
 
 export const readEnv = async () => {
   const envText = await Bun.file(".bitcoin/.env.btc").text();
@@ -118,5 +130,55 @@ export const setUpTest = async () => {
     stakerWif: bondHolderWif,
     stakerPubKey: keyPair.publicKey,
     protocolPubkey: hexToBytes(protocolPubkey),
+  };
+};
+
+export const setupStakingTx = async () => {
+  const TestSuite = await setUpTest();
+  const addressUtxos = await getAddressUtxos(
+    TestSuite.stakerAddress,
+    TestSuite.btcClient
+  );
+  const { fees } = defaultMempoolClient;
+  const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
+  //1. Build the unsigned psbt
+  const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
+    buildUnsignedStakingPsbt(
+      StaticEnv.TAG,
+      StaticEnv.VERSION,
+      TestSuite.network,
+      TestSuite.stakerAddress,
+      TestSuite.stakerPubKey,
+      TestSuite.protocolPubkey,
+      TestSuite.custodialPubkeys,
+      StaticEnv.CUSTODIAL_QUORUM,
+      StaticEnv.HAVE_ONLY_CUSTODIAL,
+      StaticEnv.DEST_CHAIN_ID,
+      hexToBytes(StaticEnv.DEST_SMART_CONTRACT_ADDRESS),
+      hexToBytes(StaticEnv.DEST_USER_ADDRESS),
+      addressUtxos,
+      feeRate,
+      StaticEnv.STAKING_AMOUNT
+    );
+  //2. Sign the psbt
+  const { signedPsbt, isValid } = signPsbt(
+    TestSuite.network,
+    TestSuite.stakerWif,
+    unsignedVaultPsbt
+  );
+
+  if (!isValid) {
+    throw new Error("Invalid psbt");
+  }
+  //3. Extract the transaction and broadcast
+  let transaction = signedPsbt.extractTransaction(false);
+  const txHexfromPsbt = transaction.toHex();
+  logToJSON({ txHexfromPsbt, fee: estimatedFee });
+  const txid = await sendrawtransaction(txHexfromPsbt, TestSuite.btcClient);
+  console.log("Successfully broadcasted txid", txid);
+  return {
+    txid,
+    txHexfromPsbt,
+    TestSuite,
   };
 };

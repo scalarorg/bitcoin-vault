@@ -6,7 +6,17 @@ pub use staking::*;
 mod utils;
 #[cfg(test)]
 mod tests {
-    use crate::{hex_to_vec, Parsing, StakingManager};
+    use bitcoin::{
+        hashes::Hash, key::Secp256k1, Address, Amount, CompressedPublicKey, Network, OutPoint,
+        PrivateKey, PublicKey, ScriptBuf, TxOut, Txid,
+    };
+
+    use crate::{
+        hex_to_vec, utils::get_env, BuildUserProtocolSpendParams, Parsing, PreviousStakingUTXO,
+        StakingManager, Unstaking,
+    };
+
+    static TEST_CUSTODIAL_QUORUM: u8 = 1;
 
     #[test]
     fn test_parse_embedded_data() {
@@ -15,5 +25,91 @@ mod tests {
 
         let result = StakingManager::parse_embedded_data(raw_tx).unwrap();
         println!("{:?}", result);
+    }
+
+    fn load_build_user_protocol_spend_params() -> BuildUserProtocolSpendParams {
+        let env = get_env();
+        let secp = &Secp256k1::new();
+
+        let user_privkey = PrivateKey::from_wif(&env.user_private_key).unwrap();
+        let user_pub_key = user_privkey.public_key(secp);
+
+        let compressed_pubkey = CompressedPublicKey::from_private_key(secp, &user_privkey).unwrap();
+
+        let user_address = Address::p2wpkh(&compressed_pubkey, Network::Regtest);
+
+        let protocol_privkey = PrivateKey::from_wif(&env.protocol_private_key).unwrap();
+        let protocol_pub_key = protocol_privkey.public_key(secp);
+
+        let covenant_pubkeys: Vec<PublicKey> = env
+            .covenant_private_keys
+            .iter()
+            .map(|k| PrivateKey::from_wif(k).unwrap().public_key(secp))
+            .collect();
+
+        println!("===== KEYS =====");
+        println!("user_pub_key: {:?}", user_pub_key.to_string());
+        println!("protocol_pub_key: {:?}", protocol_pub_key.to_string());
+        for (i, covenant_pubkey) in covenant_pubkeys.iter().enumerate() {
+            println!("covenant_pubkey {}: {:?}", i, covenant_pubkey.to_string());
+        }
+
+        println!("===== UTXOS =====");
+        println!("utxo_tx_id: {:?}", env.utxo_tx_id);
+        println!("utxo_vout: {:?}", env.utxo_vout);
+        println!("utxo_amount: {:?}", env.utxo_amount);
+        println!("script_pubkey: {:?}", env.script_pubkey);
+        println!("===== ---- =====");
+
+        BuildUserProtocolSpendParams {
+            input_utxo: PreviousStakingUTXO {
+                script_pubkey: user_address.script_pubkey(),
+                outpoint: OutPoint {
+                    txid: Txid::from_byte_array([0xFF; 32]),
+                    vout: 0,
+                },
+                amount_in_sats: Amount::from_sat(100_000),
+            },
+            unstaking_output: TxOut {
+                value: Amount::from_sat(env.utxo_amount - 1000), // 1000 sats for fees
+                script_pubkey: ScriptBuf::from_hex(&env.script_pubkey).unwrap(),
+            },
+            user_pub_key: user_pub_key,
+            protocol_pub_key: protocol_pub_key,
+            covenant_pubkeys,
+            covenant_quorum: TEST_CUSTODIAL_QUORUM,
+            have_only_covenants: false,
+            rbf: true,
+        }
+    }
+
+    #[test]
+    fn test_build_user_protocol_spend() {
+        let params = load_build_user_protocol_spend_params();
+
+        let manager = StakingManager::new(vec![1, 2, 3, 4], 1);
+
+        let psbt = manager.build_user_protocol_spend(&params).unwrap();
+        println!("{:?}", psbt);
+
+        // Verify PSBT structure
+        assert_eq!(psbt.inputs.len(), 1);
+        assert_eq!(psbt.outputs.len(), 1);
+
+        let input = &psbt.inputs[0];
+
+        // Verify witness UTXO
+        assert!(input.witness_utxo.is_some());
+        assert_eq!(
+            input.witness_utxo.as_ref().unwrap().value,
+            Amount::from_sat(100_000)
+        );
+
+        // Verify Taproot-specific fields
+        assert!(input.tap_internal_key.is_some());
+        assert!(input.tap_merkle_root.is_some());
+        assert!(!input.tap_scripts.is_empty());
+        assert!(!input.tap_key_origins.is_empty());
+        assert_eq!(input.tap_key_origins.len(), 2); // Should have both user and protocol keys
     }
 }

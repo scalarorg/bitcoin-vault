@@ -1,4 +1,4 @@
-use super::{ADDRESS_SIZE, CHAIN_ID_SIZE, UTXO};
+use super::{PreviousStakingUTXO, ADDRESS_SIZE, CHAIN_ID_SIZE, UTXO};
 use bitcoin::{PublicKey, TxOut};
 use validator::Validate;
 
@@ -20,18 +20,21 @@ pub struct BuildStakingOutputParams {
 }
 
 #[derive(Debug, Validate)]
-pub struct BuildUserProtocolSpendParams<'a> {
-    pub input_utxo: &'a UTXO,
-    pub staking_output: &'a TxOut,
-    pub user_pub_key: &'a PublicKey,
-    pub protocol_pub_key: &'a PublicKey,
+pub struct BuildUserProtocolSpendParams {
+    pub input_utxo: PreviousStakingUTXO,
+    pub unstaking_output: TxOut,
+    pub user_pub_key: PublicKey,
+    pub protocol_pub_key: PublicKey,
+    pub covenant_pubkeys: Vec<PublicKey>,
+    pub covenant_quorum: u8,
     pub have_only_covenants: bool,
+    pub rbf: bool,
 }
 
 #[derive(Debug, Validate)]
 pub struct BuildCovenantsProtocolSpendParams<'a> {
     pub input_utxo: &'a UTXO,
-    pub staking_output: &'a TxOut,
+    pub unstaking_output: &'a TxOut,
     pub protocol_pub_key: &'a PublicKey,
     pub covenant_pubkeys: &'a [PublicKey],
     pub covenant_quorum: u8,
@@ -40,7 +43,7 @@ pub struct BuildCovenantsProtocolSpendParams<'a> {
 #[derive(Debug, Validate)]
 pub struct BuildCovenantsUserSpendParams<'a> {
     pub input_utxo: &'a UTXO,
-    pub staking_output: &'a TxOut,
+    pub unstaking_output: &'a TxOut,
     pub protocol_pub_key: &'a PublicKey,
     pub covenant_pubkeys: &'a [PublicKey],
     pub covenant_quorum: u8,
