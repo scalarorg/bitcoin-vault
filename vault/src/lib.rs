@@ -6,88 +6,14 @@ pub use staking::*;
 mod utils;
 #[cfg(test)]
 mod tests {
-    // use std::str::FromStr;
+    use crate::{hex_to_vec, Parsing, StakingManager};
 
-    // use bitcoin::{key::Secp256k1, Amount, OutPoint, PrivateKey, PublicKey, ScriptBuf, Txid};
+    #[test]
+    fn test_parse_embedded_data() {
+        let tx_hex = "020000000001017161373459156dc2e40548b86a2d0818a8459c409355538278ad05ed46c5c3cd0000000000fdffffff03e4969800000000002251206ed59921fda3e5a9b2490dac5aea47f734432a5d2dbe5883cbb69df4796f882c00000000000000003d6a013504010203040100080000000000aa36a7141f98c06d8734d5a9ff0b53e3294626e62e4d232c14130c4810d57140e1e62967cbf742caeae91b6ece9b94b708000000001600141302a4ea98285baefb2d290de541d069356d88e90247304402205de8b44cceae9cdf6add698051f7ee171607a4e36c7df60d811f2a339263e398022072b873381018d79fd82b07ba8be52012cd9990491c6bc7274f48e5638c439d0d01210369f8edcde3c4e5e5082f7d772170bbd9803b8d4e0c788830c7227bcea8a5653400000000";
+        let raw_tx = hex_to_vec!(tx_hex);
 
-    // use super::*;
-    // use crate::utils::*;
-
-    // static STAKING_AMOUNT: u64 = 1000;
-    // static COVENANT_QUORUM: u8 = 1;
-    // static RBF: bool = true;
-    // static FEE_RATE: u64 = 1;
-    // static HAVE_ONLY_COVENANTS: bool = false;
-    // static DESTINATION_CHAIN_ID: [u8; 8] = [3; 8];
-    // static DESTINATION_CONTRACT_ADDRESS: [u8; 20] = [4; 20];
-    // static DESTINATION_RECIPIENT_ADDRESS: [u8; 20] = [5; 20];
-
-    // fn load_params() -> CreateStakingParams {
-    //     let env = get_env();
-    //     let secp = &Secp256k1::new();
-
-    //     let user_privkey = PrivateKey::from_wif(&env.user_private_key).unwrap();
-    //     let user_pub_key = user_privkey.public_key(secp);
-
-    //     let protocol_privkey = PrivateKey::from_wif(&env.protocol_private_key).unwrap();
-    //     let protocol_pub_key = protocol_privkey.public_key(secp);
-
-    //     let covenant_pubkeys: Vec<PublicKey> = env
-    //         .covenant_private_keys
-    //         .iter()
-    //         .map(|k| PrivateKey::from_wif(k).unwrap().public_key(secp))
-    //         .collect();
-
-    //     println!("===== KEYS =====");
-    //     println!("user_pub_key: {:?}", user_pub_key.to_string());
-    //     println!("protocol_pub_key: {:?}", protocol_pub_key.to_string());
-    //     for (i, covenant_pubkey) in covenant_pubkeys.iter().enumerate() {
-    //         println!("covenant_pubkey {}: {:?}", i, covenant_pubkey.to_string());
-    //     }
-
-    //     println!("===== UTXOS =====");
-    //     println!("utxo_tx_id: {:?}", env.utxo_tx_id);
-    //     println!("utxo_vout: {:?}", env.utxo_vout);
-    //     println!("utxo_amount: {:?}", env.utxo_amount);
-    //     println!("script_pubkey: {:?}", env.script_pubkey);
-    //     println!("===== ---- =====");
-
-    //     CreateStakingParams {
-    //         user_pub_key,
-    //         protocol_pub_key,
-    //         covenant_pubkeys,
-    //         covenant_quorum: COVENANT_QUORUM,
-    //         staking_amount: STAKING_AMOUNT,
-    //         utxos: vec![UTXO {
-    //             outpoint: OutPoint {
-    //                 txid: Txid::from_str(&env.utxo_tx_id).unwrap(),
-    //                 vout: env.utxo_vout,
-    //             },
-    //             amount_in_sats: Amount::from_sat(env.utxo_amount),
-    //         }],
-    //         script_pubkey: ScriptBuf::from_hex(&env.script_pubkey).unwrap(),
-    //         rbf: RBF,
-    //         fee_rate: FEE_RATE,
-    //         have_only_covenants: HAVE_ONLY_COVENANTS,
-    //         destination_chain_id: DESTINATION_CHAIN_ID,
-    //         destination_contract_address: DESTINATION_CONTRACT_ADDRESS,
-    //         destination_recipient_address: DESTINATION_RECIPIENT_ADDRESS,
-    //     }
-    // }
-
-    // #[test]
-    // fn test_create_unsigned_psbt() {
-    //     let params = load_params();
-
-    //     let staking_manager = StakingManager::new(vec![7, 7, 7, 7], 1);
-
-    //     let unsigned_psbt = staking_manager.create(&params).unwrap();
-
-    //     println!("Unsigned PSBT: {:?}", unsigned_psbt);
-
-    //     let output = unsigned_psbt.serialize();
-    //     println!("Serialized PSBT: {:?}", output);
-    //     let hex = unsigned_psbt.serialize_hex();
-    //     println!("Serialized PSBT hex: {:?}", hex);
-    // }
+        let result = StakingManager::parse_embedded_data(raw_tx).unwrap();
+        println!("{:?}", result);
+    }
 }

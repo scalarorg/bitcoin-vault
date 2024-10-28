@@ -488,7 +488,7 @@ impl Parsing for StakingManager {
             .try_into()
             .map_err(|_| StakingError::InvalidEmbeddedData)?;
 
-        let destination_contract = instructions
+        let destination_contract_address = instructions
             .next()
             .ok_or(StakingError::InvalidEmbeddedData)?
             .map_err(|_| StakingError::InvalidEmbeddedData)?
@@ -499,7 +499,7 @@ impl Parsing for StakingManager {
             .try_into()
             .map_err(|_| StakingError::InvalidEmbeddedData)?;
 
-        let destination_recipient = instructions
+        let destination_recipient_address = instructions
             .next()
             .ok_or(StakingError::InvalidEmbeddedData)?
             .map_err(|_| StakingError::InvalidEmbeddedData)?
@@ -514,8 +514,8 @@ impl Parsing for StakingManager {
             tag: hash,
             version,
             destination_chain_id,
-            destination_contract,
-            destination_recipient,
+            destination_contract_address,
+            destination_recipient_address,
         })
     }
 }

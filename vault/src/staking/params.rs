@@ -52,6 +52,6 @@ pub struct EmbeddedData {
     pub tag: Vec<u8>,
     pub version: u8,
     pub destination_chain_id: DestinationChainId,
-    pub destination_contract: DestinationAddress,
-    pub destination_recipient: DestinationAddress,
+    pub destination_contract_address: DestinationAddress,
+    pub destination_recipient_address: DestinationAddress,
 }
