@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { setupStakingTx, StaticEnv } from "./util";
-import { bytesToHex, hexToBytes, logToJSON, signPsbt } from "@/utils";
+import { bytesToHex, ECPair, hexToBytes, logToJSON, signPsbt } from "@/utils";
 import {
   buildUnsignedUnstakingUserProtocolPsbt,
   sendrawtransaction,
@@ -13,6 +13,10 @@ describe("Vault-Unstaking", () => {
 
     console.log("scriptPubkeyOfLocking", bytesToHex(scriptPubkeyOfLocking));
     console.log("txid", txid);
+
+    const protocolWif = "cREXtK6V2qJcbEMh6ioD8WEfDNfuiwUskRubtoieMGgTc6NptPkw";
+
+    const protocolKeyPair = ECPair.fromWIF(protocolWif, TestSuite.network);
 
     const psbtHex = buildUnsignedUnstakingUserProtocolPsbt(
       StaticEnv.TAG,
@@ -54,7 +58,7 @@ describe("Vault-Unstaking", () => {
     // simulate service sign the psbt
     const serviceSignedPsbt = signPsbt(
       TestSuite.network,
-      TestSuite.protocolWif,
+      protocolKeyPair.toWIF(),
       stakerSignedPsbt.signedPsbt,
       true
     );

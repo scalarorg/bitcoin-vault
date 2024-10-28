@@ -51,7 +51,6 @@ const StaticEnvSchema = z.object({
     .string()
     .length(40)
     .default("1F98C06D8734D5A9FF0b53e3294626E62e4d232C"),
-  PROTOCOL_PRIVATE_KEY: z.string().min(1),
 });
 
 export const StaticEnv = StaticEnvSchema.parse({
@@ -123,9 +122,6 @@ export const setUpTest = async () => {
     throw new Error("PROTOCOL_PUBLIC_KEY is not set");
   }
 
-  const protocolWif = StaticEnv.PROTOCOL_PRIVATE_KEY;
-  console.log("PROTOCOL_PRIVATE_KEY", protocolWif);
-  const protocolKeyPair = ECPair.fromWIF(protocolWif, network);
   return {
     network,
     btcClient,
@@ -136,8 +132,6 @@ export const setUpTest = async () => {
     stakerPubKey: keyPair.publicKey,
     stakerKeyPair: keyPair,
     protocolPubkey: hexToBytes(protocolPubkey),
-    protocolWif,
-    protocolKeyPair,
   };
 };
 
