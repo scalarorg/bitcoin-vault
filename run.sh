@@ -3,6 +3,8 @@ bitcoin() {
     NAME=${1:-bitcoin-regtest}
     docker run --rm -d \
         --name ${NAME} \
+        -p 18332:18332 \
+        -p 18333:18333 \
         -v $(pwd)/.bitcoin:/root/.bitcoin \
         -v $(pwd)/bitcoin.conf:/root/.bitcoin/bitcoin.conf \
         -v $(pwd)/bitcoin.sh:/root/bitcoin.sh \

@@ -6,28 +6,37 @@ pub use staking::*;
 mod utils;
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use bitcoin::{
+        hashes::Hash, key::Secp256k1, Address, Amount, CompressedPublicKey, Network, OutPoint,
+        PrivateKey, PublicKey, ScriptBuf, TxOut, Txid,
+    };
 
-    use bitcoin::{key::Secp256k1, Amount, OutPoint, PrivateKey, PublicKey, ScriptBuf, Txid};
+    use crate::{
+        hex_to_vec, utils::get_env, BuildUserProtocolSpendParams, Parsing, PreviousStakingUTXO,
+        StakingManager, Unstaking,
+    };
 
-    use super::*;
-    use crate::utils::*;
+    static TEST_CUSTODIAL_QUORUM: u8 = 1;
 
-    static STAKING_AMOUNT: u64 = 1000;
-    static COVENANT_QUORUM: u8 = 1;
-    static RBF: bool = true;
-    static FEE_RATE: u64 = 1;
-    static HAVE_ONLY_COVENANTS: bool = false;
-    static DESTINATION_CHAIN_ID: [u8; 8] = [3; 8];
-    static DESTINATION_CONTRACT_ADDRESS: [u8; 20] = [4; 20];
-    static DESTINATION_RECIPIENT_ADDRESS: [u8; 20] = [5; 20];
+    #[test]
+    fn test_parse_embedded_data() {
+        let tx_hex = "020000000001017161373459156dc2e40548b86a2d0818a8459c409355538278ad05ed46c5c3cd0000000000fdffffff03e4969800000000002251206ed59921fda3e5a9b2490dac5aea47f734432a5d2dbe5883cbb69df4796f882c00000000000000003d6a013504010203040100080000000000aa36a7141f98c06d8734d5a9ff0b53e3294626e62e4d232c14130c4810d57140e1e62967cbf742caeae91b6ece9b94b708000000001600141302a4ea98285baefb2d290de541d069356d88e90247304402205de8b44cceae9cdf6add698051f7ee171607a4e36c7df60d811f2a339263e398022072b873381018d79fd82b07ba8be52012cd9990491c6bc7274f48e5638c439d0d01210369f8edcde3c4e5e5082f7d772170bbd9803b8d4e0c788830c7227bcea8a5653400000000";
+        let raw_tx = hex_to_vec!(tx_hex);
 
-    fn load_params() -> CreateStakingParams {
+        let result = StakingManager::parse_embedded_data(raw_tx).unwrap();
+        println!("{:?}", result);
+    }
+
+    fn load_build_user_protocol_spend_params() -> BuildUserProtocolSpendParams {
         let env = get_env();
         let secp = &Secp256k1::new();
 
         let user_privkey = PrivateKey::from_wif(&env.user_private_key).unwrap();
         let user_pub_key = user_privkey.public_key(secp);
+
+        let compressed_pubkey = CompressedPublicKey::from_private_key(secp, &user_privkey).unwrap();
+
+        let user_address = Address::p2wpkh(&compressed_pubkey, Network::Regtest);
 
         let protocol_privkey = PrivateKey::from_wif(&env.protocol_private_key).unwrap();
         let protocol_pub_key = protocol_privkey.public_key(secp);
@@ -52,42 +61,55 @@ mod tests {
         println!("script_pubkey: {:?}", env.script_pubkey);
         println!("===== ---- =====");
 
-        CreateStakingParams {
-            user_pub_key,
-            protocol_pub_key,
-            covenant_pubkeys,
-            covenant_quorum: COVENANT_QUORUM,
-            staking_amount: STAKING_AMOUNT,
-            utxos: vec![UTXO {
+        BuildUserProtocolSpendParams {
+            input_utxo: PreviousStakingUTXO {
+                script_pubkey: user_address.script_pubkey(),
                 outpoint: OutPoint {
-                    txid: Txid::from_str(&env.utxo_tx_id).unwrap(),
-                    vout: env.utxo_vout,
+                    txid: Txid::from_byte_array([0xFF; 32]),
+                    vout: 0,
                 },
-                amount_in_sats: Amount::from_sat(env.utxo_amount),
-            }],
-            script_pubkey: ScriptBuf::from_hex(&env.script_pubkey).unwrap(),
-            rbf: RBF,
-            fee_rate: FEE_RATE,
-            have_only_covenants: HAVE_ONLY_COVENANTS,
-            destination_chain_id: DESTINATION_CHAIN_ID,
-            destination_contract_address: DESTINATION_CONTRACT_ADDRESS,
-            destination_recipient_address: DESTINATION_RECIPIENT_ADDRESS,
+                amount_in_sats: Amount::from_sat(100_000),
+            },
+            unstaking_output: TxOut {
+                value: Amount::from_sat(env.utxo_amount - 1000), // 1000 sats for fees
+                script_pubkey: ScriptBuf::from_hex(&env.script_pubkey).unwrap(),
+            },
+            user_pub_key: user_pub_key,
+            protocol_pub_key: protocol_pub_key,
+            covenant_pubkeys,
+            covenant_quorum: TEST_CUSTODIAL_QUORUM,
+            have_only_covenants: false,
+            rbf: true,
         }
     }
 
     #[test]
-    fn test_create_unsigned_psbt() {
-        let params = load_params();
+    fn test_build_user_protocol_spend() {
+        let params = load_build_user_protocol_spend_params();
 
-        let staking_manager = StakingManager::new(vec![7, 7, 7, 7], 1);
+        let manager = StakingManager::new(vec![1, 2, 3, 4], 1);
 
-        let unsigned_psbt = staking_manager.create(&params).unwrap();
+        let psbt = manager.build_user_protocol_spend(&params).unwrap();
+        println!("{:?}", psbt);
 
-        println!("Unsigned PSBT: {:?}", unsigned_psbt);
+        // Verify PSBT structure
+        assert_eq!(psbt.inputs.len(), 1);
+        assert_eq!(psbt.outputs.len(), 1);
 
-        let output = unsigned_psbt.serialize();
-        println!("Serialized PSBT: {:?}", output);
-        let hex = unsigned_psbt.serialize_hex();
-        println!("Serialized PSBT hex: {:?}", hex);
+        let input = &psbt.inputs[0];
+
+        // Verify witness UTXO
+        assert!(input.witness_utxo.is_some());
+        assert_eq!(
+            input.witness_utxo.as_ref().unwrap().value,
+            Amount::from_sat(100_000)
+        );
+
+        // Verify Taproot-specific fields
+        assert!(input.tap_internal_key.is_some());
+        assert!(input.tap_merkle_root.is_some());
+        assert!(!input.tap_scripts.is_empty());
+        assert!(!input.tap_key_origins.is_empty());
+        assert_eq!(input.tap_key_origins.len(), 2); // Should have both user and protocol keys
     }
 }

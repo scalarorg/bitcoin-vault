@@ -17,4 +17,16 @@ pub enum StakingError {
     TaprootFinalizationFailed,
     #[error("Failed to create PSBT")]
     FailedToCreatePSBT,
+    #[error("Control block not found")]
+    ControlBlockNotFound,
+    #[error("Invalid transaction hex")]
+    InvalidTransactionHex,
+    #[error("Invalid embedded data")]
+    InvalidEmbeddedData,
+    #[error("Invalid control block")]
+    InvalidControlBlock,
+    #[error("Invalid script")]
+    InvalidScript,
+    #[error("No embedded data")]
+    NoEmbeddedData,
 }
