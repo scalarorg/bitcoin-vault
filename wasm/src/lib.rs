@@ -1,5 +1,3 @@
-use wasm_bindgen::prelude::wasm_bindgen;
-
 mod decoder;
 mod encoder;
 mod errors;

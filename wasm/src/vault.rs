@@ -2,10 +2,8 @@ use std::convert::TryInto;
 
 use crate::errors::VaultABIError;
 use crate::{decoder::Decoder, encoder::Encoder};
-use bitcoin::{Amount, TxOut};
 use bitcoin_vault::{BuildStakingOutputParams, DestinationAddress, Staking, StakingManager};
 use wasm_bindgen::prelude::*;
-use web_sys::console;
 impl From<VaultABIError> for JsValue {
     fn from(err: VaultABIError) -> Self {
         JsValue::from(err.to_string())
