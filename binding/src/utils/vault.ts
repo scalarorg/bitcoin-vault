@@ -1,11 +1,9 @@
 import { VaultWasm } from "@scalar/bitcoin-wasm";
-import { BTC_DUST_SAT, BTC_PUBKEY_SIZE } from "./constants";
-import { PsbtOutputExtended } from "../types/psbt";
 import { Network, Psbt } from "bitcoinjs-lib";
 import { InputByAddress, UTXO } from "../types/btc";
+import { PsbtOutputExtended } from "../types/psbt";
+import { BTC_DUST_SAT, BTC_PUBKEY_SIZE } from "./constants";
 import { hexToBytes } from "./encode";
-import { fromBase58Check } from "bitcoinjs-lib/src/cjs/address";
-import { prepareExtraInputByAddress } from "./btc";
 
 export const createVaultWasm = (tag: string, version: number) => {
   return VaultWasm.new(hexToBytes(tag), version);
@@ -14,33 +12,26 @@ export const buildStakingOutput = (
   tag: string,
   version: number,
   stakingAmount: bigint,
-  stakerPubkey: string,
-  protocolPubkey: string,
-  custodialPubkeys: string[],
+  stakerPubkey: Uint8Array,
+  protocolPubkey: Uint8Array,
+  custodialPubkeys: Uint8Array,
   covenantQuorum: number,
   haveOnlyCovenants: boolean,
   destinationChainId: bigint,
-  destinationSmartContractAddress: string,
-  destinationRecipientAddress: string
+  destinationSmartContractAddress: Uint8Array,
+  destinationRecipientAddress: Uint8Array
 ) => {
-  const pubkeys = new Uint8Array(custodialPubkeys.length * BTC_PUBKEY_SIZE);
-  for (let i = 0; i < custodialPubkeys.length; i++) {
-    pubkeys.set(
-      hexToBytes(custodialPubkeys[i]),
-      i * BTC_PUBKEY_SIZE
-    );
-  }
   const vault = VaultWasm.new(hexToBytes(tag), version);
   const output_buffer = vault.build_staking_output(
     stakingAmount,
-    hexToBytes(stakerPubkey),
-    hexToBytes(protocolPubkey),
-    pubkeys,
+    stakerPubkey,
+    protocolPubkey,
+    custodialPubkeys,
     covenantQuorum,
     haveOnlyCovenants,
     destinationChainId,
-    hexToBytes(destinationSmartContractAddress),
-    hexToBytes(destinationRecipientAddress)
+    destinationSmartContractAddress,
+    destinationRecipientAddress
   );
   // Decode the output buffer to a PsbtOutputExtended list
   return decodeStakingOutput(output_buffer);
@@ -73,7 +64,7 @@ export const buildUnstakingOutput = (
 };
 export const createStakingPsbt = (
   network: Network,
-  inputByAddress:InputByAddress,
+  inputByAddress: InputByAddress,
   selectedUTXOs: UTXO[],
   psbtOutputs: PsbtOutputExtended[],
   amount: number,
@@ -132,7 +123,11 @@ export const createUnStakingPsbt = (
     psbt,
   };
 };
-const utxoToInput = (utxo: UTXO, inputByAddress: InputByAddress, rbf: boolean = true) => {
+const utxoToInput = (
+  utxo: UTXO,
+  inputByAddress: InputByAddress,
+  rbf: boolean = true
+) => {
   let baseInput = {
     hash: utxo.txid,
     index: utxo.vout,
@@ -140,8 +135,12 @@ const utxoToInput = (utxo: UTXO, inputByAddress: InputByAddress, rbf: boolean = 
       script: inputByAddress.outputScript,
       value: BigInt(utxo.value),
     },
-  }
-  let input = inputByAddress.tapInternalKey ? { ...baseInput, tapInternalKey: inputByAddress.tapInternalKey } : (inputByAddress.redeemScript ? {...baseInput, redeemScript: inputByAddress.redeemScript} : baseInput);
+  };
+  let input = inputByAddress.tapInternalKey
+    ? { ...baseInput, tapInternalKey: inputByAddress.tapInternalKey }
+    : inputByAddress.redeemScript
+    ? { ...baseInput, redeemScript: inputByAddress.redeemScript }
+    : baseInput;
   return rbf ? { ...input, sequence: 0xfffffffd } : input;
 };
 export const inputValueSum = (inputUTXOs: UTXO[]): number => {

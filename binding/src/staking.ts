@@ -1,20 +1,26 @@
 import { Network } from "bitcoinjs-lib";
 import { UTXO } from "./types";
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
-import { buildStakingOutput, createStakingPsbt, getStakingTxInputUTXOsAndFees, prepareExtraInputByAddress } from "./utils";
+import {
+  buildStakingOutput,
+  createStakingPsbt,
+  getStakingTxInputUTXOsAndFees,
+  prepareExtraInputByAddress,
+} from "./utils";
 
 export const buildUnsignedStakingPsbt = (
   tag: string,
   version: number,
   network: Network,
   stakerAddress: string,
-  stakerPubkey: string,
-  protocolPubkey: string,
-  custodialPubkeys: string[],
+  stakerPubkey: Uint8Array,
+  protocolPubkey: Uint8Array,
+  custodialPubkeys: Uint8Array,
   custodialQuorum: number,
+  haveOnlyCustodial: boolean,
   dstChainId: bigint,
-  dstSmartContractAddress: string,
-  dstUserAddress: string,
+  dstSmartContractAddress: Uint8Array,
+  dstUserAddress: Uint8Array,
   addressUtxos: AddressTxsUtxo[],
   feeRate: number,
   stakingAmount: bigint,
@@ -24,35 +30,39 @@ export const buildUnsignedStakingPsbt = (
   //const p2trScriptPubKey = publicKeyToP2trScript(stakerPubkey, network);
   // 1. Create the staking output
   const outputs = buildStakingOutput(
-      tag,
-      version,
-      stakingAmount,
-      stakerPubkey,
-      protocolPubkey,
-      custodialPubkeys,
-      custodialQuorum,
-      false,
-      dstChainId,
-      dstSmartContractAddress,
-      dstUserAddress
+    tag,
+    version,
+    stakingAmount,
+    stakerPubkey,
+    protocolPubkey,
+    custodialPubkeys,
+    custodialQuorum,
+    haveOnlyCustodial,
+    dstChainId,
+    dstSmartContractAddress,
+    dstUserAddress
   );
   // 2. Get the selected utxos and fees
-  const inputByAddress = prepareExtraInputByAddress(stakerAddress, stakerPubkey, network);
- 
+  const inputByAddress = prepareExtraInputByAddress(
+    stakerAddress,
+    stakerPubkey,
+    network
+  );
+
   const regularUTXOs: UTXO[] = addressUtxos.map(
-      ({ txid, vout, value }: AddressTxsUtxo) => ({
-          txid,
-          vout,
-          value
-      })
+    ({ txid, vout, value }: AddressTxsUtxo) => ({
+      txid,
+      vout,
+      value,
+    })
   );
   const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
-      network,
-      regularUTXOs,
-      inputByAddress.outputScriptSize,
-      Number(stakingAmount),
-      feeRate,
-      outputs
+    network,
+    regularUTXOs,
+    inputByAddress.outputScriptSize,
+    Number(stakingAmount),
+    feeRate,
+    outputs
   );
   // 3. Create the psbt
   const { psbt, fee: estimatedFee } = createStakingPsbt(
@@ -67,6 +77,6 @@ export const buildUnsignedStakingPsbt = (
   );
   return {
     psbt,
-    fee: estimatedFee
-  }
-}
+    fee: estimatedFee,
+  };
+};
