@@ -108,7 +108,7 @@ export const prepareExtraInputByAddress = (
     tapInternalKey = publicKey.subarray(1, 33);
     outputScriptSize = P2TR_INPUT_SIZE;
   }
-  
+
   let redeemScript;
   if (addressType == AddressType.P2WSH) {
     redeemScript = bitcoin.payments.p2wpkh({
@@ -134,6 +134,7 @@ export const signPsbt = (
   const keyPair = ECPair.fromWIF(privkey, network);
   const signedPsbt = unsignedPsbt.signAllInputs(keyPair);
   if (finalize) {
+    console.log("finalize");
     signedPsbt.finalizeAllInputs();
   }
   for (let index = 0; index < signedPsbt.data.inputs.length; index++) {

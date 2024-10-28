@@ -51,6 +51,7 @@ const StaticEnvSchema = z.object({
     .string()
     .length(40)
     .default("1F98C06D8734D5A9FF0b53e3294626E62e4d232C"),
+  PROTOCOL_PRIVATE_KEY: z.string().min(1),
 });
 
 export const StaticEnv = StaticEnvSchema.parse({
@@ -69,6 +70,7 @@ export const StaticEnv = StaticEnvSchema.parse({
   DEST_CHAIN_ID: process.env.DEST_CHAIN_ID,
   DEST_USER_ADDRESS: process.env.DEST_USER_ADDRESS,
   DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS,
+  PROTOCOL_PRIVATE_KEY: process.env.PROTOCOL_PRIVATE_KEY,
 });
 
 export const setUpTest = async () => {
@@ -121,6 +123,9 @@ export const setUpTest = async () => {
     throw new Error("PROTOCOL_PUBLIC_KEY is not set");
   }
 
+  const protocolWif = StaticEnv.PROTOCOL_PRIVATE_KEY;
+  console.log("PROTOCOL_PRIVATE_KEY", protocolWif);
+  const protocolKeyPair = ECPair.fromWIF(protocolWif, network);
   return {
     network,
     btcClient,
@@ -129,7 +134,10 @@ export const setUpTest = async () => {
     stakerAddress: bondHolderAddress,
     stakerWif: bondHolderWif,
     stakerPubKey: keyPair.publicKey,
+    stakerKeyPair: keyPair,
     protocolPubkey: hexToBytes(protocolPubkey),
+    protocolWif,
+    protocolKeyPair,
   };
 };
 
@@ -176,9 +184,11 @@ export const setupStakingTx = async () => {
   logToJSON({ txHexfromPsbt, fee: estimatedFee });
   const txid = await sendrawtransaction(txHexfromPsbt, TestSuite.btcClient);
   console.log("Successfully broadcasted txid", txid);
+  const scriptPubkeyOfLocking = transaction.outs[0].script;
   return {
     txid,
     txHexfromPsbt,
     TestSuite,
+    scriptPubkeyOfLocking,
   };
 };

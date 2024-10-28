@@ -464,7 +464,7 @@ impl Unstaking for StakingManager {
             },
 
             // Set default sighash type for Taproot
-            sighash_type: Some(PsbtSighashType::from(TapSighashType::All)),
+            sighash_type: Some(PsbtSighashType::from(TapSighashType::Default)),
 
             ..Default::default()
         };
