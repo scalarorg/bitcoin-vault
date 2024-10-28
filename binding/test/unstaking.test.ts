@@ -6,17 +6,23 @@ import {
   sendrawtransaction,
 } from "../src";
 import { Psbt } from "bitcoinjs-lib";
+import { sleep } from "bun";
 
 describe("Vault-Unstaking", () => {
   it("should unstake for user", async () => {
     const { txid, TestSuite, scriptPubkeyOfLocking } = await setupStakingTx();
-
+    //loop until the tx is confirmed
+    while (true) {
+      console.log(new Date().toISOString(), "waiting for tx to be confirmed");
+      await sleep(15000);
+      const tx = await TestSuite.btcClient.command("getrawtransaction", txid, true);
+      console.log("tx.confirmations", tx.confirmations);  
+      if (tx.confirmations > 1) {
+        break;
+      }
+    }
     console.log("scriptPubkeyOfLocking", bytesToHex(scriptPubkeyOfLocking));
     console.log("txid", txid);
-
-    const protocolWif = "cREXtK6V2qJcbEMh6ioD8WEfDNfuiwUskRubtoieMGgTc6NptPkw";
-
-    const protocolKeyPair = ECPair.fromWIF(protocolWif, TestSuite.network);
 
     const psbtHex = buildUnsignedUnstakingUserProtocolPsbt(
       StaticEnv.TAG,
@@ -50,18 +56,20 @@ describe("Vault-Unstaking", () => {
       psbtFromHex,
       false
     );
-
+    console.log("stakerSignedPsbt inputs", stakerSignedPsbt.signedPsbt.data.inputs);
     console.log("stakerSignedPsbt", stakerSignedPsbt.signedPsbt.toHex());
 
     // Step 2: this Psbt will be sent to bla bla ... then received by relayer of service dApp
     // the service dApp will sign the psbt, finalize it and send to bitcoin network
     // simulate service sign the psbt
+    console.log("sign by protocol private key", TestSuite.protocolKeyPair.toWIF());
     const serviceSignedPsbt = signPsbt(
       TestSuite.network,
-      protocolKeyPair.toWIF(),
+      TestSuite.protocolKeyPair.toWIF(),
       stakerSignedPsbt.signedPsbt,
-      true
+      true  
     );
+    console.log("serviceSignedPsbt tx", serviceSignedPsbt.signedPsbt.extractTransaction());
     const hexTxfromPsbt = serviceSignedPsbt.signedPsbt
       .extractTransaction()
       .toHex();

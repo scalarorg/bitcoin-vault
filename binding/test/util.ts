@@ -68,8 +68,7 @@ export const StaticEnv = StaticEnvSchema.parse({
   CUSTODIAL_NUMBER: process.env.CUSTODIAL_NUMBER,
   DEST_CHAIN_ID: process.env.DEST_CHAIN_ID,
   DEST_USER_ADDRESS: process.env.DEST_USER_ADDRESS,
-  DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS,
-  PROTOCOL_PRIVATE_KEY: process.env.PROTOCOL_PRIVATE_KEY,
+  DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS
 });
 
 export const setUpTest = async () => {
@@ -122,6 +121,11 @@ export const setUpTest = async () => {
     throw new Error("PROTOCOL_PUBLIC_KEY is not set");
   }
 
+  const protocolPrivkey = envMap.get("PROTOCOL_PRIVKEY");
+  if (!protocolPrivkey) {
+    throw new Error("PROTOCOL_PRIVKEY is not set");
+  }
+
   return {
     network,
     btcClient,
@@ -132,6 +136,7 @@ export const setUpTest = async () => {
     stakerPubKey: keyPair.publicKey,
     stakerKeyPair: keyPair,
     protocolPubkey: hexToBytes(protocolPubkey),
+    protocolKeyPair: ECPair.fromWIF(protocolPrivkey, network)
   };
 };
 

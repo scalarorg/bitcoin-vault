@@ -21,7 +21,7 @@ test() {
     bun test --cwd ./binding
 }
 build_test() {
-    build run --cwd ./wasm build
-    bun test --cwd ./binding
+    build
+    test
 }
 $@
