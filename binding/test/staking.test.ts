@@ -1,4 +1,3 @@
-
 import * as bitcoin from "bitcoinjs-lib";
 import {
     buildStakingOutput,
@@ -20,6 +19,7 @@ import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addre
 
 import { describe, it, beforeEach, expect } from "bun:test";
 import { buildUnsignedStakingPsbt } from "@/staking";
+import { readEnv } from "./util";
 
 //Start local regtest bitcoin node before running the test
 describe("Vault-Staking", () => {
@@ -58,7 +58,11 @@ describe("Vault-Staking", () => {
     const dstChainId = BigInt(11155111);
     const dstUserAddress =  "130C4810D57140e1E62967cBF742CaEaE91b6ecE";
     const dstSmartContractAddress = "1F98C06D8734D5A9FF0b53e3294626E62e4d232C";
-    beforeEach(() => {
+    beforeEach(async () => {
+        // Read and parse the env file
+        const envMap = await readEnv();
+        console.log("envMap", envMap);
+        // Existing code
         for (let i = 0; i < custodialNumber; i++) {
             custodialPubkeysBuffer.set(hexToBytes(custodialPubkeys[i]), i * 33);
         }

@@ -24,3 +24,4 @@ Cargo
 
 /target
 node_modules
+.bitcoin

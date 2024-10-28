@@ -75,7 +75,7 @@ export const prepareExtraInputByAddress = (address: string, publicKey: string, n
   //Address type
   
   if (decodeBase58 && addressType === AddressType.P2PKH) {
-    // This code get from Nguyen Ba Hoang
+    // This code get from Ba Hoang
     // Todo: check if this is correct
     const addressDecodedSub = Buffer.from(decodeBase58.hash).toString("hex");
     outputScript = new Uint8Array(Buffer.from(`76a914${addressDecodedSub}88ac`, "hex"));
