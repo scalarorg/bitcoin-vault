@@ -38,10 +38,17 @@ export const sendrawtransaction = async (hex: string, btcClient?: Client): Promi
     const txid = await client.command("sendrawtransaction", hex);
     return txid;
 }
+export const testmempoolaccept = async (hex: string, btcClient?: Client): Promise<any> => {
+    const client = btcClient || defaultClient;
+    return await client.command("testmempoolaccept", [hex]);
+};
+
 const btcNodeClient = {
     rpcClient: defaultClient,
     sendrawtransaction,
+    testmempoolaccept,
     getUnspentTransactionOutputs
 };
+
 
 export default btcNodeClient;

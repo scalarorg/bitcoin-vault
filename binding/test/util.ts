@@ -116,14 +116,14 @@ export const setUpTest = async () => {
 
   const keyPair = ECPair.fromWIF(bondHolderWif, network);
 
-  const protocolPubkey = envMap.get("PROTOCOL_PUBKEY");
+  const protocolPubkey = envMap.get("PROTOCOL_PUBLIC_KEY");
   if (!protocolPubkey) {
     throw new Error("PROTOCOL_PUBLIC_KEY is not set");
   }
 
-  const protocolPrivkey = envMap.get("PROTOCOL_PRIVKEY");
+  const protocolPrivkey = envMap.get("PROTOCOL_PRIVATE_KEY");
   if (!protocolPrivkey) {
-    throw new Error("PROTOCOL_PRIVKEY is not set");
+    throw new Error("PROTOCOL_PRIVATE_KEY is not set");
   }
 
   return {

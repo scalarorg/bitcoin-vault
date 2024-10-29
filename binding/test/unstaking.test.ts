@@ -4,9 +4,11 @@ import { bytesToHex, ECPair, hexToBytes, logToJSON, signPsbt } from "@/utils";
 import {
   buildUnsignedUnstakingUserProtocolPsbt,
   sendrawtransaction,
+  testmempoolaccept
 } from "../src";
 import { Psbt } from "bitcoinjs-lib";
 import { sleep } from "bun";
+
 
 describe("Vault-Unstaking", () => {
   it("should unstake for user", async () => {
@@ -75,6 +77,12 @@ describe("Vault-Unstaking", () => {
       .toHex();
 
     console.log("hexTxfromPsbt", hexTxfromPsbt);
+    const testRes = await testmempoolaccept(
+      hexTxfromPsbt,
+      TestSuite.btcClient
+    );
+    console.log("testRes", testRes);
+    expect(testRes.allowed).toBe(true);
 
     const unstakedTxid = await sendrawtransaction(
       hexTxfromPsbt,
