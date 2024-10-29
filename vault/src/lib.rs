@@ -1,7 +1,7 @@
+mod parser;
 mod staking;
-
+pub use parser::*;
 pub use staking::*;
-
 #[cfg(test)]
 mod utils;
 #[cfg(test)]
