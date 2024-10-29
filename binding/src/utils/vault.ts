@@ -5,9 +5,15 @@ import { PsbtOutputExtended } from "../types/psbt";
 import { BTC_DUST_SAT, BTC_PUBKEY_SIZE } from "./constants";
 import { hexToBytes } from "./encode";
 
+let GlobalVaultWasm: VaultWasm | null = null;
+
 export const createVaultWasm = (tag: string, version: number) => {
-  return VaultWasm.new(hexToBytes(tag), version);
+  if (!GlobalVaultWasm) {
+    GlobalVaultWasm = VaultWasm.new(hexToBytes(tag), version);
+  }
+  return GlobalVaultWasm;
 };
+
 export const buildStakingOutput = (
   tag: string,
   version: number,

@@ -1,6 +1,7 @@
 use bitcoin::{
+    hashes::Hash,
     key::constants::{PUBLIC_KEY_SIZE, SCHNORR_PUBLIC_KEY_SIZE},
-    Address, Amount, Network, OutPoint, PublicKey, ScriptBuf, XOnlyPublicKey,
+    Address, Amount, Network, OutPoint, PublicKey, ScriptBuf, Txid, XOnlyPublicKey,
 };
 
 use super::errors::VaultABIError;
@@ -9,6 +10,10 @@ pub struct Decoder;
 
 /// ABI Decoder for input data
 impl Decoder {
+    pub fn decode_txid(input: &[u8]) -> Result<Txid, VaultABIError> {
+        Txid::from_slice(input).map_err(|err| VaultABIError::DecodingError(format!("{:?}", err)))
+    }
+
     pub fn decode_address(input: &[u8]) -> Result<Address, VaultABIError> {
         let str = std::str::from_utf8(input)
             .map_err(|err| VaultABIError::DecodingError(format!("{}", err)))?;

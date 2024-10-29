@@ -63,12 +63,16 @@ mod tests {
 
         BuildUserProtocolSpendParams {
             input_utxo: PreviousStakingUTXO {
-                script_pubkey: user_address.script_pubkey(),
+                script_pubkey: ScriptBuf::from_hex(&env.script_pubkey).unwrap(),
                 outpoint: OutPoint {
-                    txid: Txid::from_byte_array([0xFF; 32]),
-                    vout: 0,
+                    txid: {
+                        let tx_bytes = hex_to_vec!(env.utxo_tx_id);
+                        let txid = Txid::from_slice(&tx_bytes).unwrap();
+                        txid
+                    },
+                    vout: env.utxo_vout,
                 },
-                amount_in_sats: Amount::from_sat(100_000),
+                amount_in_sats: Amount::from_sat(env.utxo_amount),
             },
             unstaking_output: TxOut {
                 value: Amount::from_sat(env.utxo_amount - 1000), // 1000 sats for fees
@@ -83,9 +87,15 @@ mod tests {
         }
     }
 
+    // 70736274ff01005d0200000001df0404d9a9baea8b6e71bfb3566517f1765300f6603f158bc530c3323f6dbd340000000000fdffffff01e49698000000000021036fb1229de5f62d82db8c93d4963d9824e6f3f32ed418fe62c2600f3771215207000000000001012be4969800000000002251206ed59921fda3e5a9b2490dac5aea47f734432a5d2dbe5883cbb69df4796f882c010304010000004215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0261f514bfc5d3d11cbcda229805f301ba525a11f8e977991191defa12e52f7d0452069f8edcde3c4e5e5082f7d772170bbd9803b8d4e0c788830c7227bcea8a56534ad206fb1229de5f62d82db8c93d4963d9824e6f3f32ed418fe62c2600f3771215207acc0211669f8edcde3c4e5e5082f7d772170bbd9803b8d4e0c788830c7227bcea8a5653425019d8a6a2d6991ddcecbaa320f0eb4caa2eae9ffe36e0694787767ccebab7ebe7b0000000021166fb1229de5f62d82db8c93d4963d9824e6f3f32ed418fe62c2600f377121520725019d8a6a2d6991ddcecbaa320f0eb4caa2eae9ffe36e0694787767ccebab7ebe7b0000000001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00118209edfc38420215722665dd8c9e79bbb99d546096a4062b2e3f0b565a53514d8420000
+
     #[test]
     fn test_build_user_protocol_spend() {
         let params = load_build_user_protocol_spend_params();
+
+        println!("===== PARAMS =====");
+        println!("{:?}", params);
+        println!("===== ---- =====");
 
         let manager = StakingManager::new(vec![1, 2, 3, 4], 1);
 
@@ -102,7 +112,7 @@ mod tests {
         assert!(input.witness_utxo.is_some());
         assert_eq!(
             input.witness_utxo.as_ref().unwrap().value,
-            Amount::from_sat(100_000)
+            Amount::from_sat(10_000_100)
         );
 
         // Verify Taproot-specific fields
@@ -111,5 +121,11 @@ mod tests {
         assert!(!input.tap_scripts.is_empty());
         assert!(!input.tap_key_origins.is_empty());
         assert_eq!(input.tap_key_origins.len(), 2); // Should have both user and protocol keys
+
+        println!("Tx hex: {:?}", psbt.serialize_hex());
     }
 }
+
+// 70736274ff0100520200000001df0404d9a9baea8b6e71bfb3566517f1765300f6603f158bc530c3323f6dbd340000000000fdffffff01fc929800000000001600141302a4ea98285baefb2d290de541d069356d88e9000000000001011fe4969800000000001600141302a4ea98285baefb2d290de541d069356d88e9010304010000004215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0261f514bfc5d3d11cbcda229805f301ba525a11f8e977991191defa12e52f7d0452069f8edcde3c4e5e5082f7d772170bbd9803b8d4e0c788830c7227bcea8a56534ad206fb1229de5f62d82db8c93d4963d9824e6f3f32ed418fe62c2600f3771215207acc0211669f8edcde3c4e5e5082f7d772170bbd9803b8d4e0c788830c7227bcea8a5653425019d8a6a2d6991ddcecbaa320f0eb4caa2eae9ffe36e0694787767ccebab7ebe7b0000000021166fb1229de5f62d82db8c93d4963d9824e6f3f32ed418fe62c2600f377121520725019d8a6a2d6991ddcecbaa320f0eb4caa2eae9ffe36e0694787767ccebab7ebe7b0000000001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00118209edfc38420215722665dd8c9e79bbb99d546096a4062b2e3f0b565a53514d8420000
+
+// 70736274ff0100520200000001473491f8456f7c77caf22a793c3c92d6c5b79650c6ebea818c18437bc6e3dd210000000000fdffffff01fc929800000000001600141302a4ea98285baefb2d290de541d069356d88e9000000000001012be4969800000000002251206ed59921fda3e5a9b2490dac5aea47f734432a5d2dbe5883cbb69df4796f882c010304010000004215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0261f514bfc5d3d11cbcda229805f301ba525a11f8e977991191defa12e52f7d0452069f8edcde3c4e5e5082f7d772170bbd9803b8d4e0c788830c7227bcea8a56534ad206fb1229de5f62d82db8c93d4963d9824e6f3f32ed418fe62c2600f3771215207acc0211669f8edcde3c4e5e5082f7d772170bbd9803b8d4e0c788830c7227bcea8a5653425019d8a6a2d6991ddcecbaa320f0eb4caa2eae9ffe36e0694787767ccebab7ebe7b0000000021166fb1229de5f62d82db8c93d4963d9824e6f3f32ed418fe62c2600f377121520725019d8a6a2d6991ddcecbaa320f0eb4caa2eae9ffe36e0694787767ccebab7ebe7b0000000001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00118209edfc38420215722665dd8c9e79bbb99d546096a4062b2e3f0b565a53514d8420000

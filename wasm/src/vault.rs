@@ -2,7 +2,12 @@ use std::convert::TryInto;
 
 use crate::errors::VaultABIError;
 use crate::{decoder::Decoder, encoder::Encoder};
-use bitcoin_vault::{BuildStakingOutputParams, DestinationAddress, Staking, StakingManager};
+use bitcoin::hashes::Hash;
+use bitcoin::{Amount, OutPoint, TxOut, Txid};
+use bitcoin_vault::{
+    BuildStakingOutputParams, BuildUserProtocolSpendParams, DestinationAddress,
+    PreviousStakingUTXO, Staking, StakingManager, Unstaking,
+};
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {
     fn from(err: VaultABIError) -> Self {
@@ -77,6 +82,56 @@ impl VaultWasm {
             Err(_) => Ok(vec![]),
         }
     }
+
+    #[wasm_bindgen]
+    pub fn build_user_protocol_spend(
+        &self,
+        input_script_pubkey: &[u8],
+        input_txid: &[u8],
+        input_vout: u32,
+        input_amount: u64,
+        output_script_pubkey: &[u8],
+        output_amount: u64,
+        staker_pubkey: &[u8],
+        protocol_pubkey: &[u8],
+        covenant_pubkeys: &[u8],
+        covenant_quorum: u8,
+        have_only_covenants: bool,
+        rbf: bool,
+    ) -> Result<Vec<u8>, JsValue> {
+        let txid: Txid = Decoder::decode_txid(input_txid)?;
+
+        let user_pub_key = Decoder::decode_33bytes_pubkey(staker_pubkey)?;
+        let protocol_pub_key = Decoder::decode_33bytes_pubkey(protocol_pubkey)?;
+        let covenant_pubkeys = Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)?;
+
+        let params = BuildUserProtocolSpendParams {
+            input_utxo: PreviousStakingUTXO {
+                script_pubkey: Decoder::decode_script_pubkey(input_script_pubkey),
+                outpoint: OutPoint {
+                    txid,
+                    vout: input_vout,
+                },
+                amount_in_sats: Amount::from_sat(input_amount),
+            },
+            unstaking_output: TxOut {
+                value: Amount::from_sat(output_amount),
+                script_pubkey: Decoder::decode_script_pubkey(output_script_pubkey),
+            },
+            user_pub_key,
+            protocol_pub_key,
+            covenant_pubkeys,
+            covenant_quorum,
+            have_only_covenants,
+            rbf,
+        };
+
+        match self.staking.build_user_protocol_spend(&params) {
+            Ok(psbt) => Ok(psbt.serialize()),
+            Err(_) => Ok(vec![]),
+        }
+    }
+
     #[wasm_bindgen]
     pub fn build_unstaking_output(
         &self,

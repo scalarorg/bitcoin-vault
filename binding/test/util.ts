@@ -38,7 +38,7 @@ const StaticEnvSchema = z.object({
   USERNAME: z.string().optional().default("user"),
   PASSWORD: z.string().optional().default("password"),
   WALLET_NAME: z.string().optional().default("legacy"),
-  STAKING_AMOUNT: z.bigint().optional().default(BigInt(10000100)),
+  STAKING_AMOUNT: z.bigint().optional().default(BigInt(10_000)),
   HAVE_ONLY_CUSTODIAL: z.boolean().optional().default(false),
   CUSTODIAL_QUORUM: z.number().optional().default(1),
   CUSTODIAL_NUMBER: z.number().optional().default(5),
@@ -68,7 +68,7 @@ export const StaticEnv = StaticEnvSchema.parse({
   CUSTODIAL_NUMBER: process.env.CUSTODIAL_NUMBER,
   DEST_CHAIN_ID: process.env.DEST_CHAIN_ID,
   DEST_USER_ADDRESS: process.env.DEST_USER_ADDRESS,
-  DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS,
+  DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS
 });
 
 export const setUpTest = async () => {
@@ -116,9 +116,14 @@ export const setUpTest = async () => {
 
   const keyPair = ECPair.fromWIF(bondHolderWif, network);
 
-  const protocolPubkey = envMap.get("PROTOCOL_PUBKEY");
+  const protocolPubkey = envMap.get("PROTOCOL_PUBLIC_KEY");
   if (!protocolPubkey) {
     throw new Error("PROTOCOL_PUBLIC_KEY is not set");
+  }
+
+  const protocolPrivkey = envMap.get("PROTOCOL_PRIVATE_KEY");
+  if (!protocolPrivkey) {
+    throw new Error("PROTOCOL_PRIVATE_KEY is not set");
   }
 
   return {
@@ -129,7 +134,9 @@ export const setUpTest = async () => {
     stakerAddress: bondHolderAddress,
     stakerWif: bondHolderWif,
     stakerPubKey: keyPair.publicKey,
+    stakerKeyPair: keyPair,
     protocolPubkey: hexToBytes(protocolPubkey),
+    protocolKeyPair: ECPair.fromWIF(protocolPrivkey, network)
   };
 };
 
@@ -176,9 +183,11 @@ export const setupStakingTx = async () => {
   logToJSON({ txHexfromPsbt, fee: estimatedFee });
   const txid = await sendrawtransaction(txHexfromPsbt, TestSuite.btcClient);
   console.log("Successfully broadcasted txid", txid);
+  const scriptPubkeyOfLocking = transaction.outs[0].script;
   return {
     txid,
     txHexfromPsbt,
     TestSuite,
+    scriptPubkeyOfLocking,
   };
 };
