@@ -26,6 +26,13 @@ describe("Vault-Unstaking", () => {
     console.log("scriptPubkeyOfLocking", bytesToHex(scriptPubkeyOfLocking));
     console.log("txid", txid);
 
+    const protocolWif = process.env.PROTOCOL_PRIVATE_KEY;
+    if (!protocolWif) {
+      throw new Error("PROTOCOL_PRIVATE_KEY is not set");
+    }
+
+    const protocolKeyPair = ECPair.fromWIF(protocolWif, TestSuite.network);
+
     const psbtHex = buildUnsignedUnstakingUserProtocolPsbt(
       StaticEnv.TAG,
       StaticEnv.VERSION,
@@ -37,7 +44,7 @@ describe("Vault-Unstaking", () => {
       },
       {
         script: hexToBytes("00141302a4ea98285baefb2d290de541d069356d88e9"),
-        value: BigInt(10000100) - BigInt(1000),
+        value: StaticEnv.STAKING_AMOUNT - BigInt(1000),
       },
       TestSuite.stakerPubKey,
       TestSuite.protocolPubkey,

@@ -87,12 +87,12 @@ impl Staking for StakingManager {
         params: &BuildStakingOutputParams,
     ) -> Result<Vec<TxOut>, Self::Error> {
         // TODO: 0.validate params by use validator create
-        let user_pub_key_x_only = params.user_pub_key.inner.x_only_public_key().0;
-        let protocol_pub_key_x_only = params.protocol_pub_key.inner.x_only_public_key().0;
+        let user_pub_key_x_only = XOnlyPublicKey::from(params.user_pub_key);
+        let protocol_pub_key_x_only = XOnlyPublicKey::from(params.protocol_pub_key);
         let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = params
             .covenant_pubkeys
             .iter()
-            .map(|pk| pk.inner.x_only_public_key().0)
+            .map(|pk| XOnlyPublicKey::from(*pk))
             .collect();
 
         let lock_script = Self::create_locking_script(
@@ -376,12 +376,12 @@ impl Unstaking for StakingManager {
         &self,
         params: &BuildUserProtocolSpendParams,
     ) -> Result<Psbt, Self::Error> {
-        let x_only_user_pub_key = params.user_pub_key.inner.x_only_public_key().0;
-        let x_only_protocol_pub_key = params.protocol_pub_key.inner.x_only_public_key().0;
+        let x_only_user_pub_key = XOnlyPublicKey::from(params.user_pub_key);
+        let x_only_protocol_pub_key = XOnlyPublicKey::from(params.protocol_pub_key);
         let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = params
             .covenant_pubkeys
             .iter()
-            .map(|pk| pk.inner.x_only_public_key().0)
+            .map(|pk| XOnlyPublicKey::from(*pk))
             .collect();
 
         let script = Self::user_protocol_banch(&x_only_user_pub_key, &x_only_protocol_pub_key);
@@ -482,12 +482,14 @@ impl Unstaking for StakingManager {
         let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = params
             .covenant_pubkeys
             .iter()
-            .map(|pk| pk.inner.x_only_public_key().0)
+            .map(|pk| XOnlyPublicKey::from(*pk))
             .collect();
+
+        let protocol_pub_key_x_only = XOnlyPublicKey::from(*params.protocol_pub_key);
 
         let (script, control_block) = Self::get_covenants_protocol_control_block(
             &self.secp,
-            &params.protocol_pub_key.inner.x_only_public_key().0,
+            &protocol_pub_key_x_only,
             &covenant_pubkeys_x_only,
             params.covenant_quorum,
         )?;
@@ -509,12 +511,14 @@ impl Unstaking for StakingManager {
         let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = params
             .covenant_pubkeys
             .iter()
-            .map(|pk| pk.inner.x_only_public_key().0)
+            .map(|pk| XOnlyPublicKey::from(*pk))
             .collect();
+
+        let user_pub_key_x_only = XOnlyPublicKey::from(*params.user_pub_key);
 
         let (script, control_block) = Self::get_covenants_user_control_block(
             &self.secp,
-            &params.protocol_pub_key.inner.x_only_public_key().0,
+            &user_pub_key_x_only,
             &covenant_pubkeys_x_only,
             params.covenant_quorum,
         )?;
@@ -522,7 +526,7 @@ impl Unstaking for StakingManager {
         self.create_covenant_spend_psbt(
             params.input_utxo,
             params.unstaking_output,
-            params.protocol_pub_key,
+            params.user_pub_key,
             params.covenant_pubkeys,
             control_block,
             script,
@@ -681,7 +685,7 @@ impl StakingManager {
 
         // Add main key (user or protocol)
         tap_key_origins.insert(
-            main_pubkey.inner.x_only_public_key().0,
+            XOnlyPublicKey::from(*main_pubkey),
             (
                 vec![script_hash], // Use TapLeafHash directly instead of converting to bytes
                 ([0u8; 4].into(), vec![].into()),
@@ -691,7 +695,7 @@ impl StakingManager {
         // Add covenant keys
         for pubkey in covenant_pubkeys {
             tap_key_origins.insert(
-                pubkey.inner.x_only_public_key().0,
+                XOnlyPublicKey::from(*pubkey),
                 (
                     vec![script_hash], // Use TapLeafHash directly instead of converting to bytes
                     ([0u8; 4].into(), vec![].into()),

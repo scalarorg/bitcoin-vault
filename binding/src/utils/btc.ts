@@ -135,7 +135,57 @@ export const signPsbt = (
   const signedPsbt = unsignedPsbt.signAllInputs(keyPair);
   if (finalize) {
     console.log("finalize");
+    console.log("=============SIGN ALL INPUTS =====================");
+    console.log(">>>>>>>>>> Before finalize:");
+    for (let i = 0; i < unsignedPsbt.data.inputs.length; i++) {
+      const input = unsignedPsbt.data.inputs[i];
+      if (input.tapScriptSig) {
+        for (let j = 0; j < input.tapScriptSig.length; j++) {
+          console.log("tapSig[" + j + "]: ");
+          console.log(
+            "pubkey: ",
+            Buffer.from(input.tapScriptSig[j].pubkey).toString("hex")
+          );
+
+          // 253, 212, 162, 174, 53, 23, 237, 166, 218, 209, 166, 142, 111, 89, 201, 231, 165, 69, 95, 91, 75, 31, 52, 117, 134, 128, 208, 82, 143, 54, 19, 220
+          console.log(
+            "leafHash: ",
+            Buffer.from(input.tapScriptSig[j].leafHash).toString("hex")
+          );
+          console.log(
+            "signature: ",
+            Buffer.from(input.tapScriptSig[j].signature).toString("hex")
+          );
+          console.log("\n");
+        }
+      }
+    }
     signedPsbt.finalizeAllInputs();
+    console.log(">>>>>>>>>> After finalize:");
+
+    for (let i = 0; i < signedPsbt.data.inputs.length; i++) {
+      const input = signedPsbt.data.inputs[i];
+      if (input.tapScriptSig) {
+        for (let j = 0; j < input.tapScriptSig.length; j++) {
+          console.log("-------");
+          console.log("tapSig[" + j + "]: ");
+          console.log(
+            "pubkey: ",
+            Buffer.from(input.tapScriptSig[j].pubkey).toString("hex")
+          );
+          console.log(
+            "leafHash: ",
+            Buffer.from(input.tapScriptSig[j].leafHash).toString("hex")
+          );
+          console.log(
+            "signature: ",
+            Buffer.from(input.tapScriptSig[j].signature).toString("hex")
+          );
+        }
+      }
+    }
+
+    console.log("=============FINALIZE ALL INPUTS =====================");
   }
   for (let index = 0; index < signedPsbt.data.inputs.length; index++) {
     let input = signedPsbt.data.inputs[index];

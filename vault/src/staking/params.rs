@@ -44,7 +44,7 @@ pub struct BuildCovenantsProtocolSpendParams<'a> {
 pub struct BuildCovenantsUserSpendParams<'a> {
     pub input_utxo: &'a UTXO,
     pub unstaking_output: &'a TxOut,
-    pub protocol_pub_key: &'a PublicKey,
+    pub user_pub_key: &'a PublicKey,
     pub covenant_pubkeys: &'a [PublicKey],
     pub covenant_quorum: u8,
 }
