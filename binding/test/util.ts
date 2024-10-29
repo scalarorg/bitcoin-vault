@@ -16,7 +16,7 @@ import {
 import { buildUnsignedStakingPsbt } from "@/staking";
 
 export const readEnv = async () => {
-  const envText = await Bun.file(".bitcoin/.env.btc").text();
+  const envText = await Bun.file(StaticEnv.BTC_ENV_PATH).text();
   const envMap = new Map(
     envText
       .split("\n")
@@ -51,6 +51,9 @@ const StaticEnvSchema = z.object({
     .string()
     .length(40)
     .default("1F98C06D8734D5A9FF0b53e3294626E62e4d232C"),
+  BTC_ENV_PATH: z.string().optional().default(".bitcoin/.env.btc"),
+  BOND_HOLDER_ADDRESS: z.string().optional(),
+  BOND_HOLDER_PRIVATE_KEY: z.string().optional(),
 });
 
 export const StaticEnv = StaticEnvSchema.parse({
@@ -68,7 +71,10 @@ export const StaticEnv = StaticEnvSchema.parse({
   CUSTODIAL_NUMBER: process.env.CUSTODIAL_NUMBER,
   DEST_CHAIN_ID: process.env.DEST_CHAIN_ID,
   DEST_USER_ADDRESS: process.env.DEST_USER_ADDRESS,
-  DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS
+  DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS,
+  BTC_ENV_PATH: process.env.BTC_ENV_PATH,
+  BOND_HOLDER_ADDRESS: process.env.BOND_HOLDER_ADDRESS,
+  BOND_HOLDER_PRIVATE_KEY: process.env.BOND_HOLDER_PRIVATE_KEY,
 });
 
 export const setUpTest = async () => {
@@ -104,12 +110,14 @@ export const setUpTest = async () => {
     custodialPubkeysBuffer.set(hexToBytes(custodialPubkeys[i]), i * 33);
   }
 
-  const bondHolderAddress = envMap.get("BOND_HOLDER_ADDRESS");
+  const bondHolderAddress =
+    StaticEnv.BOND_HOLDER_ADDRESS || envMap.get("BOND_HOLDER_ADDRESS");
   if (!bondHolderAddress) {
     throw new Error("BOND_HOLDER_ADDRESS is not set");
   }
 
-  const bondHolderWif = envMap.get("BOND_HOLDER_PRIVATE_KEY");
+  const bondHolderWif =
+    StaticEnv.BOND_HOLDER_PRIVATE_KEY || envMap.get("BOND_HOLDER_PRIVATE_KEY");
   if (!bondHolderWif) {
     throw new Error("BOND_HOLDER_PRIVATE_KEY is not set");
   }
@@ -136,12 +144,13 @@ export const setUpTest = async () => {
     stakerPubKey: keyPair.publicKey,
     stakerKeyPair: keyPair,
     protocolPubkey: hexToBytes(protocolPubkey),
-    protocolKeyPair: ECPair.fromWIF(protocolPrivkey, network)
+    protocolKeyPair: ECPair.fromWIF(protocolPrivkey, network),
   };
 };
 
 export const setupStakingTx = async () => {
   const TestSuite = await setUpTest();
+  console.log("TestSuite.stakerAddress", TestSuite.stakerAddress);
   const addressUtxos = await getAddressUtxos(
     TestSuite.stakerAddress,
     TestSuite.btcClient
