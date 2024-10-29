@@ -1,32 +1,27 @@
 use bitcoin::{Network, Transaction};
 
-use super::{error::ParserError, types::StakingData};
+use crate::types::{error::ParserError, VaultTransaction};
 
 pub trait ParsingStaking<Data> {
     fn parse(&self, tx_hex: &Transaction) -> Result<Data, ParserError>;
 }
 
 pub struct StakingParser {
-    network: Network,
     tag: Vec<u8>,
     version: u8,
 }
 impl StakingParser {
-    pub fn new(network: Network, tag: Vec<u8>, version: u8) -> Self {
-        Self {
-            network,
-            tag,
-            version,
-        }
+    pub fn new(tag: Vec<u8>, version: u8) -> Self {
+        Self { tag, version }
     }
 }
 
-impl ParsingStaking<StakingData> for StakingParser {
-    fn parse(&self, tx_hex: &Transaction) -> Result<StakingData, ParserError> {
-        Ok(StakingData {
-            tx_id: tx_hex.compute_txid(),
-            vout: 0,
-            amount: 0,
-        })
+impl ParsingStaking<VaultTransaction> for StakingParser {
+    fn parse(&self, tx: &Transaction) -> Result<VaultTransaction, ParserError> {
+        let vault_tx = VaultTransaction::try_from(tx)?;
+        if vault_tx.return_tx.tag != self.tag || vault_tx.return_tx.version != self.version {
+            return Err(ParserError::InvalidTag);
+        }
+        Ok(vault_tx)
     }
 }

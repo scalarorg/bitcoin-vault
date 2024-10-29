@@ -1,4 +1,3 @@
-mod error;
 mod staking;
 mod types;
 mod unstaking;

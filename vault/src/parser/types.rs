@@ -14,9 +14,3 @@ impl ParserConfig {
         }
     }
 }
-
-pub struct StakingData {
-    pub tx_id: Txid,
-    pub vout: u32,
-    pub amount: u64,
-}
