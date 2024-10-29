@@ -47,7 +47,7 @@ describe("Vault-Unstaking", () => {
         {
           txid,
           vout: 0,
-          value: StaticEnv.STAKING_AMOUNT,
+          value: StaticEnv.STAKING_AMOUNT, // 10_000
           script_pubkey: scriptPubkeyOfLocking,
         },
         {
@@ -63,9 +63,9 @@ describe("Vault-Unstaking", () => {
 
       const psbtStr = bytesToHex(psbtHex);
 
-      const psbtFromHex = Psbt.fromBuffer(hexToBytes(psbtStr));
+      console.log("psbtStr", psbtStr);
 
-      console.log("========= sign by staker ==========");
+      const psbtFromHex = Psbt.fromBuffer(hexToBytes(psbtStr));
 
       const stakerSignedPsbt = signPsbt(
         TestSuite.network,
