@@ -21,7 +21,7 @@ use lazy_static::lazy_static;
 use super::{
     BuildCovenantsProtocolSpendParams, BuildCovenantsUserSpendParams, BuildStakingOutputParams,
     BuildUserProtocolSpendParams, DestinationAddress, DestinationChainId, EmbeddedData,
-    StakingError, EMBEDDED_DATA_SCRIPT_SIZE, TAG_HASH_SIZE, UTXO,
+    ReversedPreviousStakingUTXO, StakingError, EMBEDDED_DATA_SCRIPT_SIZE, TAG_HASH_SIZE, UTXO,
 };
 
 lazy_static! {
@@ -395,12 +395,15 @@ impl Unstaking for StakingManager {
             params.have_only_covenants,
         )?;
 
+        // TODO: refactor this stuff, check ReversedPreviousStakingUTXO
+        let reversed_input_utxo = ReversedPreviousStakingUTXO::from(params.input_utxo.clone());
+
         // Create the unsigned transaction
         let unsigned_tx = Transaction {
             version: transaction::Version::TWO,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn {
-                previous_output: params.input_utxo.outpoint,
+                previous_output: reversed_input_utxo.outpoint,
                 script_sig: ScriptBuf::default(),
                 sequence: match params.rbf {
                     true => Sequence::ENABLE_RBF_NO_LOCKTIME,
@@ -420,8 +423,8 @@ impl Unstaking for StakingManager {
         let input = Input {
             // Add the UTXO being spent
             witness_utxo: Some(TxOut {
-                value: params.input_utxo.amount_in_sats,
-                script_pubkey: params.input_utxo.script_pubkey.clone(),
+                value: reversed_input_utxo.amount_in_sats,
+                script_pubkey: reversed_input_utxo.script_pubkey.clone(),
             }),
 
             // Add Taproot-specific data

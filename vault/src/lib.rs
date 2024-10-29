@@ -8,7 +8,7 @@ mod utils;
 mod tests {
     use bitcoin::{
         hashes::Hash, key::Secp256k1, Address, Amount, CompressedPublicKey, Network, OutPoint,
-        PrivateKey, Psbt, PublicKey, ScriptBuf, TxOut, Txid,
+        PrivateKey, PublicKey, ScriptBuf, TxOut, Txid,
     };
 
     use crate::{

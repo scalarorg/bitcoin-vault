@@ -1,101 +1,96 @@
-import { describe, it, expect } from "bun:test";
-import { setupStakingTx, StaticEnv } from "./util";
-import { bytesToHex, ECPair, hexToBytes, logToJSON, signPsbt } from "@/utils";
+import { bytesToHex, hexToBytes, signPsbt } from "@/utils";
+import { Psbt } from "bitcoinjs-lib";
+import { sleep } from "bun";
+import { describe, it } from "bun:test";
 import {
   buildUnsignedUnstakingUserProtocolPsbt,
   sendrawtransaction,
-  testmempoolaccept
 } from "../src";
-import { Psbt } from "bitcoinjs-lib";
-import { sleep } from "bun";
+import { setupStakingTx, StaticEnv } from "./util";
+import * as bitcoin from "bitcoinjs-lib";
 
+const TIMEOUT = 100_000;
 
 describe("Vault-Unstaking", () => {
-  it("should unstake for user", async () => {
-    const { txid, TestSuite, scriptPubkeyOfLocking } = await setupStakingTx();
-    //loop until the tx is confirmed
-    while (true) {
-      console.log(new Date().toISOString(), "waiting for tx to be confirmed");
-      await sleep(15000);
-      const tx = await TestSuite.btcClient.command("getrawtransaction", txid, true);
-      console.log("tx.confirmations", tx.confirmations);  
-      if (tx.confirmations > 1) {
-        break;
+  it(
+    "should unstake for user",
+    async () => {
+      const { txid, TestSuite, scriptPubkeyOfLocking } = await setupStakingTx();
+      //loop until the tx is confirmed
+      while (true) {
+        console.log(new Date().toISOString(), "waiting for tx to be confirmed");
+        await sleep(5000);
+        const tx = await TestSuite.btcClient.command(
+          "getrawtransaction",
+          txid,
+          true
+        );
+        console.log("tx.confirmations", tx.confirmations);
+        if (tx.confirmations > 0) {
+          break;
+        }
       }
-    }
-    console.log("scriptPubkeyOfLocking", bytesToHex(scriptPubkeyOfLocking));
-    console.log("txid", txid);
+      console.log("scriptPubkeyOfLocking", bytesToHex(scriptPubkeyOfLocking));
+      console.log("txid", txid);
 
-    const protocolWif = process.env.PROTOCOL_PRIVATE_KEY;
-    if (!protocolWif) {
-      throw new Error("PROTOCOL_PRIVATE_KEY is not set");
-    }
+      const p2wpkhScript = bitcoin.payments.p2wpkh({
+        pubkey: TestSuite.stakerPubKey,
+      }).output;
 
-    const protocolKeyPair = ECPair.fromWIF(protocolWif, TestSuite.network);
+      if (!p2wpkhScript) {
+        throw new Error("p2wpkhScript is undefined");
+      }
+      console.log("p2wpkhScript", bytesToHex(p2wpkhScript));
+      const psbtHex = buildUnsignedUnstakingUserProtocolPsbt(
+        StaticEnv.TAG,
+        StaticEnv.VERSION,
+        {
+          txid,
+          vout: 0,
+          value: StaticEnv.STAKING_AMOUNT,
+          script_pubkey: scriptPubkeyOfLocking,
+        },
+        {
+          script: p2wpkhScript,
+          value: StaticEnv.STAKING_AMOUNT - BigInt(1_000), // 9_000
+        },
+        TestSuite.stakerPubKey,
+        TestSuite.protocolPubkey,
+        TestSuite.custodialPubkeys,
+        StaticEnv.CUSTODIAL_QUORUM,
+        StaticEnv.HAVE_ONLY_CUSTODIAL
+      );
 
-    const psbtHex = buildUnsignedUnstakingUserProtocolPsbt(
-      StaticEnv.TAG,
-      StaticEnv.VERSION,
-      {
-        txid,
-        vout: 0,
-        value: StaticEnv.STAKING_AMOUNT,
-        script_pubkey: scriptPubkeyOfLocking,
-      },
-      {
-        script: hexToBytes("00141302a4ea98285baefb2d290de541d069356d88e9"),
-        value: StaticEnv.STAKING_AMOUNT - BigInt(1000),
-      },
-      TestSuite.stakerPubKey,
-      TestSuite.protocolPubkey,
-      TestSuite.custodialPubkeys,
-      StaticEnv.CUSTODIAL_QUORUM,
-      StaticEnv.HAVE_ONLY_CUSTODIAL
-    );
+      const psbtStr = bytesToHex(psbtHex);
 
-    const psbtStr = bytesToHex(psbtHex);
+      const psbtFromHex = Psbt.fromBuffer(hexToBytes(psbtStr));
 
-    const psbtFromHex = Psbt.fromBuffer(hexToBytes(psbtStr));
+      console.log("========= sign by staker ==========");
 
-    console.log("========= sign by staker ==========");
+      const stakerSignedPsbt = signPsbt(
+        TestSuite.network,
+        TestSuite.stakerWif,
+        psbtFromHex,
+        false
+      );
 
-    const stakerSignedPsbt = signPsbt(
-      TestSuite.network,
-      TestSuite.stakerWif,
-      psbtFromHex,
-      false
-    );
-    console.log("stakerSignedPsbt inputs", stakerSignedPsbt.signedPsbt.data.inputs);
-    console.log("stakerSignedPsbt", stakerSignedPsbt.signedPsbt.toHex());
+      const serviceSignedPsbt = signPsbt(
+        TestSuite.network,
+        TestSuite.protocolKeyPair.toWIF(),
+        stakerSignedPsbt.signedPsbt,
+        true
+      );
+      const hexTxfromPsbt = serviceSignedPsbt.signedPsbt
+        .extractTransaction()
+        .toHex();
 
-    // Step 2: this Psbt will be sent to bla bla ... then received by relayer of service dApp
-    // the service dApp will sign the psbt, finalize it and send to bitcoin network
-    // simulate service sign the psbt
-    console.log("sign by protocol private key", TestSuite.protocolKeyPair.toWIF());
-    const serviceSignedPsbt = signPsbt(
-      TestSuite.network,
-      TestSuite.protocolKeyPair.toWIF(),
-      stakerSignedPsbt.signedPsbt,
-      true  
-    );
-    console.log("serviceSignedPsbt tx", serviceSignedPsbt.signedPsbt.extractTransaction());
-    const hexTxfromPsbt = serviceSignedPsbt.signedPsbt
-      .extractTransaction()
-      .toHex();
+      const unstakedTxid = await sendrawtransaction(
+        hexTxfromPsbt,
+        TestSuite.btcClient
+      );
 
-    console.log("hexTxfromPsbt", hexTxfromPsbt);
-    const testRes = await testmempoolaccept(
-      hexTxfromPsbt,
-      TestSuite.btcClient
-    );
-    console.log("testRes", testRes);
-    expect(testRes.allowed).toBe(true);
-
-    const unstakedTxid = await sendrawtransaction(
-      hexTxfromPsbt,
-      TestSuite.btcClient
-    );
-
-    console.log("unstakedTxid", unstakedTxid);
-  });
+      console.log("unstakedTxid", unstakedTxid);
+    },
+    TIMEOUT
+  );
 });

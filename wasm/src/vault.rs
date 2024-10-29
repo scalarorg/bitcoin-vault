@@ -99,14 +99,11 @@ impl VaultWasm {
         have_only_covenants: bool,
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
-        let txid = Txid::from_slice(input_txid).map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        let txid: Txid = Decoder::decode_txid(input_txid)?;
 
-        let user_pub_key = Decoder::decode_33bytes_pubkey(staker_pubkey)
-            .map_err(|e| JsValue::from(format!("{:?}", e)))?;
-        let protocol_pub_key = Decoder::decode_33bytes_pubkey(protocol_pubkey)
-            .map_err(|e| JsValue::from(format!("{:?}", e)))?;
-        let covenant_pubkeys = Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)
-            .map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        let user_pub_key = Decoder::decode_33bytes_pubkey(staker_pubkey)?;
+        let protocol_pub_key = Decoder::decode_33bytes_pubkey(protocol_pubkey)?;
+        let covenant_pubkeys = Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)?;
 
         let params = BuildUserProtocolSpendParams {
             input_utxo: PreviousStakingUTXO {
