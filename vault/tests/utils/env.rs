@@ -84,3 +84,20 @@ impl Env {
         Ok(env)
     }
 }
+
+impl Default for Env {
+    fn default() -> Self {
+        Env {
+            btc_node_address: "localhost:18332".to_string(),
+            btc_node_user: "user".to_string(),
+            btc_node_password: "password".to_string(),
+            user_private_key: "".to_string(),
+            protocol_private_key: "".to_string(),
+            covenant_private_keys: vec![],
+            utxo_tx_id: "".to_string(),
+            utxo_amount: 0,
+            utxo_vout: 0,
+            script_pubkey: "".to_string(),
+        }
+    }
+}
