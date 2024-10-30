@@ -1,10 +1,11 @@
-use bitcoin::{hashes::Hash, Amount, ScriptBuf, Transaction, TxIn, TxOut};
+use bitcoin::{Amount, ScriptBuf, Transaction, TxIn, TxOut};
+use serde::{Deserialize, Serialize};
 
 use crate::{DestinationAddress, DestinationChainId};
 
 use super::error::ParserError;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct VaultLockTxOutput {
     pub amount: Amount,
     pub script_pubkey: ScriptBuf,
@@ -17,7 +18,7 @@ impl From<&TxOut> for VaultLockTxOutput {
         }
     }
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct VaultReturnTxOutput {
     pub tag: Vec<u8>,
     pub version: u8,
@@ -91,7 +92,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         })
     }
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct VaultChangeTxOutput {
     pub amount: Amount,
     pub address: String,
@@ -104,7 +105,7 @@ impl From<&TxOut> for VaultChangeTxOutput {
         }
     }
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct VaultTransaction {
     // 32 bytes hex string txid
     pub txid: String,
