@@ -73,8 +73,8 @@ pub trait Signing {
         psbt: &mut Psbt,
         privkey: &[u8],
         network_kind: NetworkKind,
-        finalize: Option<bool>,
-    ) -> Result<SigningKeysMap, StakingError>;
+        finalize: bool,
+    ) -> Result<(), StakingError>;
 
     fn sign_psbt_by_wif(
         &self,
@@ -816,23 +816,23 @@ impl Signing for StakingManager {
         psbt: &mut Psbt,
         privkey: &[u8],
         network_kind: NetworkKind,
-        finalize: Option<bool>,
-    ) -> Result<SigningKeysMap, StakingError> {
+        finalize: bool,
+    ) -> Result<(), StakingError> {
         let key_map = SigningKeyMap::from_privkey_slice(&self.secp, privkey, network_kind)
             .map_err(|err| StakingError::InvalidPrivateKey(err.to_string()))?;
 
-        let result = psbt.sign_by_key_map(&key_map, &self.secp).map_err(|err| {
+        psbt.sign_by_key_map(&key_map, &self.secp).map_err(|err| {
             let (_, errors) = err;
             let error_messages: Vec<String> =
                 errors.iter().map(|(_idx, e)| e.to_string()).collect();
             StakingError::SigningPSBTFailed(error_messages.join(", "))
         })?;
 
-        if let Some(true) = finalize {
+        if finalize {
             <Psbt as SignByKeyMap<All>>::finalize(psbt);
         }
 
-        Ok(result)
+        Ok(())
     }
 
     fn sign_psbt_by_wif(
