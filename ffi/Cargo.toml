@@ -1,0 +1,14 @@
+[package]
+name = "bitcoin-vault-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "bitcoin_vault_ffi"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+
+[dependencies]
+bitcoin-vault = { package = "bitcoin-vault", path = "../vault" }
+bitcoin = { version = "0.32.3", features = ["serde"] }

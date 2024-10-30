@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 
 use bitcoin::{
     absolute,
-    consensus::Decodable,
+    consensus::{encode::serialize_hex, serialize, Decodable},
     hashes::{sha256d::Hash as Sha256dHash, Hash},
     key::Secp256k1,
     opcodes::all::{
         OP_CHECKSIG, OP_CHECKSIGADD, OP_CHECKSIGVERIFY, OP_GREATERTHANOREQUAL, OP_RETURN,
     },
-    psbt::{Input, PsbtSighashType, SigningKeysMap},
+    psbt::{Input, PsbtSighashType},
     script,
     secp256k1::All,
     taproot::{ControlBlock, LeafVersion, TaprootBuilder, TaprootSpendInfo},
@@ -68,20 +68,20 @@ pub trait Parsing {
 }
 
 pub trait Signing {
+    type PsbtHex;
+
     fn sign_psbt_by_single_key(
-        &self,
         psbt: &mut Psbt,
         privkey: &[u8],
         network_kind: NetworkKind,
         finalize: bool,
-    ) -> Result<(), StakingError>;
+    ) -> Result<Self::PsbtHex, StakingError>;
 
     fn sign_psbt_by_wif(
-        &self,
         psbt: &mut Psbt,
         wif: &str,
         finalize: Option<bool>,
-    ) -> Result<(), StakingError>;
+    ) -> Result<Self::PsbtHex, StakingError>;
 }
 
 pub struct StakingManager {
@@ -811,17 +811,20 @@ impl StakingManager {
 }
 
 impl Signing for StakingManager {
+    type PsbtHex = Vec<u8>;
+
     fn sign_psbt_by_single_key(
-        &self,
         psbt: &mut Psbt,
         privkey: &[u8],
         network_kind: NetworkKind,
         finalize: bool,
-    ) -> Result<(), StakingError> {
-        let key_map = SigningKeyMap::from_privkey_slice(&self.secp, privkey, network_kind)
+    ) -> Result<Self::PsbtHex, StakingError> {
+        let secp = Secp256k1::new();
+
+        let key_map = SigningKeyMap::from_privkey_slice(&secp, privkey, network_kind)
             .map_err(|err| StakingError::InvalidPrivateKey(err.to_string()))?;
 
-        psbt.sign_by_key_map(&key_map, &self.secp).map_err(|err| {
+        psbt.sign_by_key_map(&key_map, &secp).map_err(|err| {
             let (_, errors) = err;
             let error_messages: Vec<String> =
                 errors.iter().map(|(_idx, e)| e.to_string()).collect();
@@ -830,17 +833,21 @@ impl Signing for StakingManager {
 
         if finalize {
             <Psbt as SignByKeyMap<All>>::finalize(psbt);
+            let tx = psbt
+                .clone()
+                .extract_tx()
+                .map_err(|_| StakingError::FailedToExtractTx)?;
+            return Ok(serialize(&tx));
         }
 
-        Ok(())
+        Ok(psbt.serialize())
     }
 
     fn sign_psbt_by_wif(
-        &self,
         psbt: &mut Psbt,
         wif: &str,
         finalize: Option<bool>,
-    ) -> Result<(), StakingError> {
-        Ok(())
+    ) -> Result<Self::PsbtHex, StakingError> {
+        Ok(vec![])
     }
 }

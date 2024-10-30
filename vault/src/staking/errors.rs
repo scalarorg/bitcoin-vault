@@ -35,4 +35,6 @@ pub enum StakingError {
     InvalidSecp256k1PublicKey,
     #[error("Signing psbt failed: {0}")]
     SigningPSBTFailed(String),
+    #[error("Failed to extract tx")]
+    FailedToExtractTx,
 }
