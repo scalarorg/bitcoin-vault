@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use bitcoin::{
     absolute,
-    consensus::{encode::serialize_hex, serialize, Decodable},
+    consensus::{serialize, Decodable},
     hashes::{sha256d::Hash as Sha256dHash, Hash},
     key::Secp256k1,
     opcodes::all::{

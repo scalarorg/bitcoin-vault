@@ -2,11 +2,10 @@ use std::convert::TryInto;
 
 use crate::errors::VaultABIError;
 use crate::{decoder::Decoder, encoder::Encoder};
-use bitcoin::hashes::Hash;
-use bitcoin::{Amount, OutPoint, TxOut, Txid};
+use bitcoin::{Amount, NetworkKind, OutPoint, TxOut, Txid};
 use bitcoin_vault::{
     BuildStakingOutputParams, BuildUserProtocolSpendParams, DestinationAddress,
-    PreviousStakingUTXO, Staking, StakingManager, Unstaking,
+    PreviousStakingUTXO, Signing, Staking, StakingManager, Unstaking,
 };
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {
@@ -46,18 +45,6 @@ impl VaultWasm {
         destination_smartcontract_address: &[u8],
         destination_recipient_address: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
-        // console::debug_1(&"Wasm#build_staking_output".into());
-        // let destination_smartcontract_address_str =
-        //     String::from_utf8(destination_smartcontract_address.to_vec())
-        //         .map_err(|e| JsValue::from(format!("{:?}", e)))?;
-        // console::debug_1(
-        //     &format!(
-        //         "input destination_smartcontract_address length: {:?}",
-        //         destination_smartcontract_address.len()
-        //     )
-        //     .into(),
-        // );
-        // console::debug_1(&destination_smartcontract_address_str.into());
         let destination_contract_address: DestinationAddress = destination_smartcontract_address
             .try_into()
             .map_err(|e| JsValue::from(format!("{:?}", e)))?;
@@ -133,56 +120,22 @@ impl VaultWasm {
     }
 
     #[wasm_bindgen]
-    pub fn build_unstaking_output(
+    pub fn sign_psbt_by_single_key(
         &self,
-        staker_pubkey: &[u8],
-        protocol_pubkey: &[u8],
-        custodial_pubkeys: &[u8],
-        covenant_quorum: u8,
-        have_only_covenants: bool,
-        tx_hex: &[u8],
+        psbt: &[u8],
+        privkey: &[u8], //32 bytes
+        is_testnet: bool,
+        finalize: bool,
     ) -> Result<Vec<u8>, JsValue> {
-        Ok(vec![])
-    }
-    #[wasm_bindgen]
-    pub fn create_unsigned_vault_psbt(
-        &self,
-        staker_script_pubkey: &[u8],
-        //33 bytes pubkey
-        staker_pubkey: &[u8],
-        //33 bytes pubkey
-        protocol_pubkey: &[u8],
-        //encoded 33 bytes pubkey list, length of each pubkey is 32 bytes
-        custodial_pubkeys: &[u8],
-        quorum: u8,
-        utxos: &[u8],
-        dst_chain_id: u64,
-        dst_user_address: &[u8],
-        dst_smart_contract_address: &[u8],
-    ) -> Result<Vec<u8>, JsValue> {
-        let staker_script_buf = Decoder::decode_script_pubkey(staker_script_pubkey);
-        // let xonly_staker_pubkey = Decoder::decode_xonly_pubkey(staker_pubkey)?;
-        let staker_pubkey = Decoder::decode_33bytes_pubkey(staker_pubkey)?;
-        let protocol_pubkey = Decoder::decode_33bytes_pubkey(protocol_pubkey)?;
-        let custodial_pubkeys = Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?;
-        // decode utxos
-        let utxos = Decoder::decode_utxo_list(utxos)?;
-        // Ok(staker_address.to_string().as_bytes().to_vec())
-        // Ok(xonly_staker_pubkey.serialize().to_vec())
-        Ok(staker_pubkey.to_bytes().to_vec())
-    }
-    #[wasm_bindgen]
-    pub fn create_unstaking_vault_psbt(
-        &self,
-        staker_address: &[u8],
-        receiver_address: &[u8],
-        tx_hex: &[u8],
-        custodial_pubkeys: &[u8],
-        quorum: u8,
-    ) -> Result<Vec<u8>, JsValue> {
-        let staker_address = Decoder::decode_address(staker_address)?;
-        let receiver_address = Decoder::decode_address(receiver_address)?;
-        let custodial_pubkeys = Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?;
-        Ok(vec![])
+        let mut psbt = Decoder::decode_psbt(psbt)?;
+        let network_kind = if is_testnet {
+            NetworkKind::Test
+        } else {
+            NetworkKind::Main
+        };
+        let signed_psbt =
+            StakingManager::sign_psbt_by_single_key(&mut psbt, privkey, network_kind, finalize)
+                .map_err(|e| VaultABIError::DecodingError(format!("{}", e)))?;
+        Ok(signed_psbt)
     }
 }

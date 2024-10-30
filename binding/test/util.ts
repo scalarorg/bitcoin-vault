@@ -1,19 +1,19 @@
-import { z } from "zod";
-import * as bitcoin from "bitcoinjs-lib";
-import {
-  createVaultWasm,
-  ECPair,
-  hexToBytes,
-  logToJSON,
-  signPsbt,
-} from "@/utils";
-import Client from "bitcoin-core-ts";
 import {
   defaultMempoolClient,
   getAddressUtxos,
   sendrawtransaction,
 } from "@/client";
 import { buildUnsignedStakingPsbt } from "@/staking";
+import {
+  createVaultWasm,
+  ECPair,
+  hexToBytes,
+  logToJSON,
+  signPsbt,
+  getNetwork,
+} from "@/utils";
+import Client from "bitcoin-core-ts";
+import { z } from "zod";
 
 export const readEnv = async () => {
   const envText = await Bun.file(StaticEnv.BTC_ENV_PATH).text();
@@ -32,7 +32,10 @@ export const readEnv = async () => {
 const StaticEnvSchema = z.object({
   TAG: z.string().optional().default("01020304"),
   VERSION: z.number().optional().default(0),
-  NETWORK: z.string().optional().default("regtest"),
+  NETWORK: z
+    .enum(["bitcoin", "testnet", "regtest", "testnet4"])
+    .optional()
+    .default("regtest"),
   HOST: z.string().optional().default("localhost"),
   PORT: z.string().optional().default("18332"),
   USERNAME: z.string().optional().default("user"),
@@ -85,8 +88,7 @@ export const setUpTest = async () => {
 
   const vaultWasm = createVaultWasm(StaticEnv.TAG, StaticEnv.VERSION);
 
-  const network =
-    bitcoin.networks[StaticEnv.NETWORK as keyof typeof bitcoin.networks];
+  const network = getNetwork(StaticEnv.NETWORK);
 
   const btcClient = new Client({
     network: StaticEnv.NETWORK,
