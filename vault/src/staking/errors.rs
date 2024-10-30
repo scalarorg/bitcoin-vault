@@ -29,4 +29,10 @@ pub enum StakingError {
     InvalidScript,
     #[error("No embedded data")]
     NoEmbeddedData,
+    #[error("Invalid private key: {0}")]
+    InvalidPrivateKey(String),
+    #[error("Invalid secp256k1 public key")]
+    InvalidSecp256k1PublicKey,
+    #[error("Signing psbt failed")]
+    SigningPSBTFailed,
 }
