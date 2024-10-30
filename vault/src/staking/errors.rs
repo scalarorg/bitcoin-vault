@@ -33,6 +33,6 @@ pub enum StakingError {
     InvalidPrivateKey(String),
     #[error("Invalid secp256k1 public key")]
     InvalidSecp256k1PublicKey,
-    #[error("Signing psbt failed")]
-    SigningPSBTFailed,
+    #[error("Signing psbt failed: {0}")]
+    SigningPSBTFailed(String),
 }

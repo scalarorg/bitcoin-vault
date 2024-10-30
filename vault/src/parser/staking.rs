@@ -1,4 +1,4 @@
-use bitcoin::{Network, Transaction};
+use bitcoin::Transaction;
 
 use crate::types::{error::ParserError, VaultTransaction};
 

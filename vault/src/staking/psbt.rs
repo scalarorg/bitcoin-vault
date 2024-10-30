@@ -1,7 +1,6 @@
 use std::{borrow::Borrow, collections::BTreeMap};
 
 use bitcoin::{
-    base58::error,
     key::{Keypair, Parity, Secp256k1, TapTweak, Verification},
     psbt::{
         GetKey, GetKeyError, IndexOutOfBoundsError, Input, KeyRequest, OutputType, PsbtSighashType,
@@ -41,8 +40,6 @@ impl GetKey for SigningKeyMap {
         match key_request {
             KeyRequest::Pubkey(pk) => {
                 let pubkey: XOnlyPublicKey = pk.into();
-                println!("pubkey from get_key: {:?}", pubkey.to_string());
-
                 Ok(self.inner().get(&pubkey).cloned())
             }
             KeyRequest::Bip32(_) => Err(GetKeyError::NotSupported),
@@ -166,7 +163,7 @@ impl Utils for Psbt {
 
         let mut used = vec![]; // List of pubkeys used to sign the input.
 
-        for (&xonly, (leaf_hashes, key_source)) in input.tap_key_origins.iter() {
+        for (&xonly, (leaf_hashes, _)) in input.tap_key_origins.iter() {
             let key: Secp256k1PublicKey =
                 Secp256k1PublicKey::from_x_only_public_key(xonly, Parity::Even); // even or odd is not relevant for signing, just needs to be consistent with the KeyRequest::Pubkey
             let pubkey: PublicKey = key.into();

@@ -1,4 +1,4 @@
-use bitcoin::{Network, Txid};
+use bitcoin::Network;
 
 pub struct ParserConfig {
     network: Network,

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use bitcoin::{
     absolute,
@@ -8,12 +8,12 @@ use bitcoin::{
     opcodes::all::{
         OP_CHECKSIG, OP_CHECKSIGADD, OP_CHECKSIGVERIFY, OP_GREATERTHANOREQUAL, OP_RETURN,
     },
-    psbt::{GetKey, Input, PsbtSighashType},
+    psbt::{Input, PsbtSighashType, SigningKeysMap},
     script,
-    secp256k1::{All, PublicKey as Secp256k1PublicKey, SecretKey},
+    secp256k1::All,
     taproot::{ControlBlock, LeafVersion, TaprootBuilder, TaprootSpendInfo},
-    transaction, Amount, CompressedPublicKey, Network, NetworkKind, PrivateKey, Psbt, PublicKey,
-    ScriptBuf, Sequence, TapSighashType, Transaction, TxIn, TxOut, Witness, XOnlyPublicKey,
+    transaction, Amount, NetworkKind, Psbt, PublicKey, ScriptBuf, Sequence, TapSighashType,
+    Transaction, TxIn, TxOut, Witness, XOnlyPublicKey,
 };
 
 use lazy_static::lazy_static;
@@ -74,7 +74,7 @@ pub trait Signing {
         privkey: &[u8],
         network_kind: NetworkKind,
         finalize: Option<bool>,
-    ) -> Result<(), StakingError>;
+    ) -> Result<SigningKeysMap, StakingError>;
 
     fn sign_psbt_by_wif(
         &self,
@@ -817,28 +817,18 @@ impl Signing for StakingManager {
         privkey: &[u8],
         network_kind: NetworkKind,
         finalize: Option<bool>,
-    ) -> Result<(), StakingError> {
+    ) -> Result<SigningKeysMap, StakingError> {
         let key_map = SigningKeyMap::from_privkey_slice(&self.secp, privkey, network_kind)
             .map_err(|err| StakingError::InvalidPrivateKey(err.to_string()))?;
 
-        println!("======== Before signing ==========");
-        for input in &mut psbt.inputs {
-            println!("input: {:?}", input.tap_script_sigs);
-            // input.bip32_derivation = key_map;
-        }
+        let result = psbt.sign_by_key_map(&key_map, &self.secp).map_err(|err| {
+            let (_, errors) = err;
+            let error_messages: Vec<String> =
+                errors.iter().map(|(_idx, e)| e.to_string()).collect();
+            StakingError::SigningPSBTFailed(error_messages.join(", "))
+        })?;
 
-        let _ = psbt
-            .sign_by_key_map(&key_map, &self.secp)
-            .map_err(|_| StakingError::SigningPSBTFailed)?;
-
-        println!("result: {:?}", result);
-
-        println!("======== After signing ==========");
-        for input in &mut psbt.inputs {
-            println!("input: {:?}", input.tap_script_sigs);
-        }
-
-        Ok(())
+        Ok(result)
     }
 
     fn sign_psbt_by_wif(
