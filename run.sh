@@ -24,4 +24,10 @@ build_test() {
     build
     test
 }
+
+test_ffi() {
+    docker build -f test_ffi.dockerfile -t bitcoin-vault-ffi .
+    docker run --rm -it bitcoin-vault-ffi
+}
+
 $@

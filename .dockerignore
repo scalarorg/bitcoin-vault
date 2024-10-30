@@ -1,0 +1,8 @@
+target/
+**/target/
+ffi/go-example/bin/
+ffi/go-example/lib/
+**/.git
+binding
+tsconfig*
+package.json

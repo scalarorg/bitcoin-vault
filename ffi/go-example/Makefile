@@ -3,7 +3,7 @@ ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
 .PHONY: build
 build: copy
-	go build -o bin/main main.go
+	go build -ldflags="-r $(ROOT_DIR)lib" -o bin/main main.go
 
 .PHONY: copy
 copy:
@@ -16,7 +16,7 @@ run: copy
 
 .PHONY: run-binary
 run-binary: build
-	DYLD_FALLBACK_LIBRARY_PATH=$(ROOT_DIR)lib ./bin/main
+	./bin/main
 
 .PHONY: debug
 debug:
