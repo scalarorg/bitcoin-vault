@@ -9,7 +9,7 @@ use bitcoin::{
     secp256k1::{Error as Secp256k1Error, Message, PublicKey as Secp256k1PublicKey, Signing},
     sighash::{Prevouts, SighashCache},
     taproot, NetworkKind, PrivateKey, Psbt, PublicKey, TapLeafHash, TapSighashType, Transaction,
-    XOnlyPublicKey,
+    Witness, XOnlyPublicKey,
 };
 pub struct SigningKeyMap(BTreeMap<XOnlyPublicKey, PrivateKey>);
 
@@ -68,30 +68,7 @@ pub trait SignByKeyMap<C> {
     ) -> Result<SigningKeysMap, (SigningKeysMap, SigningErrors)>
     where
         C: Signing + Verification;
-}
-
-pub trait Utils {
-    fn signing_algorithm(&self, input_index: usize) -> Result<SigningAlgorithm, SignError>;
-    fn output_type(&self, input_index: usize) -> Result<OutputType, SignError>;
-    fn checked_input(&self, input_index: usize) -> Result<&Input, IndexOutOfBoundsError>;
-    fn check_index_is_within_bounds(&self, input_index: usize)
-        -> Result<(), IndexOutOfBoundsError>;
-    fn key_map_sign_schnorr<C, T>(
-        &mut self,
-        key_map: &SigningKeyMap,
-        input_index: usize,
-        cache: &mut SighashCache<T>,
-        secp: &Secp256k1<C>,
-    ) -> Result<Vec<XOnlyPublicKey>, SignError>
-    where
-        C: Signing + Verification,
-        T: Borrow<Transaction>;
-    fn sighash_taproot<T: Borrow<Transaction>>(
-        &self,
-        input_index: usize,
-        cache: &mut SighashCache<T>,
-        leaf_hash: Option<TapLeafHash>,
-    ) -> Result<(Message, TapSighashType), SignError>;
+    fn finalize(&mut self);
 }
 
 impl<C> SignByKeyMap<C> for Psbt {
@@ -137,9 +114,58 @@ impl<C> SignByKeyMap<C> for Psbt {
             Err((used, errors))
         }
     }
+
+    fn finalize(&mut self) {
+        self.inputs.iter_mut().for_each(|input| {
+            let mut script_witness: Witness = Witness::new();
+            for (_, signature) in input.tap_script_sigs.iter() {
+                script_witness.push(signature.to_vec());
+            }
+            for (control_block, (script, _)) in input.tap_scripts.iter() {
+                script_witness.push(script.to_bytes());
+                script_witness.push(control_block.serialize());
+            }
+            input.final_script_witness = Some(script_witness);
+            input.partial_sigs = BTreeMap::new();
+            input.sighash_type = None;
+            input.redeem_script = None;
+            input.witness_script = None;
+            input.bip32_derivation = BTreeMap::new();
+            input.tap_script_sigs = BTreeMap::new();
+            input.tap_scripts = BTreeMap::new();
+            input.tap_key_sig = None;
+        });
+    }
+}
+
+pub trait Utils {
+    fn signing_algorithm(&self, input_index: usize) -> Result<SigningAlgorithm, SignError>;
+    fn output_type(&self, input_index: usize) -> Result<OutputType, SignError>;
+    fn checked_input(&self, input_index: usize) -> Result<&Input, IndexOutOfBoundsError>;
+    fn check_index_is_within_bounds(&self, input_index: usize)
+        -> Result<(), IndexOutOfBoundsError>;
+    fn key_map_sign_schnorr<C, T>(
+        &mut self,
+        key_map: &SigningKeyMap,
+        input_index: usize,
+        cache: &mut SighashCache<T>,
+        secp: &Secp256k1<C>,
+    ) -> Result<Vec<XOnlyPublicKey>, SignError>
+    where
+        C: Signing + Verification,
+        T: Borrow<Transaction>;
+    fn sighash_taproot<T: Borrow<Transaction>>(
+        &self,
+        input_index: usize,
+        cache: &mut SighashCache<T>,
+        leaf_hash: Option<TapLeafHash>,
+    ) -> Result<(Message, TapSighashType), SignError>;
 }
 
 impl Utils for Psbt {
+    /// Finalizes all inputs in the PSBT.
+
+    /// Attempts to create all signatures required by this PSBT's `tap_key_origins` field, adding
     /// Attempts to create all signatures required by this PSBT's `tap_key_origins` field, adding
     /// them to `tap_key_sig` or `tap_script_sigs`.
     ///

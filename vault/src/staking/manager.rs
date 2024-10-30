@@ -828,6 +828,10 @@ impl Signing for StakingManager {
             StakingError::SigningPSBTFailed(error_messages.join(", "))
         })?;
 
+        if let Some(true) = finalize {
+            <Psbt as SignByKeyMap<All>>::finalize(psbt);
+        }
+
         Ok(result)
     }
 
