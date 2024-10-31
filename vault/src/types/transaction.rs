@@ -1,4 +1,4 @@
-use bitcoin::{Amount, ScriptBuf, Transaction, TxIn, TxOut};
+use bitcoin::{Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
 use serde::{Deserialize, Serialize};
 
 use crate::{DestinationAddress, DestinationChainId};
@@ -105,14 +105,14 @@ impl From<&TxOut> for VaultChangeTxOutput {
         }
     }
 }
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VaultTransaction {
     // 32 bytes hex string txid
-    pub txid: String,
+    pub txid: Txid,
     //Block height when the transaction is confirmed, is set in parser
     pub confirmed_height: u32,
     //Index of the transaction in the block, is set in parser
-    pub tx_position: u16,
+    pub tx_position: u32,
     pub inputs: Vec<TxIn>,
     pub lock_tx: VaultLockTxOutput,
     pub return_tx: VaultReturnTxOutput,
@@ -126,17 +126,26 @@ impl TryFrom<&Transaction> for VaultTransaction {
         if tx.output.len() < 2 || tx.output.len() > 3 {
             return Err(ParserError::InvalidTransactionHex);
         }
-        let mut vault_tx = Self::default();
-        vault_tx.txid = tx.compute_txid().as_raw_hash().to_string();
+        let txid = tx.compute_txid();
         //2. Parse the transaction locking outputs
-        vault_tx.lock_tx = VaultLockTxOutput::from(&tx.output[0]);
-        vault_tx.return_tx = VaultReturnTxOutput::try_from(&tx.output[1])?;
-        if tx.output.len() == 3 {
-            vault_tx.change_tx = Some(VaultChangeTxOutput::from(&tx.output[2]));
-        }
+        let lock_tx = VaultLockTxOutput::from(&tx.output[0]);
+        let return_tx = VaultReturnTxOutput::try_from(&tx.output[1])?;
+        let change_tx = if tx.output.len() == 3 {
+            Some(VaultChangeTxOutput::from(&tx.output[2]))
+        } else {
+            None
+        };
         for (_index, _txi) in tx.input.iter().enumerate() {
             //Todo: parse the transaction inputs if needed
         }
-        Ok(vault_tx)
+        Ok(VaultTransaction {
+            txid,
+            confirmed_height: 0,
+            tx_position: 0,
+            inputs: tx.input.clone(),
+            lock_tx,
+            return_tx,
+            change_tx,
+        })
     }
 }
