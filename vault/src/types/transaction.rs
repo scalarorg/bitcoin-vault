@@ -1,4 +1,4 @@
-use bitcoin::{Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
+use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
 use serde::{Deserialize, Serialize};
 
 use crate::{DestinationAddress, DestinationChainId};
@@ -109,10 +109,9 @@ impl From<&TxOut> for VaultChangeTxOutput {
 pub struct VaultTransaction {
     // 32 bytes hex string txid
     pub txid: Txid,
-    //Block height when the transaction is confirmed, is set in parser
-    pub confirmed_height: u32,
-    //Index of the transaction in the block, is set in parser
-    pub tx_position: u32,
+    pub staker_address: Option<String>,
+    pub staker_pubkey: Option<String>,
+    pub tx_content: String,
     pub inputs: Vec<TxIn>,
     pub lock_tx: VaultLockTxOutput,
     pub return_tx: VaultReturnTxOutput,
@@ -135,13 +134,18 @@ impl TryFrom<&Transaction> for VaultTransaction {
         } else {
             None
         };
-        for (_index, _txi) in tx.input.iter().enumerate() {
+        let mut staker_address = None;
+        let mut staker_pubkey = None;
+        for (_index, txi) in tx.input.iter().enumerate() {
             //Todo: parse the transaction inputs if needed
         }
+        let mut tx_content = vec![];
+        tx.consensus_encode(&mut tx_content).unwrap();
         Ok(VaultTransaction {
             txid,
-            confirmed_height: 0,
-            tx_position: 0,
+            staker_address,
+            staker_pubkey,
+            tx_content: hex::encode(tx_content),
             inputs: tx.input.clone(),
             lock_tx,
             return_tx,
