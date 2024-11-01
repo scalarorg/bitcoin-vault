@@ -27,7 +27,22 @@ import (
 	"unsafe"
 )
 
-func SignPsbtBySingleKey(psbt []byte, privkey []byte, network uint8, finalize bool) ([]byte, error) {
+type NetworkKind uint8
+
+const (
+	NetworkKindMainnet NetworkKind = iota
+	NetworkKindTestnet
+)
+
+func (n NetworkKind) Valid() bool {
+	return n == NetworkKindMainnet || n == NetworkKindTestnet
+}
+
+func SignPsbtBySingleKey(psbt []byte, privkey []byte, network NetworkKind, finalize bool) ([]byte, error) {
+	if !network.Valid() {
+		return nil, fmt.Errorf("invalid network kind")
+	}
+
 	result := C.sign_psbt_by_single_key(
 		(*C.uint8_t)(unsafe.Pointer(&psbt[0])),
 		C.size_t(len(psbt)),

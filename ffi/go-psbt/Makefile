@@ -6,7 +6,8 @@ ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 test-linux:
 	@docker build -f docker/test_ffi.dockerfile -t bitcoin-vault-ffi $(ROOT_DIR)/../../
 	@docker run --rm -it bitcoin-vault-ffi
-test: copy
+	
+test:
 	@CGO_LDFLAGS="-L./lib/darwin -lbitcoin_vault_ffi" CGO_CFLAGS="-I./lib/darwin" go test ./tests/... -v -cover -count=1
 
 build-linux:

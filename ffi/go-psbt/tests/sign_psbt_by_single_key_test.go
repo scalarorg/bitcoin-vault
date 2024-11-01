@@ -27,10 +27,10 @@ func TestSignPsbtBySingleKey(t *testing.T) {
 	}
 
 	signedPsbt, err := psbt.SignPsbtBySingleKey(
-		psbtBytes,    // []byte containing PSBT
-		privkeyBytes, // []byte containing private key
-		1,            // TestNet
-		false,        // finalize
+		psbtBytes,               // []byte containing PSBT
+		privkeyBytes,            // []byte containing private key
+		psbt.NetworkKindTestnet, // TestNet
+		false,                   // finalize
 	)
 	if err != nil {
 		log.Fatal(err)
