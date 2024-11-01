@@ -7,3 +7,5 @@ pkg/
 dist/
 wasm-pack.log
 musig-bindings
+.env
+.npmrc

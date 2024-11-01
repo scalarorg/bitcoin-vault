@@ -11,6 +11,7 @@ import {
   logToJSON,
   signPsbt,
   getNetwork,
+  bytesToHex,
 } from "@/utils";
 import Client from "bitcoin-core-ts";
 import { z } from "zod";
@@ -41,7 +42,7 @@ const StaticEnvSchema = z.object({
   USERNAME: z.string().optional().default("user"),
   PASSWORD: z.string().optional().default("password"),
   WALLET_NAME: z.string().optional().default("legacy"),
-  STAKING_AMOUNT: z.bigint().optional().default(BigInt(10_000)),
+  STAKING_AMOUNT: z.bigint().optional().default(BigInt(900)),
   HAVE_ONLY_CUSTODIAL: z.boolean().optional().default(false),
   CUSTODIAL_QUORUM: z.number().optional().default(1),
   CUSTODIAL_NUMBER: z.number().optional().default(5),
@@ -135,6 +136,8 @@ export const setUpTest = async () => {
   if (!protocolPrivkey) {
     throw new Error("PROTOCOL_PRIVATE_KEY is not set");
   }
+
+  console.log("STAKER_PUBKEY", bytesToHex(keyPair.publicKey));
 
   return {
     network,

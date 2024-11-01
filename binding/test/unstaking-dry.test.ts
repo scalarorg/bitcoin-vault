@@ -1,13 +1,10 @@
 import { bytesToHex, hexToBytes, signPsbt } from "@/utils";
-import { Psbt } from "bitcoinjs-lib";
-import { argv, sleep } from "bun";
-import { describe, it } from "bun:test";
-import {
-  buildUnsignedUnstakingUserProtocolPsbt,
-  sendrawtransaction,
-} from "../src";
-import { setupStakingTx, setUpTest, StaticEnv } from "./util";
 import * as bitcoin from "bitcoinjs-lib";
+import { Psbt } from "bitcoinjs-lib";
+import { sleep } from "bun";
+import { describe, it } from "bun:test";
+import { buildUnsignedUnstakingUserProtocolPsbt, sendrawtransaction } from "..";
+import { setUpTest, StaticEnv } from "./util";
 
 const TIMEOUT = 900_000;
 
