@@ -61,7 +61,7 @@ describe("Vault-Staking", async () => {
         feeRate,
         StaticEnv.STAKING_AMOUNT
       );
-    //2. Sign the psbt
+
     const { signedPsbt, isValid } = signPsbt(
       TestSuite.network,
       TestSuite.stakerWif,

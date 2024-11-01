@@ -1,4 +1,4 @@
-import { VaultWasm } from "@scalar/bitcoin-wasm";
+import { VaultWasm } from "@scalar-lab/bitcoin-wasm";
 import { Network, Psbt } from "bitcoinjs-lib";
 import { InputByAddress, UTXO } from "../types/btc";
 import { PsbtOutputExtended } from "../types/psbt";
@@ -42,32 +42,32 @@ export const buildStakingOutput = (
   // Decode the output buffer to a PsbtOutputExtended list
   return decodeStakingOutput(output_buffer);
 };
-export const buildUnstakingOutput = (
-  vault: VaultWasm,
-  stakerPubkey: String,
-  protocolPubkey: String,
-  custodialPubkeys: String[],
-  covenantQuorum: number,
-  haveOnlyCovenants: boolean,
-  txHex: string
-) => {
-  const pubkeys = new Uint8Array(custodialPubkeys.length * BTC_PUBKEY_SIZE);
-  for (let i = 0; i < custodialPubkeys.length; i++) {
-    pubkeys.set(
-      new Uint8Array(Buffer.from(custodialPubkeys[i])),
-      i * BTC_PUBKEY_SIZE
-    );
-  }
-  const output_buffer = vault.build_unstaking_output(
-    new Uint8Array(Buffer.from(stakerPubkey)),
-    new Uint8Array(Buffer.from(protocolPubkey)),
-    pubkeys,
-    covenantQuorum,
-    haveOnlyCovenants,
-    new Uint8Array(Buffer.from(txHex))
-  );
-  return decodeUnStakingOutput(output_buffer);
-};
+// export const buildUnstakingOutput = (
+//   vault: VaultWasm,
+//   stakerPubkey: String,
+//   protocolPubkey: String,
+//   custodialPubkeys: String[],
+//   covenantQuorum: number,
+//   haveOnlyCovenants: boolean,
+//   txHex: string
+// ) => {
+//   const pubkeys = new Uint8Array(custodialPubkeys.length * BTC_PUBKEY_SIZE);
+//   for (let i = 0; i < custodialPubkeys.length; i++) {
+//     pubkeys.set(
+//       new Uint8Array(Buffer.from(custodialPubkeys[i])),
+//       i * BTC_PUBKEY_SIZE
+//     );
+//   }
+//   const output_buffer = vault.build_unstaking_output(
+//     new Uint8Array(Buffer.from(stakerPubkey)),
+//     new Uint8Array(Buffer.from(protocolPubkey)),
+//     pubkeys,
+//     covenantQuorum,
+//     haveOnlyCovenants,
+//     new Uint8Array(Buffer.from(txHex))
+//   );
+//   return decodeUnStakingOutput(output_buffer);
+// };
 export const createStakingPsbt = (
   network: Network,
   inputByAddress: InputByAddress,
