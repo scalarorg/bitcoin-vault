@@ -15,6 +15,7 @@ path = "src/main.rs"
 anyhow = "1.0.91"
 bitcoin = { version = "0.32.3" }
 dotenv = "0.15.0"
+hex = "0.4.3"
 lazy_static = "1.5.0"
 serde = "1.0.213"
 thiserror = "1.0.65"
