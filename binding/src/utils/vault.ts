@@ -2,7 +2,7 @@ import { VaultWasm } from "@scalar-lab/bitcoin-wasm";
 import { Network, Psbt } from "bitcoinjs-lib";
 import { InputByAddress, UTXO } from "../types/btc";
 import { PsbtOutputExtended } from "../types/psbt";
-import { BTC_DUST_SAT, BTC_PUBKEY_SIZE } from "./constants";
+import { BTC_DUST_SAT } from "./constants";
 import { hexToBytes } from "./encode";
 
 let GlobalVaultWasm: VaultWasm | null = null;

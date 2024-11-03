@@ -26,10 +26,26 @@ const wasmCode = Uint8Array.from(atob('${wasmData.toString(
   "base64"
 )}'), c => c.charCodeAt(0));
 
-export async function initializeWasm() {
-  const wasmResponse = new Response(wasmCode, { headers: { "Content-Type": "application/wasm" } });
-  await __wbg_init(wasmResponse);
+
+async function initializeWasm() {
+  if (typeof WebAssembly === "undefined") {
+    throw new Error("WebAssembly is not supported in this browser");
+  }
+
+  const wasmResponse = new Response(wasmCode, {
+    headers: { "Content-Type": "application/wasm" },
+  });
+
+  try {
+    await __wbg_init(wasmResponse);
+  } catch (e) {
+    console.error("Failed to initialize WebAssembly:", e);
+    throw e;
+  }
 }
+
+// Initialize when the script loads
+initializeWasm().catch((e) => console.error("Initialization failed:", e));
 `;
 
 fs.writeFileSync(jsFile, jsCode);

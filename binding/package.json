@@ -1,17 +1,29 @@
 {
   "name": "@scalar-lab/bitcoin-vault",
-  "version": "0.0.5",
+  "version": "0.0.12",
   "license": "MIT",
   "type": "module",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
-  "main": "dist/index.js",
+  "main": "dist/node/index.js",
   "files": [
     "dist"
   ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/node/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./node": {
+      "import": "./dist/node/index.js",
+      "require": "./dist/node/index.js",
+      "types": "./dist/node/index.d.ts"
+    }
+  },
   "dependencies": {
     "@mempool/mempool.js": "^2.3.0",
-    "@scalar-lab/bitcoin-wasm": "0.0.3",
+    "@scalar-lab/bitcoin-wasm": "0.0.8",
     "bip174": "^3.0.0-rc.1",
     "bip32": "^5.0.0-rc.0",
     "bitcoin-core-ts": "^3.0.3",
