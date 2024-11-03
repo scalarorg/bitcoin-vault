@@ -1,6 +1,6 @@
 {
   "name": "@scalar-lab/bitcoin-wasm",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "browser": "dist/bitcoin-vault-web.js",
   "main": "dist/bitcoin-vault-node.js",
   "files": [
@@ -10,7 +10,7 @@
   ],
   "types": "dist/bitcoin-vault-web.d.ts",
   "scripts": {
-    "build": "./build.sh && node scripts/web-wasm.js",
+    "build": "rm -rf dist && ./build.sh && node scripts/post-build.js",
     "test": "./scripts/test.sh"
   }
 }

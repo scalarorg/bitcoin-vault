@@ -1,6 +1,6 @@
 {
   "name": "@scalar-lab/bitcoin-vault",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "license": "MIT",
   "type": "module",
   "module": "dist/index.js",
@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@mempool/mempool.js": "^2.3.0",
-    "@scalar-lab/bitcoin-wasm": "0.0.8",
+    "@scalar-lab/bitcoin-wasm": "0.0.9",
     "bip174": "^3.0.0-rc.1",
     "bip32": "^5.0.0-rc.0",
     "bitcoin-core-ts": "^3.0.3",

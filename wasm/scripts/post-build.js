@@ -3,6 +3,7 @@ const fs = require("fs");
 const wasmFile = "./dist/bitcoin-vault-web_bg.wasm";
 const jsFile = "./dist/bitcoin-vault-web.js";
 
+console.log("===== POST BUILD FOR WEB =====");
 const wasmData = fs.readFileSync(wasmFile);
 
 // Strings that are inserted automatically by wasm-pack, but
@@ -49,3 +50,42 @@ initializeWasm().catch((e) => console.error("Initialization failed:", e));
 `;
 
 fs.writeFileSync(jsFile, jsCode);
+
+console.log("\n===== POST BUILD FOR NODE =====");
+
+const nodeJsFile = "./dist/bitcoin-vault-node.js";
+
+const fileContent = fs.readFileSync(nodeJsFile, "utf8");
+
+const searchPattern = `const path = require('path').join(__dirname, 'bitcoin-vault-node_bg.wasm');
+const bytes = require('fs').readFileSync(path);
+
+const wasmModule = new WebAssembly.Module(bytes);
+const wasmInstance = new WebAssembly.Instance(wasmModule, imports);
+wasm = wasmInstance.exports;
+module.exports.__wasm = wasm;`;
+
+if (!fileContent.includes(searchPattern)) {
+  throw new Error("Target code block not found in the file");
+}
+
+const replacedContent = fileContent.replace(
+  searchPattern,
+  `
+const {join, dirname} = require("path");
+const {readFileSync} = require("fs");
+const {fileURLToPath} = require("url");
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const wasmPath = join(__dirname, 'bitcoin-vault-node_bg.wasm');
+const bytes = readFileSync(wasmPath);
+
+const wasmModule = new WebAssembly.Module(bytes);
+const wasmInstance = new WebAssembly.Instance(wasmModule, imports);
+wasm = wasmInstance.exports;
+module.exports.__wasm = wasm;`
+);
+
+fs.writeFileSync(nodeJsFile, replacedContent);
