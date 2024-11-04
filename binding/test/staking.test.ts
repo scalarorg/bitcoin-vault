@@ -76,7 +76,8 @@ describe("Vault-Staking", async () => {
     logToJSON({ txHexfromPsbt, fee: estimatedFee });
     //4. Broadcast the transaction
     const txid = await sendrawtransaction(txHexfromPsbt, TestSuite.btcClient);
-    console.log("Successfully broadcasted txid", txid);
+    const scanner = `https://mempool.space/${StaticEnv.NETWORK}/tx/${txid}`;
+    console.log("View on mempool", scanner);
   });
 });
 

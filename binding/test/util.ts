@@ -31,7 +31,7 @@ export const readEnv = async () => {
 };
 
 const StaticEnvSchema = z.object({
-  TAG: z.string().optional().default("01020304"),
+  TAG: z.string().optional().default("53180104"),
   VERSION: z.number().optional().default(0),
   NETWORK: z
     .enum(["bitcoin", "testnet", "regtest", "testnet4"])

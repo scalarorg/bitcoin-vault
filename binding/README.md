@@ -1,10 +1,11 @@
 # How to install this package
 
 ```
-bun i && bun link
+bun i && bun build && bun link
 ```
 
 Then add `@scalar/bitcoin-vault` to your project's dependencies.
+
 ```json
 "dependencies": {
   "@scalar/bitcoin-vault": "link:@scalar/bitcoin-vault"
