@@ -7,14 +7,14 @@ export { sendrawtransaction, testmempoolaccept } from './bitcoin';
 
 export { BtcMempool, defaultMempoolClient };
 
-export async function getAddressUtxos(address: string, btcClient?: Client): Promise<AddressTxsUtxo[]> {
+export async function getAddressUtxos(address: string, btcClient?: Client, mempoolClient?: BtcMempool): Promise<AddressTxsUtxo[]> {
   //First try get utxo from bitcoin node
   console.log(`getUnspentTransactionOutputs of the address ${address} from the bitcoin node`);
   let utxos: AddressTxsUtxo[] = await getUnspentTransactionOutputs(address, btcClient);
   //Then try get utxo from mempool
   if (utxos.length == 0) {
      console.log(`getAddressTxsUtxo of the address ${address} from the mempool`);
-    utxos = await defaultMempoolClient.addresses.getAddressTxsUtxo({ address });
+    utxos = await (mempoolClient || defaultMempoolClient).addresses.getAddressTxsUtxo({ address });
   }
   return utxos;
 }

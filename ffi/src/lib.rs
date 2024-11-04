@@ -1,13 +1,31 @@
 use bitcoin::{NetworkKind, Psbt};
 use bitcoin_vault::{Signing, StakingManager};
 use std::slice;
+mod staking;
+use staking::*;
 
+const EVM_ADDRESS_LENGTH: usize = 20;
 #[repr(C)]
 pub struct ByteBuffer {
     data: *mut u8,
     len: usize,
 }
-
+impl Default for ByteBuffer {
+    fn default() -> Self {
+        ByteBuffer {
+            data: std::ptr::null_mut(),
+            len: 0,
+        }
+    }
+}
+impl From<Vec<u8>> for ByteBuffer {
+    fn from(mut value: Vec<u8>) -> Self {
+        ByteBuffer {
+            data: value.as_mut_ptr(),
+            len: value.len(),
+        }
+    }
+}
 #[no_mangle]
 pub extern "C" fn sign_psbt_by_single_key(
     psbt_bytes: *const u8,
@@ -87,4 +105,51 @@ pub extern "C" fn free_byte_buffer(buffer: ByteBuffer) {
             let _ = Vec::from_raw_parts(buffer.data, buffer.len, buffer.len);
         }
     }
+}
+
+#[no_mangle]
+pub extern "C" fn create_staking_psbt(
+    tag: *const u8,
+    tag_len: usize,
+    version: u8,
+    staking_amount: u64,
+    staker_pubkey: *const u8,
+    staker_pubkey_len: usize,
+    protocol_pubkey: *const u8,
+    protocol_pubkey_len: usize,
+    custodial_pubkeys: *const u8,
+    custodial_pubkeys_len: usize,
+    covenant_quorum: i32,
+    have_only_covenants: bool,
+    destination_chain_id: u64,
+    destination_smart_contract_address: *const u8,
+    destination_recipient_address: *const u8,
+) -> ByteBuffer {
+    // Convert raw pointers to slices
+    let tag_slice = unsafe { slice::from_raw_parts(tag, tag_len) };
+    let staker_pubkey_slice = unsafe { slice::from_raw_parts(staker_pubkey, staker_pubkey_len) };
+    let protocol_pubkey_slice =
+        unsafe { slice::from_raw_parts(protocol_pubkey, protocol_pubkey_len) };
+    let custodial_pubkeys_slice =
+        unsafe { slice::from_raw_parts(custodial_pubkeys, custodial_pubkeys_len) };
+    let destination_smart_contract_address_slice =
+        unsafe { slice::from_raw_parts(destination_smart_contract_address, EVM_ADDRESS_LENGTH) };
+    let destination_recipient_address_slice =
+        unsafe { slice::from_raw_parts(destination_recipient_address, EVM_ADDRESS_LENGTH) };
+
+    build_staking_outputs(
+        tag_slice,
+        version,
+        staking_amount,
+        staker_pubkey_slice,
+        protocol_pubkey_slice,
+        custodial_pubkeys_slice,
+        covenant_quorum,
+        have_only_covenants,
+        destination_chain_id,
+        destination_smart_contract_address_slice,
+        destination_recipient_address_slice,
+    )
+    .map(ByteBuffer::from)
+    .unwrap_or_default()
 }
