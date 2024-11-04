@@ -58,8 +58,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
             .transpose()
             .map_err(ParserError::from)?
             .as_ref()
-            .map(|value| value.push_bytes())
-            .flatten()
+            .and_then(|value| value.push_bytes())
             .and_then(|push_bytes| push_bytes.as_bytes().try_into().ok())
             .ok_or(ParserError::InvalidScript)?;
 
@@ -68,8 +67,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
             .transpose()
             .map_err(ParserError::from)?
             .as_ref()
-            .map(|value| value.push_bytes())
-            .flatten()
+            .and_then(|value| value.push_bytes())
             .and_then(|push_bytes| push_bytes.as_bytes().try_into().ok())
             .ok_or(ParserError::InvalidScript)?;
 
@@ -78,8 +76,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
             .transpose()
             .map_err(ParserError::from)?
             .as_ref()
-            .map(|value| value.push_bytes())
-            .flatten()
+            .and_then(|value| value.push_bytes())
             .and_then(|push_bytes| push_bytes.as_bytes().try_into().ok())
             .ok_or(ParserError::InvalidScript)?;
 
@@ -134,11 +131,11 @@ impl TryFrom<&Transaction> for VaultTransaction {
         } else {
             None
         };
-        let mut staker_address = None;
-        let mut staker_pubkey = None;
-        for (_index, txi) in tx.input.iter().enumerate() {
-            //Todo: parse the transaction inputs if needed
-        }
+        let staker_address = None;
+        let staker_pubkey = None;
+        // for _txin in tx.input.iter() {
+        //Todo: parse the transaction inputs if needed
+        // }
         let mut tx_content = vec![];
         tx.consensus_encode(&mut tx_content).unwrap();
         Ok(VaultTransaction {

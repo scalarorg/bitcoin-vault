@@ -9,11 +9,7 @@ impl Encoder {
         buffer.extend_from_slice(&tx_out.value.to_sat().to_be_bytes());
         buffer.extend_from_slice(tx_out.script_pubkey.as_bytes());
     }
-    pub fn encode_tx_outs(buffer: &mut Vec<u8>, tx_outs: &[TxOut]) {
-        for tx_out in tx_outs {
-            Self::encode_tx_out(buffer, tx_out);
-        }
-    }
+
     pub fn serialize_tx_outs(tx_outs: &[TxOut]) -> Vec<u8> {
         let total_size = tx_outs
             .iter()

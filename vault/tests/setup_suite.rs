@@ -7,7 +7,7 @@ use bitcoin::hashes::Hash;
 use bitcoin::key::Secp256k1;
 use bitcoin::{Amount, CompressedPublicKey, OutPoint, ScriptBuf, TxOut};
 use bitcoin::{PrivateKey, PublicKey, Txid};
-use bitcoin_vault::StakingManager;
+use bitcoin_vault::VaultManager;
 use bitcoin_vault::{BuildUserProtocolSpendParams, PreviousStakingUTXO};
 
 pub const TEST_CUSTODIAL_QUORUM: u8 = 1;
@@ -48,7 +48,7 @@ pub static MOCK_ENV: LazyLock<Env> = LazyLock::new(|| {
 lazy_static! {
     pub static ref BUILD_USER_PROTOCOL_SPEND_PARAMS: BuildUserProtocolSpendParams =
         load_build_user_protocol_spend_params();
-    pub static ref MANAGER: StakingManager = StakingManager::new(TEST_TAG.to_vec(), TEST_VERSION);
+    pub static ref MANAGER: VaultManager = VaultManager::new(TEST_TAG.to_vec(), TEST_VERSION);
 }
 
 fn load_build_user_protocol_spend_params() -> BuildUserProtocolSpendParams {

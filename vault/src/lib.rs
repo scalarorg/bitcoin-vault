@@ -1,5 +1,5 @@
 mod parser;
-mod staking;
+mod core;
 pub mod types;
 pub use parser::*;
-pub use staking::*;
+pub use core::*;

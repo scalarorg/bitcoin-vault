@@ -1,5 +1,5 @@
 use bitcoin::{NetworkKind, Psbt};
-use bitcoin_vault::{Signing, StakingManager};
+use bitcoin_vault::{Signing, VaultManager};
 use std::slice;
 
 #[repr(C)]
@@ -8,8 +8,20 @@ pub struct ByteBuffer {
     len: usize,
 }
 
+/// Signs a PSBT using a single private key
+///
+/// # Safety
+///
+/// This function is unsafe because it:
+/// - Dereferences raw pointers (`psbt_bytes` and `privkey_bytes`)
+/// - Assumes the provided lengths (`psbt_len` and `privkey_len`) match the actual data
+/// - Caller must ensure that:
+///   - The pointers are valid and properly aligned
+///   - The memory they point to is valid for the given lengths
+///   - The memory remains valid for the duration of the function call
+///   - The lengths do not exceed the actual allocated memory
 #[no_mangle]
-pub extern "C" fn sign_psbt_by_single_key(
+pub unsafe extern "C" fn sign_psbt_by_single_key(
     psbt_bytes: *const u8,
     psbt_len: usize,
     privkey_bytes: *const u8,
@@ -54,7 +66,7 @@ pub extern "C" fn sign_psbt_by_single_key(
     };
 
     // Sign PSBT
-    let signed_psbt = match StakingManager::sign_psbt_by_single_key(
+    let signed_psbt = match VaultManager::sign_psbt_by_single_key(
         &mut psbt,
         privkey_slice,
         network_kind,

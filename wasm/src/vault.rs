@@ -5,7 +5,7 @@ use crate::{decoder::Decoder, encoder::Encoder};
 use bitcoin::{Amount, NetworkKind, OutPoint, TxOut, Txid};
 use bitcoin_vault::{
     BuildStakingOutputParams, BuildUserProtocolSpendParams, DestinationAddress,
-    PreviousStakingUTXO, Signing, Staking, StakingManager, Unstaking,
+    PreviousStakingUTXO, Signing, Staking, Unstaking, VaultManager,
 };
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {
@@ -15,20 +15,17 @@ impl From<VaultABIError> for JsValue {
 }
 #[wasm_bindgen]
 pub struct VaultWasm {
-    tag: Vec<u8>,
-    version: u8,
-    staking: StakingManager,
+    staking: VaultManager,
 }
 #[wasm_bindgen]
 impl VaultWasm {
     #[wasm_bindgen]
     pub fn new(tag: &[u8], version: u8) -> Self {
         VaultWasm {
-            tag: tag.to_vec(),
-            version,
-            staking: StakingManager::new(tag.to_vec(), version),
+            staking: VaultManager::new(tag.to_vec(), version),
         }
     }
+
     #[wasm_bindgen]
     pub fn build_staking_output(
         &self,
@@ -134,7 +131,7 @@ impl VaultWasm {
             NetworkKind::Main
         };
         let signed_psbt =
-            StakingManager::sign_psbt_by_single_key(&mut psbt, privkey, network_kind, finalize)
+            VaultManager::sign_psbt_by_single_key(&mut psbt, privkey, network_kind, finalize)
                 .map_err(|e| VaultABIError::DecodingError(format!("{}", e)))?;
         Ok(signed_psbt)
     }

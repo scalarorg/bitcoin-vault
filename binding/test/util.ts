@@ -42,7 +42,7 @@ const StaticEnvSchema = z.object({
   USERNAME: z.string().optional().default("user"),
   PASSWORD: z.string().optional().default("password"),
   WALLET_NAME: z.string().optional().default("legacy"),
-  STAKING_AMOUNT: z.bigint().optional().default(BigInt(900)),
+  STAKING_AMOUNT: z.bigint().optional().default(BigInt(10_000)),
   HAVE_ONLY_CUSTODIAL: z.boolean().optional().default(false),
   CUSTODIAL_QUORUM: z.number().optional().default(1),
   CUSTODIAL_NUMBER: z.number().optional().default(5),

@@ -32,7 +32,7 @@ pub enum ParserError {
 }
 
 impl From<bitcoin::script::Error> for ParserError {
-    fn from(err: bitcoin::script::Error) -> Self {
+    fn from(_err: bitcoin::script::Error) -> Self {
         ParserError::InvalidScript
     }
 }
