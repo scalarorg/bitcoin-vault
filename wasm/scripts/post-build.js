@@ -76,10 +76,10 @@ const {join, dirname} = require("path");
 const {readFileSync} = require("fs");
 const {fileURLToPath} = require("url");
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const fn = fileURLToPath(import.meta.url);
+const dn = dirname(fn);
 
-const wasmPath = join(__dirname, 'bitcoin-vault-node_bg.wasm');
+const wasmPath = join(dn, 'bitcoin-vault-node_bg.wasm');
 const bytes = readFileSync(wasmPath);
 
 const wasmModule = new WebAssembly.Module(bytes);
