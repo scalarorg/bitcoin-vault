@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::BTreeMap};
 
 use bitcoin::{
+    ecdsa,
     key::{Keypair, Parity, Secp256k1, TapTweak, Verification},
     psbt::{
         GetKey, GetKeyError, IndexOutOfBoundsError, Input, KeyRequest, OutputType, PsbtSighashType,
@@ -89,7 +90,14 @@ impl<C> SignByKeyMap<C> for Psbt {
         for i in 0..self.inputs.len() {
             match self.signing_algorithm(i) {
                 Ok(SigningAlgorithm::Ecdsa) => {
-                    errors.insert(i, SignError::Unsupported);
+                    match self.key_map_sign_ecdsa(key_map, i, &mut cache, secp) {
+                        Ok(v) => {
+                            used.insert(i, SigningKeys::Ecdsa(v));
+                        }
+                        Err(e) => {
+                            errors.insert(i, e);
+                        }
+                    }
                 }
 
                 Ok(SigningAlgorithm::Schnorr) => {
@@ -104,10 +112,12 @@ impl<C> SignByKeyMap<C> for Psbt {
                 }
 
                 _ => {
+                    errors.insert(i, SignError::WrongSigningAlgorithm);
                     return Err((used, errors));
                 }
             }
         }
+
         if errors.is_empty() {
             Ok(used)
         } else {
@@ -117,6 +127,26 @@ impl<C> SignByKeyMap<C> for Psbt {
 
     fn finalize(&mut self) {
         self.inputs.iter_mut().for_each(|input| {
+            if !<Psbt as Utils>::is_taproot_input(&input) {
+                let sigs = input.partial_sigs.values().collect::<Vec<_>>();
+                let pubkeys = input.partial_sigs.keys().collect::<Vec<_>>();
+                let mut script_witness: Witness = Witness::new();
+                for i in 0..sigs.len() {
+                    script_witness.push(sigs[i].to_vec());
+                    script_witness.push(pubkeys[i].to_bytes());
+                }
+                input.final_script_witness = Some(script_witness);
+                input.partial_sigs = BTreeMap::new();
+                input.sighash_type = None;
+                input.redeem_script = None;
+                input.witness_script = None;
+                input.bip32_derivation = BTreeMap::new();
+                input.tap_script_sigs = BTreeMap::new();
+                input.tap_scripts = BTreeMap::new();
+                input.tap_key_sig = None;
+                return;
+            }
+
             let mut script_witness: Witness = Witness::new();
             for (_, signature) in input.tap_script_sigs.iter() {
                 script_witness.push(signature.to_vec());
@@ -160,6 +190,17 @@ pub trait Utils {
         cache: &mut SighashCache<T>,
         leaf_hash: Option<TapLeafHash>,
     ) -> Result<(Message, TapSighashType), SignError>;
+    fn key_map_sign_ecdsa<C, T>(
+        &mut self,
+        key_map: &SigningKeyMap,
+        input_index: usize,
+        cache: &mut SighashCache<T>,
+        secp: &Secp256k1<C>,
+    ) -> Result<Vec<PublicKey>, SignError>
+    where
+        C: Signing + Verification,
+        T: Borrow<Transaction>;
+    fn is_taproot_input(input: &Input) -> bool;
 }
 
 impl Utils for Psbt {
@@ -332,7 +373,8 @@ impl Utils for Psbt {
 
     fn signing_algorithm(&self, input_index: usize) -> Result<SigningAlgorithm, SignError> {
         let output_type = self.output_type(input_index)?;
-        Ok(output_type.signing_algorithm())
+        let signing_algorithm = output_type.signing_algorithm();
+        Ok(signing_algorithm)
     }
 
     /// Returns the [`OutputType`] of the spend utxo for this PBST's input at `input_index`.
@@ -410,5 +452,63 @@ impl Utils for Psbt {
         }
 
         Ok(())
+    }
+
+    fn is_taproot_input(input: &Input) -> bool {
+        input.tap_internal_key.is_some()
+            || input.tap_merkle_root.is_some()
+            || (!input.tap_scripts.is_empty())
+            || (input.witness_utxo.is_some()
+                && input.witness_utxo.as_ref().unwrap().script_pubkey.is_p2tr())
+    }
+
+    /// Note: This method only works for ECDSA inputs (not for Schnorr inputs).
+    /// Signs an ECDSA input by a key map.
+    fn key_map_sign_ecdsa<C, T>(
+        &mut self,
+        key_map: &SigningKeyMap,
+        input_index: usize,
+        cache: &mut SighashCache<T>,
+        secp: &Secp256k1<C>,
+    ) -> Result<Vec<PublicKey>, SignError>
+    where
+        C: Signing + Verification,
+        T: Borrow<Transaction>,
+    {
+        let msg_sighash_ty_res = self.sighash_ecdsa(input_index, cache);
+
+        let input = &mut self.inputs[input_index]; // Index checked in call to `sighash_ecdsa`.
+
+        let mut used = vec![]; // List of pubkeys used to sign the input.
+
+        for (pk, _) in input.tap_key_origins.iter() {
+            let key: Secp256k1PublicKey =
+                Secp256k1PublicKey::from_x_only_public_key(*pk, Parity::Even); // even or odd is not relevant for signing, just needs to be consistent with the KeyRequest::Pubkey
+            let pubkey: PublicKey = key.into();
+
+            let sk = if let Ok(Some(sk)) = key_map.get_key(KeyRequest::Pubkey(pubkey), secp) {
+                sk
+            } else {
+                continue;
+            };
+
+            // // Only return the error if we have a secret key to sign this input.
+            let (msg, sighash_ty) = match msg_sighash_ty_res {
+                Err(e) => return Err(e),
+                Ok((msg, sighash_ty)) => (msg, sighash_ty),
+            };
+
+            let sig = ecdsa::Signature {
+                signature: secp.sign_ecdsa(&msg, &sk.inner),
+                sighash_type: sighash_ty,
+            };
+
+            let pk = sk.public_key(secp);
+
+            input.partial_sigs.insert(pk, sig);
+            used.push(pk);
+        }
+
+        Ok(used)
     }
 }

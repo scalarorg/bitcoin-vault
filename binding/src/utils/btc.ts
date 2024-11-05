@@ -133,6 +133,7 @@ export const signPsbt = (
 ): { signedPsbt: bitcoin.Psbt; isValid: boolean } => {
   const keyPair = ECPair.fromWIF(privkey, network);
   const signedPsbt = unsignedPsbt.signAllInputs(keyPair);
+  
   if (finalize) {
     signedPsbt.finalizeAllInputs();
   }

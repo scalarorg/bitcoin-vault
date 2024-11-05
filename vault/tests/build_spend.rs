@@ -1,11 +1,14 @@
 use crate::{BUILD_USER_PROTOCOL_SPEND_PARAMS, MANAGER, TEST_PSBT_HEX};
-use bitcoin_vault::Unstaking;
+use bitcoin_vault::{Unstaking, UnstakingType, VaultManager};
 
 #[test]
 fn test_build_user_protocol_spend() {
-    let psbt = MANAGER
-        .build_user_protocol_spend(&BUILD_USER_PROTOCOL_SPEND_PARAMS)
-        .unwrap();
+    let psbt = <VaultManager as Unstaking>::build(
+        &MANAGER,
+        &BUILD_USER_PROTOCOL_SPEND_PARAMS,
+        UnstakingType::UserProtocol,
+    )
+    .unwrap();
     let psbt_hex = psbt.serialize_hex();
     assert_eq!(TEST_PSBT_HEX, psbt_hex);
 

@@ -1,33 +1,21 @@
 use bitcoin::{NetworkKind, Psbt, XOnlyPublicKey};
 
-use super::{
-    BuildCovenantsProtocolSpendParams, BuildStakingOutputParams, BuildUserProtocolSpendParams,
-    CoreError, StakingOutput,
-};
+use super::{BuildStakingParams, BuildUnstakingParams, CoreError, StakingOutput, UnstakingType};
 
 pub trait Staking {
     type Error;
 
-    fn build(&self, params: &BuildStakingOutputParams) -> Result<StakingOutput, Self::Error>;
+    fn build(&self, params: &BuildStakingParams) -> Result<StakingOutput, Self::Error>;
 }
 
 pub trait Unstaking {
     type Error;
 
-    fn build_user_protocol_spend(
+    fn build(
         &self,
-        params: &BuildUserProtocolSpendParams,
+        params: &BuildUnstakingParams,
+        unstaking_type: UnstakingType,
     ) -> Result<Psbt, Self::Error>;
-
-    fn build_covenants_protocol_spend(
-        &self,
-        params: &BuildCovenantsProtocolSpendParams,
-    ) -> Result<Psbt, Self::Error>;
-
-    // fn build_covenants_user_spend(
-    //     &self,
-    //     params: &BuildCovenantsUserSpendParams,
-    // ) -> Result<Psbt, Self::Error>;
 }
 
 pub trait Signing {

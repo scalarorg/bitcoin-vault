@@ -18,11 +18,31 @@ pub struct Env {
     #[validate(length(equal = 52))]
     pub user_private_key: String,
 
+    #[validate(length(min = 20))]
+    pub user_address: String,
+
     #[validate(length(min = 52))]
     pub protocol_private_key: String,
 
     #[validate(length(equal = 5))]
     pub covenant_private_keys: Vec<String>,
+
+    #[validate(range(min = 0))]
+    pub destination_chain_id: u64,
+
+    #[validate(length(equal = 40))]
+    pub destination_contract_address: String,
+
+    #[validate(length(equal = 40))]
+    pub destination_recipient_address: String,
+
+    #[validate(range(min = 0))]
+    pub covenant_quorum: u8,
+
+    #[validate(range(min = 0))]
+    pub staking_amount: u64,
+
+    pub have_only_covenants: bool,
 
     #[validate(length(equal = 64))]
     pub utxo_tx_id: String,
@@ -65,16 +85,52 @@ impl Env {
             btc_node_user: env::var("BTC_NODE_USER").unwrap(),
             btc_node_password: env::var("BTC_NODE_PASSWORD").unwrap(),
             user_private_key: env::var("USER_PRIVATE_KEY").unwrap(),
+            user_address: env::var("USER_ADDRESS").unwrap(),
             protocol_private_key: env::var("PROTOCOL_PRIVATE_KEY").unwrap(),
-            covenant_private_keys: env::var("COVENANT_PRIVATE_KEYS")
+            covenant_private_keys: env::var("COVENANT_PRIVKEYS")
                 .unwrap()
                 .split(',')
                 .map(|s| s.to_string())
                 .collect(),
-            utxo_tx_id: env::var("UTXO_TX_ID").unwrap(),
-            utxo_amount: env::var("UTXO_AMOUNT").unwrap().parse().unwrap(),
-            utxo_vout: env::var("UTXO_VOUT").unwrap().parse().unwrap(),
-            script_pubkey: env::var("SCRIPT_PUBKEY").unwrap(),
+
+            destination_chain_id: env::var("DESTINATION_CHAIN_ID")
+                .unwrap_or("11155111".to_string())
+                .parse()
+                .unwrap_or_default(),
+            destination_contract_address: env::var("DESTINATION_CONTRACT_ADDRESS")
+                .unwrap_or("1F98C06D8734D5A9FF0b53e3294626E62e4d232C".to_string()),
+
+            destination_recipient_address: env::var("DESTINATION_RECIPIENT_ADDRESS")
+                .unwrap_or("130C4810D57140e1E62967cBF742CaEaE91b6ecE".to_string()),
+
+            covenant_quorum: env::var("COVENANT_QUORUM")
+                .unwrap_or("3".to_string())
+                .parse()
+                .unwrap_or_default(),
+
+            staking_amount: env::var("STAKING_AMOUNT")
+                .unwrap_or("9999".to_string())
+                .parse()
+                .unwrap_or_default(),
+
+            have_only_covenants: env::var("HAVE_ONLY_COVENANTS")
+                .unwrap_or("false".to_string())
+                .parse()
+                .unwrap_or_default(),
+
+            utxo_tx_id: env::var("UTXO_TX_ID").unwrap_or(
+                "df0404d9a9baea8b6e71bfb3566517f1765300f6603f158bc530c3323f6dbd34".to_string(),
+            ),
+            utxo_amount: env::var("UTXO_AMOUNT")
+                .unwrap_or("10000100".to_string())
+                .parse()
+                .unwrap_or_default(),
+            utxo_vout: env::var("UTXO_VOUT")
+                .unwrap_or("0".to_string())
+                .parse()
+                .unwrap_or_default(),
+            script_pubkey: env::var("SCRIPT_PUBKEY")
+                .unwrap_or("00141302a4ea98285baefb2d290de541d069356d88e9".to_string()),
         };
 
         if let Err(err) = env.validate() {
@@ -92,12 +148,20 @@ impl Default for Env {
             btc_node_user: "user".to_string(),
             btc_node_password: "password".to_string(),
             user_private_key: "".to_string(),
+            user_address: "".to_string(),
             protocol_private_key: "".to_string(),
             covenant_private_keys: vec![],
-            utxo_tx_id: "".to_string(),
-            utxo_amount: 0,
+            destination_chain_id: 11155111,
+            destination_contract_address: "1F98C06D8734D5A9FF0b53e3294626E62e4d232C".to_string(),
+            destination_recipient_address: "130C4810D57140e1E62967cBF742CaEaE91b6ecE".to_string(),
+            covenant_quorum: 3,
+            staking_amount: 10_000,
+            have_only_covenants: false,
+            utxo_tx_id: "df0404d9a9baea8b6e71bfb3566517f1765300f6603f158bc530c3323f6dbd34"
+                .to_string(),
+            utxo_amount: 10_000_100,
             utxo_vout: 0,
-            script_pubkey: "".to_string(),
+            script_pubkey: "00141302a4ea98285baefb2d290de541d069356d88e9".to_string(),
         }
     }
 }

@@ -16,3 +16,6 @@ pub use setup_suite::*;
 
 #[cfg(test)]
 mod sign_psbt;
+
+#[cfg(test)]
+mod staking_and_unstaking;

@@ -67,6 +67,11 @@ describe("Vault-Staking", async () => {
       TestSuite.stakerWif,
       unsignedVaultPsbt
     );
+
+
+    console.log({signedPsbt: signedPsbt.data.inputs})
+
+
     expect(isValid).toBe(true);
     //3. Extract the transaction and broadcast
     let transaction = signedPsbt.extractTransaction(false);

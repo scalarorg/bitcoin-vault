@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use super::{
     manager, CoreError, ReversedPreviousStakingUTXO, TaprootTree, Unstaking, VaultManager,
-    XOnlyKeys, UTXO,
 };
 
 use super::PreviousStakingUTXO;
@@ -15,8 +14,16 @@ use bitcoin::{
 };
 use validator::Validate;
 
+#[derive(Debug, PartialEq)]
+pub enum UnstakingType {
+    UserProtocol,
+    CovenantsProtocol,
+    CovenantsUser,
+    OnlyCovenants,
+}
+
 #[derive(Debug, Validate)]
-pub struct BuildUserProtocolSpendParams {
+pub struct BuildUnstakingParams {
     pub input_utxo: PreviousStakingUTXO,
     pub unstaking_output: TxOut,
     pub user_pub_key: PublicKey,
@@ -27,36 +34,76 @@ pub struct BuildUserProtocolSpendParams {
     pub rbf: bool,
 }
 
-#[derive(Debug, Validate)]
-pub struct BuildCovenantsProtocolSpendParams<'a> {
-    pub input_utxo: &'a UTXO,
-    pub unstaking_output: &'a TxOut,
-    pub protocol_pub_key: &'a PublicKey,
-    pub covenant_pubkeys: &'a [PublicKey],
-    pub covenant_quorum: u8,
-}
+impl Unstaking for VaultManager {
+    type Error = CoreError;
 
-#[derive(Debug, Validate)]
-pub struct BuildCovenantsUserSpendParams<'a> {
-    pub input_utxo: &'a UTXO,
-    pub unstaking_output: &'a TxOut,
-    pub user_pub_key: &'a PublicKey,
-    pub covenant_pubkeys: &'a [PublicKey],
-    pub covenant_quorum: u8,
-}
+    fn build(
+        &self,
+        params: &BuildUnstakingParams,
+        unstaking_type: UnstakingType,
+    ) -> Result<Psbt, Self::Error> {
+        // TODO: validate more params
+        if unstaking_type == UnstakingType::OnlyCovenants && !params.have_only_covenants {
+            return Err(CoreError::InvalidUnstakingType);
+        }
 
-#[derive(Debug)]
-pub struct BuildUserProtocolSpendOutput {
-    pub psbt: Psbt,
-}
+        let x_only_keys = manager::VaultManager::convert_to_x_only_keys(
+            &params.user_pub_key,
+            &params.protocol_pub_key,
+            &params.covenant_pub_keys,
+        );
 
-impl BuildUserProtocolSpendOutput {
-    pub fn new(psbt: Psbt) -> Self {
-        Self { psbt }
-    }
+        let tree = TaprootTree::new(
+            self.secp(),
+            &x_only_keys.user,
+            &x_only_keys.protocol,
+            &x_only_keys.covenants,
+            params.covenant_quorum,
+            params.have_only_covenants,
+        )?;
 
-    pub fn into_psbt(self) -> Psbt {
-        self.psbt
+        let (branch, keys): (&ScriptBuf, Vec<XOnlyPublicKey>) = match unstaking_type {
+            UnstakingType::UserProtocol => {
+                let branch = &tree.user_protocol_branch;
+                let mut keys = Vec::with_capacity(2);
+                keys.push(x_only_keys.user);
+                keys.push(x_only_keys.protocol);
+                (branch, keys)
+            }
+            UnstakingType::CovenantsProtocol => {
+                let branch = &tree.covenants_protocol_branch;
+                let mut keys = Vec::with_capacity(x_only_keys.covenants.len() + 1);
+                keys.push(x_only_keys.protocol);
+                keys.extend_from_slice(&x_only_keys.covenants);
+                (branch, keys)
+            }
+            UnstakingType::CovenantsUser => {
+                let branch = &tree.covenants_user_branch;
+                let mut keys = Vec::with_capacity(x_only_keys.covenants.len() + 1);
+                keys.push(x_only_keys.user);
+                keys.extend_from_slice(&x_only_keys.covenants);
+                (branch, keys)
+            }
+            UnstakingType::OnlyCovenants => {
+                (&tree.only_covenants_branch.unwrap(), x_only_keys.covenants)
+            }
+        };
+
+        // 3. Create reversed input utxo, unsigned transaction and psbt
+        // TODO: refactor this stuff, check ReversedPreviousStakingUTXO
+        let reversed_input_utxo = ReversedPreviousStakingUTXO::from(params.input_utxo.clone());
+
+        let mut psbt = self.prepare_psbt(
+            &reversed_input_utxo.outpoint,
+            &params.unstaking_output,
+            params.rbf,
+        )?;
+
+        let input = self.prepare_psbt_input(&reversed_input_utxo, &tree.root, branch, &keys);
+
+        psbt.inputs = vec![input];
+
+        Ok(psbt)
     }
 }
 
@@ -90,10 +137,9 @@ impl VaultManager {
         reversed_input_utxo: &ReversedPreviousStakingUTXO,
         tree: &TaprootSpendInfo,
         branch: &ScriptBuf,
-        x_only_keys: &XOnlyKeys,
+        keys: &[XOnlyPublicKey],
     ) -> Input {
-        let tap_key_origins =
-            self.create_tap_key_origins(&branch, &[x_only_keys.user, x_only_keys.protocol]);
+        let tap_key_origins = self.create_tap_key_origins(&branch, keys);
 
         let tap_scripts = self.create_tap_scripts(tree, branch);
 
@@ -167,131 +213,4 @@ impl VaultManager {
             ..Default::default()
         }
     }
-}
-
-impl Unstaking for VaultManager {
-    type Error = CoreError;
-
-    fn build_user_protocol_spend(
-        &self,
-        params: &BuildUserProtocolSpendParams,
-    ) -> Result<Psbt, Self::Error> {
-        let x_only_keys = manager::VaultManager::convert_to_x_only_keys(
-            &params.user_pub_key,
-            &params.protocol_pub_key,
-            &params.covenant_pub_keys,
-        );
-
-        let tree = TaprootTree::new(
-            self.secp(),
-            &x_only_keys.user,
-            &x_only_keys.protocol,
-            &x_only_keys.covenants,
-            params.covenant_quorum,
-            params.have_only_covenants,
-        )?;
-
-        // 3. Create reversed input utxo, unsigned transaction and psbt
-        // TODO: refactor this stuff, check ReversedPreviousStakingUTXO
-        let reversed_input_utxo = ReversedPreviousStakingUTXO::from(params.input_utxo.clone());
-
-        let mut psbt = self.prepare_psbt(
-            &reversed_input_utxo.outpoint,
-            &params.unstaking_output,
-            params.rbf,
-        )?;
-
-        let input = self.prepare_psbt_input(
-            &reversed_input_utxo,
-            &tree.root,
-            &tree.user_protocol_branch,
-            &x_only_keys,
-        );
-
-        psbt.inputs = vec![input];
-
-        Ok(psbt)
-    }
-
-    fn build_covenants_protocol_spend(
-        &self,
-        params: &BuildCovenantsProtocolSpendParams,
-    ) -> Result<Psbt, Self::Error> {
-        todo!()
-    }
-
-    // fn build_covenants_protocol_spend(
-    //     &self,
-    //     params: &BuildCovenantsProtocolSpendParams,
-    // ) -> Result<Psbt, Self::Error> {
-    //     // 1. Convert protocol key to x-only format
-    //     let x_only_protocol_pub_key = XOnlyPublicKey::from(*params.protocol_pub_key);
-
-    //     // 2. Convert covenant keys to x-only format
-    //     let covenant_pubkeys_x_only: Vec<XOnlyPublicKey> = params
-    //         .covenant_pubkeys
-    //         .iter()
-    //         .map(|pk| XOnlyPublicKey::from(*pk))
-    //         .collect();
-
-    //     // 3. Build script and prepare taproot tree
-    //     let script = TaprootManager::covenants_protocol_branch(
-    //         &covenant_pubkeys_x_only,
-    //         params.covenant_quorum,
-    //         &x_only_protocol_pub_key,
-    //     )?;
-
-    //     // 4. Create unsigned transaction
-    //     let unsigned_tx = self.create_unsigned_tx(
-    //         params.input_utxo.outpoint,
-    //         params.unstaking_output.clone(),
-    //         false, // RBF is not needed for covenant spends
-    //     );
-
-    //     let mut psbt = Psbt::from_unsigned_tx(unsigned_tx)
-    //         .map_err(|_| CoreError::FailedToCreatePSBT)?;
-
-    //     // 5. Create taproot tree
-    //     let tree = TaprootManager::build_taproot_tree(
-    //         self.secp(),
-    //         &NUMS_BIP_341, // Use NUMS key as placeholder for user key
-    //         &x_only_protocol_pub_key,
-    //         &covenant_pubkeys_x_only,
-    //         params.covenant_quorum,
-    //         false, // No need for only_covenants path
-    //     )?;
-
-    //     // 6. Create taproot key origins and scripts
-    //     let mut tap_key_origins = self.create_tap_key_origins(&script, &[x_only_protocol_pub_key]);
-    //     // Add covenant keys to origins
-    //     for key in covenant_pubkeys_x_only.iter() {
-    //         tap_key_origins.insert(
-    //             *key,
-    //             (
-    //                 vec![script.tapscript_leaf_hash()],
-    //                 ([0u8; 4].into(), DerivationPath::default()),
-    //             ),
-    //         );
-    //     }
-
-    //     let tap_scripts = self.create_tap_scripts(&tree, &script);
-
-    //     // 7. Create and set PSBT input
-    //     let input = Input {
-    //         witness_utxo: Some(TxOut {
-    //             value: params.input_utxo.amount_in_sats,
-    //             script_pubkey: params.input_utxo.script_pubkey.clone(),
-    //         }),
-    //         tap_internal_key: Some(tree.internal_key()),
-    //         tap_merkle_root: tree.merkle_root(),
-    //         tap_scripts: tap_scripts.clone(),
-    //         tap_key_origins: tap_key_origins.clone(),
-    //         sighash_type: Some(PsbtSighashType::from(TapSighashType::Default)),
-    //         ..Default::default()
-    //     };
-
-    //     psbt.inputs = vec![input];
-
-    //     Ok(psbt)
-    // }
 }

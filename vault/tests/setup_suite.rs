@@ -8,7 +8,7 @@ use bitcoin::key::Secp256k1;
 use bitcoin::{Amount, CompressedPublicKey, OutPoint, ScriptBuf, TxOut};
 use bitcoin::{PrivateKey, PublicKey, Txid};
 use bitcoin_vault::VaultManager;
-use bitcoin_vault::{BuildUserProtocolSpendParams, PreviousStakingUTXO};
+use bitcoin_vault::{BuildUnstakingParams, PreviousStakingUTXO};
 
 pub const TEST_CUSTODIAL_QUORUM: u8 = 1;
 pub const TEST_HAVE_ONLY_COVENANTS: bool = false;
@@ -46,12 +46,12 @@ pub static MOCK_ENV: LazyLock<Env> = LazyLock::new(|| {
 });
 
 lazy_static! {
-    pub static ref BUILD_USER_PROTOCOL_SPEND_PARAMS: BuildUserProtocolSpendParams =
+    pub static ref BUILD_USER_PROTOCOL_SPEND_PARAMS: BuildUnstakingParams =
         load_build_user_protocol_spend_params();
     pub static ref MANAGER: VaultManager = VaultManager::new(TEST_TAG.to_vec(), TEST_VERSION);
 }
 
-fn load_build_user_protocol_spend_params() -> BuildUserProtocolSpendParams {
+fn load_build_user_protocol_spend_params() -> BuildUnstakingParams {
     let secp = &Secp256k1::new();
 
     let user_privkey = PrivateKey::from_wif(&MOCK_ENV.user_private_key).unwrap();
@@ -88,7 +88,7 @@ fn load_build_user_protocol_spend_params() -> BuildUserProtocolSpendParams {
 
     assert_eq!(p2wpkh_script.to_hex_string(), USER_SCRIPT_PUBKEY);
 
-    BuildUserProtocolSpendParams {
+    BuildUnstakingParams {
         input_utxo: PreviousStakingUTXO {
             script_pubkey: ScriptBuf::from_hex(&MOCK_ENV.script_pubkey).unwrap(),
             outpoint: OutPoint {

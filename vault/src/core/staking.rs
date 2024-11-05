@@ -11,7 +11,7 @@ pub type DestinationAddress = [u8; ADDRESS_SIZE];
 pub type DestinationChainId = [u8; CHAIN_ID_SIZE];
 
 #[derive(Debug, Validate)]
-pub struct BuildStakingOutputParams {
+pub struct BuildStakingParams {
     pub user_pub_key: PublicKey,
     pub protocol_pub_key: PublicKey,
     pub covenant_pub_keys: Vec<PublicKey>,
@@ -60,7 +60,7 @@ impl StakingOutput {
 impl Staking for VaultManager {
     type Error = CoreError;
 
-    fn build(&self, params: &BuildStakingOutputParams) -> Result<StakingOutput, Self::Error> {
+    fn build(&self, params: &BuildStakingParams) -> Result<StakingOutput, Self::Error> {
         // TODO: 0.validate params by use validator create
         let x_only_keys = manager::VaultManager::convert_to_x_only_keys(
             &params.user_pub_key,

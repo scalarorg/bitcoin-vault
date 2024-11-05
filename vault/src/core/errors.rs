@@ -37,4 +37,6 @@ pub enum CoreError {
     SigningPSBTFailed(String),
     #[error("Failed to extract tx")]
     FailedToExtractTx,
+    #[error("Invalid unstaking type")]
+    InvalidUnstakingType,
 }

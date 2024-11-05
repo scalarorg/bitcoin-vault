@@ -42,8 +42,6 @@ export const buildUnsignedStakingPsbt = (
     dstSmartContractAddress,
     dstUserAddress
   );
-  console.log({ outputs }); 
-
   // 2. Get the selected utxos and fees
   const inputByAddress = prepareExtraInputByAddress(
     stakerAddress,
