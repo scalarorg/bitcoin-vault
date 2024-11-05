@@ -3,16 +3,17 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use bitcoin::bip32::DerivationPath;
+use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::psbt::Input;
 use bitcoin::{
-    absolute, address::NetworkChecked, key::Secp256k1, secp256k1::All, transaction, Address,
-    NetworkKind, PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut,
-    Witness,
+    absolute, address::NetworkChecked, consensus::serialize, key::Secp256k1, secp256k1::All,
+    transaction, Address, NetworkKind, PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence,
+    Transaction, TxIn, TxOut, Witness,
 };
 use bitcoin::{OutPoint, Txid};
 use bitcoin_vault::{
-    BuildStakingParams, BuildUnstakingParams, PreviousStakingUTXO, Signing, Staking, Unstaking,
-    VaultManager,
+    BuildStakingParams, BuildUnstakingParams, PreviousStakingUTXO, SignByKeyMap, Signing, Staking,
+    Unstaking, UnstakingType, VaultManager,
 };
 use bitcoincore_rpc::json::{GetTransactionResult, ListUnspentResultEntry};
 
@@ -33,48 +34,20 @@ lazy_static! {
 pub struct TestSuite<'a> {
     rpc: Client,
     env: &'a Env,
-    user_privkey: PrivateKey,
-    user_pubkey: PublicKey,
+    user_pair: (PrivateKey, PublicKey),
+    protocol_pair: (PrivateKey, PublicKey),
+    covenant_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)>,
     user_address: Address<NetworkChecked>,
-    protocol_privkey: PrivateKey,
-    protocol_pubkey: PublicKey,
-    covenant_pubkeys: Vec<PublicKey>,
 }
 
 #[test]
 fn test_user_protocol_unstaking() {
     // prepare staking tx
-    let (staking_tx, txid) = TestSuite::new().prepare_staking_tx();
+    let staking_tx = TestSuite::new().prepare_staking_tx();
 
     // prepare unstaking tx
-    let mut reversed_tx: [u8; 32] = txid.as_raw_hash().to_byte_array();
-    reversed_tx.reverse();
-
-    let vout: usize = 0;
-
-    let mut unstaked_psbt = <VaultManager as Unstaking>::build(
-        &MANAGER,
-        &BuildUnstakingParams {
-            input_utxo: PreviousStakingUTXO {
-                outpoint: OutPoint::new(Txid::from_byte_array(reversed_tx), vout as u32),
-                amount_in_sats: staking_tx.output[vout].value,
-                script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
-            },
-
-            unstaking_output: TxOut {
-                value: staking_tx.output[vout].value - bitcoin::Amount::from_sat(1_000),
-                script_pubkey: SUITE.get_user_address().script_pubkey(),
-            },
-            user_pub_key: SUITE.get_user_pubkey(),
-            protocol_pub_key: SUITE.get_protocol_pubkey(),
-            covenant_pub_keys: SUITE.get_covenant_pubkeys(),
-            covenant_quorum: SUITE.get_covenant_quorum(),
-            have_only_covenants: SUITE.get_have_only_covenants(),
-            rbf: true,
-        },
-        bitcoin_vault::UnstakingType::UserProtocol,
-    )
-    .unwrap();
+    let mut unstaked_psbt =
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::UserProtocol);
 
     // sign unstaking psbt
     <VaultManager as Signing>::sign_psbt_by_single_key(
@@ -94,24 +67,50 @@ fn test_user_protocol_unstaking() {
     .unwrap();
 
     //  send unstaking tx
-    let finalized_tx = unstaked_psbt.extract_tx().unwrap();
+    let result = TestSuite::new().send_psbt(unstaked_psbt);
 
-    let txid = SUITE.get_rpc().send_raw_transaction(&finalized_tx).unwrap();
+    println!("unstaked tx result: {:?}", result);
+}
 
-    let mut unstaked_tx: Option<GetTransactionResult> = None;
+#[test]
+fn test_covenants_user_unstaking() {
+    let staking_tx = TestSuite::new().prepare_staking_tx();
+    let mut unstaked_psbt =
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::CovenantsUser);
 
-    let retry = 3;
-    for _ in 0..retry {
-        unstaked_tx = SUITE.get_rpc().get_transaction(&txid, None).ok();
-        sleep(Duration::from_secs(5));
+    // Sign with user key first
+    <VaultManager as Signing>::sign_psbt_by_single_key(
+        &mut unstaked_psbt,
+        &SUITE.get_user_privkey_bytes(),
+        NetworkKind::Test,
+        false,
+    )
+    .unwrap();
+
+    // Get sorted covenant keys and sign in order
+    let sorted_covenants_privkey_bytes = SUITE
+        .get_sorted_covenant_privkeys()
+        .iter()
+        .map(|p| p.to_bytes())
+        .collect::<Vec<Vec<u8>>>();
+
+    // Sign with each covenant key in order
+    for privkey_bytes in sorted_covenants_privkey_bytes {
+        <VaultManager as Signing>::sign_psbt_by_single_key(
+            &mut unstaked_psbt,
+            &privkey_bytes,
+            NetworkKind::Test,
+            false,
+        )
+        .unwrap();
     }
 
-    if unstaked_tx.is_none() {
-        panic!("unstaked tx not found");
-    }
+    // Finalize the PSBT
+    <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
-    println!("unstaked txid: {}", txid);
-    println!("unstaked_tx: {:?}", unstaked_tx.unwrap());
+    // Extract and send
+    let result = TestSuite::new().send_psbt(unstaked_psbt);
+    println!("unstaked tx result: {:?}", result);
 }
 
 impl<'a> TestSuite<'a> {
@@ -131,28 +130,24 @@ impl<'a> TestSuite<'a> {
             .require_network(bitcoin::Network::Regtest)
             .unwrap();
 
-        let (user_privkey, user_pubkey) = TestSuite::key_from_wif(&env.user_private_key, &secp);
-        let (protocol_privkey, protocol_pubkey) =
-            TestSuite::key_from_wif(&env.protocol_private_key, &secp);
-        let covenant_pubkeys: Vec<PublicKey> = env
-            .covenant_private_keys
-            .iter()
-            .map(|s| TestSuite::key_from_wif(s, &secp).1)
-            .collect();
+        let mut covenant_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)> = BTreeMap::new();
+
+        for (_, s) in env.covenant_private_keys.iter().enumerate() {
+            let (privkey, pubkey) = TestSuite::key_from_wif(s, &secp);
+            covenant_pairs.insert(pubkey, (privkey, pubkey));
+        }
 
         Self {
             rpc,
             env,
-            user_privkey,
-            user_pubkey,
+            user_pair: TestSuite::key_from_wif(&env.user_private_key, &secp),
+            protocol_pair: TestSuite::key_from_wif(&env.protocol_private_key, &secp),
+            covenant_pairs,
             user_address,
-            protocol_privkey,
-            protocol_pubkey,
-            covenant_pubkeys,
         }
     }
 
-    fn prepare_staking_tx(&self) -> (Transaction, Txid) {
+    fn prepare_staking_tx(&self) -> Transaction {
         let params = self.get_staking_params();
         let utxo = self.get_approvable_utxos(self.get_staking_amount());
 
@@ -214,30 +209,68 @@ impl<'a> TestSuite<'a> {
         )
         .unwrap();
 
-        let finalized_tx = psbt.extract_tx().unwrap();
+        let result = self.send_psbt(psbt);
 
-        let txid = self.rpc.send_raw_transaction(&finalized_tx).unwrap();
-
-        let mut staking_tx: Option<GetTransactionResult> = None;
-
-        println!("waiting for staking tx to be confirmed");
-        println!("txid: {}", txid);
-
-        let retry = 3;
-        for _ in 0..retry {
-            staking_tx = self.rpc.get_transaction(&txid, None).ok();
-            sleep(Duration::from_secs(5));
-        }
-
-        if staking_tx.is_none() {
-            panic!("staking tx not found");
-        }
-
-        let staking_tx_hex = staking_tx.unwrap().hex;
+        let staking_tx_hex = result.hex;
 
         let staking_tx: Transaction = bitcoin::consensus::deserialize(&staking_tx_hex).unwrap();
 
-        (staking_tx, txid)
+        staking_tx
+    }
+
+    fn build_unstaking_tx(&self, staking_tx: &Transaction, unstaking_type: UnstakingType) -> Psbt {
+        let mut reversed_tx: [u8; 32] = staking_tx.compute_txid().as_raw_hash().to_byte_array();
+        reversed_tx.reverse();
+
+        let vout: usize = 0;
+
+        <VaultManager as Unstaking>::build(
+            &MANAGER,
+            &BuildUnstakingParams {
+                input_utxo: PreviousStakingUTXO {
+                    outpoint: OutPoint::new(Txid::from_byte_array(reversed_tx), vout as u32),
+                    amount_in_sats: staking_tx.output[vout].value,
+                    script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
+                },
+
+                unstaking_output: TxOut {
+                    value: staking_tx.output[vout].value - bitcoin::Amount::from_sat(1_000),
+                    script_pubkey: SUITE.get_user_address().script_pubkey(),
+                },
+                user_pub_key: SUITE.get_user_pubkey(),
+                protocol_pub_key: SUITE.get_protocol_pubkey(),
+                covenant_pub_keys: SUITE.get_covenant_pubkeys(),
+                covenant_quorum: SUITE.get_covenant_quorum(),
+                have_only_covenants: SUITE.get_have_only_covenants(),
+                rbf: true,
+            },
+            unstaking_type,
+        )
+        .unwrap()
+    }
+
+    fn send_psbt(&self, psbt: Psbt) -> GetTransactionResult {
+        let finalized_tx = psbt.extract_tx().unwrap();
+
+        let txid = SUITE.get_rpc().send_raw_transaction(&finalized_tx).unwrap();
+
+        let mut tx_result: Option<GetTransactionResult> = None;
+
+        let retry = 3;
+        for _ in 0..retry {
+            tx_result = SUITE.get_rpc().get_transaction(&txid, None).ok();
+            sleep(Duration::from_secs(5));
+        }
+
+        if tx_result.is_none() {
+            panic!("tx not found");
+        }
+
+        let tx = tx_result.unwrap();
+
+        println!("tx result: {:?}", tx);
+
+        tx
     }
 
     fn get_staking_params(&self) -> BuildStakingParams {
@@ -307,15 +340,30 @@ impl<'a> TestSuite<'a> {
     }
 
     fn get_user_pubkey(&self) -> PublicKey {
-        self.user_pubkey
+        self.user_pair.1
     }
 
     fn get_protocol_pubkey(&self) -> PublicKey {
-        self.protocol_pubkey
+        self.protocol_pair.1
     }
 
     fn get_covenant_pubkeys(&self) -> Vec<PublicKey> {
-        self.covenant_pubkeys.clone()
+        self.covenant_pairs.values().map(|p| p.1).collect()
+    }
+
+    fn get_sorted_covenant_privkeys(&self) -> Vec<PrivateKey> {
+        let mut pubkey_privkey_pairs: Vec<(PublicKey, PrivateKey)> = self
+            .covenant_pairs
+            .iter()
+            .map(|(_, pair)| (pair.1, pair.0))
+            .collect();
+
+        pubkey_privkey_pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+        pubkey_privkey_pairs
+            .into_iter()
+            .map(|(_, privkey)| privkey)
+            .collect()
     }
 
     fn get_user_address(&self) -> Address<NetworkChecked> {
@@ -327,11 +375,11 @@ impl<'a> TestSuite<'a> {
     }
 
     fn get_user_privkey_bytes(&self) -> Vec<u8> {
-        self.user_privkey.to_bytes()
+        self.user_pair.0.to_bytes()
     }
 
     fn get_protocol_privkey_bytes(&self) -> Vec<u8> {
-        self.protocol_privkey.to_bytes()
+        self.protocol_pair.0.to_bytes()
     }
 
     fn get_fee(&self, n_outputs: u64) -> u64 {

@@ -72,7 +72,8 @@ impl Unstaking for VaultManager {
             }
             UnstakingType::CovenantsProtocol => {
                 let branch = &tree.covenants_protocol_branch;
-                let mut keys = Vec::with_capacity(x_only_keys.covenants.len() + 1);
+                let mut keys: Vec<XOnlyPublicKey> =
+                    Vec::with_capacity(x_only_keys.covenants.len() + 1);
                 keys.push(x_only_keys.protocol);
                 keys.extend_from_slice(&x_only_keys.covenants);
                 (branch, keys)
@@ -99,7 +100,10 @@ impl Unstaking for VaultManager {
             params.rbf,
         )?;
 
-        let input = self.prepare_psbt_input(&reversed_input_utxo, &tree.root, branch, &keys);
+        let mut sorted_keys = keys.clone();
+        sorted_keys.sort_by(|a, b| a.cmp(b));
+
+        let input = self.prepare_psbt_input(&reversed_input_utxo, &tree.root, branch, &sorted_keys);
 
         psbt.inputs = vec![input];
 
