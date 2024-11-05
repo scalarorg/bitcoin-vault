@@ -15,14 +15,14 @@ impl From<VaultABIError> for JsValue {
 }
 #[wasm_bindgen]
 pub struct VaultWasm {
-    staking: VaultManager,
+    manager: VaultManager,
 }
 #[wasm_bindgen]
 impl VaultWasm {
     #[wasm_bindgen]
     pub fn new(tag: &[u8], version: u8) -> Self {
         VaultWasm {
-            staking: VaultManager::new(tag.to_vec(), version),
+            manager: VaultManager::new(tag.to_vec(), version),
         }
     }
 
@@ -53,7 +53,7 @@ impl VaultWasm {
             staking_amount,
             user_pub_key: Decoder::decode_33bytes_pubkey(staker_pubkey)?,
             protocol_pub_key: Decoder::decode_33bytes_pubkey(protocol_pubkey)?,
-            covenant_pubkeys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
+            covenant_pub_keys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
             covenant_quorum,
             have_only_covenants,
             destination_chain_id: destination_chain_id.to_be_bytes(),
@@ -61,8 +61,8 @@ impl VaultWasm {
             destination_recipient_address,
         };
 
-        match self.staking.build_staking_outputs(&params) {
-            Ok(tx_outs) => Ok(Encoder::serialize_tx_outs(&tx_outs)),
+        match <VaultManager as Staking>::build(&self.manager, &params) {
+            Ok(staking_output) => Ok(Encoder::serialize_tx_outs(&staking_output.into_tx_outs())),
             Err(_) => Ok(vec![]),
         }
     }
@@ -87,7 +87,7 @@ impl VaultWasm {
 
         let user_pub_key = Decoder::decode_33bytes_pubkey(staker_pubkey)?;
         let protocol_pub_key = Decoder::decode_33bytes_pubkey(protocol_pubkey)?;
-        let covenant_pubkeys = Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)?;
+        let covenant_pub_keys = Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)?;
 
         let params = BuildUserProtocolSpendParams {
             input_utxo: PreviousStakingUTXO {
@@ -104,13 +104,13 @@ impl VaultWasm {
             },
             user_pub_key,
             protocol_pub_key,
-            covenant_pubkeys,
+            covenant_pub_keys,
             covenant_quorum,
             have_only_covenants,
             rbf,
         };
 
-        match self.staking.build_user_protocol_spend(&params) {
+        match <VaultManager as Unstaking>::build_user_protocol_spend(&self.manager, &params) {
             Ok(psbt) => Ok(psbt.serialize()),
             Err(_) => Ok(vec![]),
         }

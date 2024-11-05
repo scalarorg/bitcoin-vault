@@ -60,7 +60,7 @@ fn load_build_user_protocol_spend_params() -> BuildUserProtocolSpendParams {
     let protocol_privkey = PrivateKey::from_wif(&MOCK_ENV.protocol_private_key).unwrap();
     let protocol_pub_key = protocol_privkey.public_key(secp);
 
-    let covenant_pubkeys: Vec<PublicKey> = MOCK_ENV
+    let covenant_pub_keys: Vec<PublicKey> = MOCK_ENV
         .covenant_private_keys
         .iter()
         .map(|k| PrivateKey::from_wif(k).unwrap().public_key(secp))
@@ -69,7 +69,7 @@ fn load_build_user_protocol_spend_params() -> BuildUserProtocolSpendParams {
     println!("===== KEYS =====");
     println!("user_pub_key: {:?}", user_pub_key.to_string());
     println!("protocol_pub_key: {:?}", protocol_pub_key.to_string());
-    for (i, covenant_pubkey) in covenant_pubkeys.iter().enumerate() {
+    for (i, covenant_pubkey) in covenant_pub_keys.iter().enumerate() {
         println!("covenant_pubkey {}: {:?}", i, covenant_pubkey.to_string());
     }
 
@@ -105,9 +105,9 @@ fn load_build_user_protocol_spend_params() -> BuildUserProtocolSpendParams {
             value: Amount::from_sat(TEST_UTXO_AMOUNT - TEST_FEE_AMOUNT), // 1000 sats for fees -> 9_000
             script_pubkey: p2wpkh_script,
         },
-        user_pub_key: user_pub_key,
-        protocol_pub_key: protocol_pub_key,
-        covenant_pubkeys,
+        user_pub_key,
+        protocol_pub_key,
+        covenant_pub_keys,
         covenant_quorum: TEST_CUSTODIAL_QUORUM,
         have_only_covenants: TEST_HAVE_ONLY_COVENANTS,
         rbf: TEST_RBF,

@@ -1,14 +1,14 @@
-use bitcoin::{NetworkKind, Psbt, TxOut};
+use bitcoin::{NetworkKind, Psbt, XOnlyPublicKey};
 
-use super::{BuildStakingOutputParams, BuildUserProtocolSpendParams, CoreError};
+use super::{
+    BuildCovenantsProtocolSpendParams, BuildStakingOutputParams, BuildUserProtocolSpendParams,
+    CoreError, StakingOutput,
+};
 
 pub trait Staking {
     type Error;
 
-    fn build_staking_outputs(
-        &self,
-        params: &BuildStakingOutputParams,
-    ) -> Result<Vec<TxOut>, Self::Error>;
+    fn build(&self, params: &BuildStakingOutputParams) -> Result<StakingOutput, Self::Error>;
 }
 
 pub trait Unstaking {
@@ -19,10 +19,10 @@ pub trait Unstaking {
         params: &BuildUserProtocolSpendParams,
     ) -> Result<Psbt, Self::Error>;
 
-    // fn build_covenants_protocol_spend(
-    //     &self,
-    //     params: &BuildCovenantsProtocolSpendParams,
-    // ) -> Result<Psbt, Self::Error>;
+    fn build_covenants_protocol_spend(
+        &self,
+        params: &BuildCovenantsProtocolSpendParams,
+    ) -> Result<Psbt, Self::Error>;
 
     // fn build_covenants_user_spend(
     //     &self,
@@ -39,4 +39,39 @@ pub trait Signing {
         network_kind: NetworkKind,
         finalize: bool,
     ) -> Result<Self::PsbtHex, CoreError>;
+}
+
+pub trait BuildUserProtocolBranch {
+    fn build(
+        user_pub_key: &XOnlyPublicKey,
+        protocol_pub_key: &XOnlyPublicKey,
+    ) -> Result<Self, CoreError>
+    where
+        Self: Sized;
+}
+
+pub trait BuildCovenantProtocolBranch {
+    fn build(
+        covenant_pub_keys: &[XOnlyPublicKey],
+        covenant_quorum: u8,
+        protocol_pub_key: &XOnlyPublicKey,
+    ) -> Result<Self, CoreError>
+    where
+        Self: Sized;
+}
+
+pub trait BuildCovenantUserBranch {
+    fn build(
+        covenant_pub_keys: &[XOnlyPublicKey],
+        covenant_quorum: u8,
+        user_pub_key: &XOnlyPublicKey,
+    ) -> Result<Self, CoreError>
+    where
+        Self: Sized;
+}
+
+pub trait BuildOnlyCovenantsBranch {
+    fn build(covenant_pub_keys: &[XOnlyPublicKey], covenant_quorum: u8) -> Result<Self, CoreError>
+    where
+        Self: Sized;
 }
