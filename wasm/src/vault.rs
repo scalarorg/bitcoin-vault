@@ -116,6 +116,11 @@ impl VaultWasm {
         have_only_covenants: bool,
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
+        // ### Description
+        // ### Reversed txid is used to match the byte order of the txid in the previous staking UTXO.
+        // ### References: https://learnmeabitcoin.com/technical/general/byte-order/#natural-byte-order
+        // input_txid.reverse();
+
         self.build_unstaking(
             input_script_pubkey,
             input_txid,

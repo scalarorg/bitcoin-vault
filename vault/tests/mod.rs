@@ -1,6 +1,9 @@
 #[cfg(test)]
 pub use utils::*;
 
+#[cfg(test)]
+pub use e2e::*;
+
 // cargo test --package bitcoin-vault --test mod -- build_spend --show-output
 #[cfg(test)]
 mod build_spend;
@@ -18,4 +21,7 @@ pub use setup_suite::*;
 mod sign_psbt;
 
 #[cfg(test)]
-mod staking_and_unstaking;
+mod e2e;
+
+#[cfg(test)]
+mod utxos;

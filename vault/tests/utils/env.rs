@@ -81,11 +81,11 @@ impl Env {
         }
 
         let env = Env {
-            btc_node_address: env::var("BTC_NODE_ADDRESS").unwrap(),
-            btc_node_user: env::var("BTC_NODE_USER").unwrap(),
-            btc_node_password: env::var("BTC_NODE_PASSWORD").unwrap(),
-            user_private_key: env::var("USER_PRIVATE_KEY").unwrap(),
-            user_address: env::var("USER_ADDRESS").unwrap(),
+            btc_node_address: env::var("BTC_NODE_ADDRESS").unwrap_or("localhost:18332".to_string()),
+            btc_node_user: env::var("BTC_NODE_USER").unwrap_or("user".to_string()),
+            btc_node_password: env::var("BTC_NODE_PASSWORD").unwrap_or("password".to_string()),
+            user_private_key: env::var("BOND_HOLDER_PRIVATE_KEY").unwrap(),
+            user_address: env::var("BOND_HOLDER_ADDRESS").unwrap(),
             protocol_private_key: env::var("PROTOCOL_PRIVATE_KEY").unwrap(),
             covenant_private_keys: env::var("COVENANT_PRIVKEYS")
                 .unwrap()
@@ -109,7 +109,7 @@ impl Env {
                 .unwrap_or_default(),
 
             staking_amount: env::var("STAKING_AMOUNT")
-                .unwrap_or("9999".to_string())
+                .unwrap_or("1911".to_string()) //777 in hex
                 .parse()
                 .unwrap_or_default(),
 
