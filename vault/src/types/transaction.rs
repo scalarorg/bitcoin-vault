@@ -1,4 +1,6 @@
-use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
+use bitcoin::{
+    consensus::Encodable, hex::DisplayHex, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{DestinationAddress, DestinationChainId};
@@ -102,14 +104,46 @@ impl From<&TxOut> for VaultChangeTxOutput {
         }
     }
 }
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct VaultTxInput {
+    pub script_sig_pubkey: Option<String>,
+    pub witnesses: Vec<String>,
+}
+impl VaultTxInput {
+    pub fn get_pubkey(&self) -> Option<String> {
+        if self.script_sig_pubkey.is_none() {
+            //First witness is the signature
+            //Second witness is the pubkey
+            return self.witnesses.get(1).cloned();
+        }
+        return self.script_sig_pubkey.clone();
+    }
+}
+impl From<&TxIn> for VaultTxInput {
+    fn from(txin: &TxIn) -> Self {
+        let script_sig_pubkey = txin
+            .script_sig
+            .p2pk_public_key()
+            .map(|pk| pk.to_bytes().to_lower_hex_string());
+        let witnesses = txin
+            .witness
+            .iter()
+            .map(|witness| hex::encode(witness))
+            .collect();
+        Self {
+            script_sig_pubkey,
+            witnesses,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VaultTransaction {
     // 32 bytes hex string txid
     pub txid: Txid,
-    pub staker_address: Option<String>,
-    pub staker_pubkey: Option<String>,
     pub tx_content: String,
-    pub inputs: Vec<TxIn>,
+    pub inputs: Vec<VaultTxInput>,
     pub lock_tx: VaultLockTxOutput,
     pub return_tx: VaultReturnTxOutput,
     pub change_tx: Option<VaultChangeTxOutput>,
@@ -131,19 +165,19 @@ impl TryFrom<&Transaction> for VaultTransaction {
         } else {
             None
         };
-        let staker_address = None;
-        let staker_pubkey = None;
-        // for _txin in tx.input.iter() {
-        //Todo: parse the transaction inputs if needed
-        // }
+        let Some(input) = tx.input.first() else {
+            return Err(ParserError::InvalidTransactionHex);
+        };
         let mut tx_content = vec![];
         tx.consensus_encode(&mut tx_content).unwrap();
         Ok(VaultTransaction {
             txid,
-            staker_address,
-            staker_pubkey,
             tx_content: hex::encode(tx_content),
-            inputs: tx.input.clone(),
+            inputs: tx
+                .input
+                .iter()
+                .map(|txin| VaultTxInput::from(txin))
+                .collect(),
             lock_tx,
             return_tx,
             change_tx,
