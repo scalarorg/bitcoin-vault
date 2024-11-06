@@ -101,7 +101,7 @@ impl CovenantScriptBuilder {
 
         // Sort covenant public keys
         let mut sorted_pks = covenant_pub_keys.to_owned();
-        sorted_pks.sort_by(|a, b| a.cmp(b));
+        sorted_pks.sort();
 
         // Check for duplicates
         for i in 0..sorted_pks.len() - 1 {

@@ -1,25 +1,23 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
+use std::thread::sleep;
 use std::time::Duration;
 
 use bitcoin::bip32::DerivationPath;
-use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::psbt::Input;
 use bitcoin::{
-    absolute, address::NetworkChecked, consensus::serialize, key::Secp256k1, secp256k1::All,
-    transaction, Address, NetworkKind, PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence,
-    Transaction, TxIn, TxOut, Witness,
+    absolute, address::NetworkChecked, key::Secp256k1, secp256k1::All, transaction, Address,
+    NetworkKind, PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut,
+    Witness,
 };
-use bitcoin::{OutPoint, Txid};
+use bitcoin::{Amount, OutPoint};
 use bitcoin_vault::{
     BuildStakingParams, BuildUnstakingParams, PreviousStakingUTXO, SignByKeyMap, Signing, Staking,
     Unstaking, UnstakingType, VaultManager,
 };
-use bitcoincore_rpc::json::{GetTransactionResult, ListUnspentResultEntry};
-
-use std::thread::sleep;
-
-use bitcoin::hashes::Hash;
+use bitcoincore_rpc::json::{
+    GetTransactionResult, ListUnspentQueryOptions, ListUnspentResultEntry,
+};
 
 use crate::{get_env, hex_to_vec, Env, MANAGER};
 
@@ -28,9 +26,10 @@ use lazy_static::lazy_static;
 use bitcoincore_rpc::{Auth, Client, RpcApi};
 
 lazy_static! {
-    static ref SUITE: TestSuite<'static> = TestSuite::new();
+    pub static ref SUITE: TestSuite<'static> = TestSuite::new();
 }
 
+#[derive(Debug)]
 pub struct TestSuite<'a> {
     rpc: Client,
     env: &'a Env,
@@ -40,6 +39,7 @@ pub struct TestSuite<'a> {
     user_address: Address<NetworkChecked>,
 }
 
+// cargo test --package bitcoin-vault --test mod -- e2e::test_user_protocol_unstaking --exact --show-output
 #[test]
 fn test_user_protocol_unstaking() {
     // prepare staking tx
@@ -67,11 +67,12 @@ fn test_user_protocol_unstaking() {
     .unwrap();
 
     //  send unstaking tx
-    let result = TestSuite::new().send_psbt(unstaked_psbt);
+    let result = TestSuite::new().send_psbt(unstaked_psbt).unwrap();
 
     println!("unstaked tx result: {:?}", result);
 }
 
+// cargo test --package bitcoin-vault --test mod -- e2e::test_covenants_user_unstaking --exact --show-output
 #[test]
 fn test_covenants_user_unstaking() {
     let staking_tx = TestSuite::new().prepare_staking_tx();
@@ -87,15 +88,8 @@ fn test_covenants_user_unstaking() {
     )
     .unwrap();
 
-    // Get sorted covenant keys and sign in order
-    let sorted_covenants_privkey_bytes = SUITE
-        .get_sorted_covenant_privkeys()
-        .iter()
-        .map(|p| p.to_bytes())
-        .collect::<Vec<Vec<u8>>>();
-
     // Sign with each covenant key in order
-    for privkey_bytes in sorted_covenants_privkey_bytes {
+    for privkey_bytes in SUITE.get_covenant_privkeys() {
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
             &privkey_bytes,
@@ -209,7 +203,7 @@ impl<'a> TestSuite<'a> {
         )
         .unwrap();
 
-        let result = self.send_psbt(psbt);
+        let result = self.send_psbt(psbt).unwrap();
 
         let staking_tx_hex = result.hex;
 
@@ -219,22 +213,19 @@ impl<'a> TestSuite<'a> {
     }
 
     fn build_unstaking_tx(&self, staking_tx: &Transaction, unstaking_type: UnstakingType) -> Psbt {
-        let mut reversed_tx: [u8; 32] = staking_tx.compute_txid().as_raw_hash().to_byte_array();
-        reversed_tx.reverse();
-
         let vout: usize = 0;
 
         <VaultManager as Unstaking>::build(
             &MANAGER,
             &BuildUnstakingParams {
                 input_utxo: PreviousStakingUTXO {
-                    outpoint: OutPoint::new(Txid::from_byte_array(reversed_tx), vout as u32),
+                    outpoint: OutPoint::new(staking_tx.compute_txid(), vout as u32),
                     amount_in_sats: staking_tx.output[vout].value,
                     script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
                 },
 
                 unstaking_output: TxOut {
-                    value: staking_tx.output[vout].value - bitcoin::Amount::from_sat(1_000),
+                    value: staking_tx.output[vout].value - bitcoin::Amount::from_sat(257),
                     script_pubkey: SUITE.get_user_address().script_pubkey(),
                 },
                 user_pub_key: SUITE.get_user_pubkey(),
@@ -249,10 +240,10 @@ impl<'a> TestSuite<'a> {
         .unwrap()
     }
 
-    fn send_psbt(&self, psbt: Psbt) -> GetTransactionResult {
+    fn send_psbt(&self, psbt: Psbt) -> Option<GetTransactionResult> {
         let finalized_tx = psbt.extract_tx().unwrap();
 
-        let txid = SUITE.get_rpc().send_raw_transaction(&finalized_tx).unwrap();
+        let txid = self.rpc.send_raw_transaction(&finalized_tx).unwrap();
 
         let mut tx_result: Option<GetTransactionResult> = None;
 
@@ -268,9 +259,7 @@ impl<'a> TestSuite<'a> {
 
         let tx = tx_result.unwrap();
 
-        println!("tx result: {:?}", tx);
-
-        tx
+        Some(tx)
     }
 
     fn get_staking_params(&self) -> BuildStakingParams {
@@ -287,18 +276,24 @@ impl<'a> TestSuite<'a> {
         }
     }
 
-    fn get_approvable_utxos(&self, btc_amount: u64) -> ListUnspentResultEntry {
+    pub fn get_approvable_utxos(&self, btc_amount: u64) -> ListUnspentResultEntry {
         let utxos = self
             .rpc
-            .list_unspent(Some(0), None, Some(&[&self.user_address]), None, None)
+            .list_unspent(
+                Some(0),
+                None,
+                Some(&[&self.user_address]),
+                Some(true),
+                Some(ListUnspentQueryOptions {
+                    minimum_amount: Some(Amount::from_sat(btc_amount)),
+                    maximum_amount: None,
+                    maximum_count: None,
+                    minimum_sum_amount: None,
+                }),
+            )
             .unwrap();
 
-        let seleted_utxo = utxos
-            .into_iter()
-            .find(|u| u.amount >= bitcoin::Amount::from_sat(btc_amount))
-            .unwrap();
-
-        seleted_utxo
+        utxos[0].clone()
     }
 
     fn key_from_wif(wif: &str, secp: &Secp256k1<All>) -> (PrivateKey, PublicKey) {
@@ -351,18 +346,10 @@ impl<'a> TestSuite<'a> {
         self.covenant_pairs.values().map(|p| p.1).collect()
     }
 
-    fn get_sorted_covenant_privkeys(&self) -> Vec<PrivateKey> {
-        let mut pubkey_privkey_pairs: Vec<(PublicKey, PrivateKey)> = self
-            .covenant_pairs
-            .iter()
-            .map(|(_, pair)| (pair.1, pair.0))
-            .collect();
-
-        pubkey_privkey_pairs.sort_by(|a, b| a.0.cmp(&b.0));
-
-        pubkey_privkey_pairs
-            .into_iter()
-            .map(|(_, privkey)| privkey)
+    fn get_covenant_privkeys(&self) -> Vec<Vec<u8>> {
+        self.covenant_pairs
+            .values()
+            .map(|p| p.0.to_bytes())
             .collect()
     }
 

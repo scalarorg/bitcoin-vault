@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::{
-    manager, CoreError, ReversedPreviousStakingUTXO, TaprootTree, Unstaking, VaultManager,
-};
+use super::{manager, CoreError, TaprootTree, Unstaking, VaultManager};
 
 use super::PreviousStakingUTXO;
 use bitcoin::bip32::{DerivationPath, Fingerprint};
@@ -65,23 +63,18 @@ impl Unstaking for VaultManager {
         let (branch, keys): (&ScriptBuf, Vec<XOnlyPublicKey>) = match unstaking_type {
             UnstakingType::UserProtocol => {
                 let branch = &tree.user_protocol_branch;
-                let mut keys = Vec::with_capacity(2);
-                keys.push(x_only_keys.user);
-                keys.push(x_only_keys.protocol);
+                let keys = vec![x_only_keys.user, x_only_keys.protocol];
                 (branch, keys)
             }
             UnstakingType::CovenantsProtocol => {
                 let branch = &tree.covenants_protocol_branch;
-                let mut keys: Vec<XOnlyPublicKey> =
-                    Vec::with_capacity(x_only_keys.covenants.len() + 1);
-                keys.push(x_only_keys.protocol);
+                let mut keys = vec![x_only_keys.protocol];
                 keys.extend_from_slice(&x_only_keys.covenants);
                 (branch, keys)
             }
             UnstakingType::CovenantsUser => {
                 let branch = &tree.covenants_user_branch;
-                let mut keys = Vec::with_capacity(x_only_keys.covenants.len() + 1);
-                keys.push(x_only_keys.user);
+                let mut keys = vec![x_only_keys.user];
                 keys.extend_from_slice(&x_only_keys.covenants);
                 (branch, keys)
             }
@@ -90,20 +83,13 @@ impl Unstaking for VaultManager {
             }
         };
 
-        // 3. Create reversed input utxo, unsigned transaction and psbt
-        // TODO: refactor this stuff, check ReversedPreviousStakingUTXO
-        let reversed_input_utxo = ReversedPreviousStakingUTXO::from(params.input_utxo.clone());
-
         let mut psbt = self.prepare_psbt(
-            &reversed_input_utxo.outpoint,
+            &params.input_utxo.outpoint,
             &params.unstaking_output,
             params.rbf,
         )?;
 
-        let mut sorted_keys = keys.clone();
-        sorted_keys.sort_by(|a, b| a.cmp(b));
-
-        let input = self.prepare_psbt_input(&reversed_input_utxo, &tree.root, branch, &sorted_keys);
+        let input = self.prepare_psbt_input(&params.input_utxo, &tree.root, branch, &keys);
 
         psbt.inputs = vec![input];
 
@@ -122,7 +108,7 @@ impl VaultManager {
             version: transaction::Version::TWO,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn {
-                previous_output: outpoint.clone(),
+                previous_output: *outpoint,
                 script_sig: ScriptBuf::default(),
                 sequence: match rbf {
                     true => Sequence::ENABLE_RBF_NO_LOCKTIME,
@@ -138,17 +124,17 @@ impl VaultManager {
 
     fn prepare_psbt_input(
         &self,
-        reversed_input_utxo: &ReversedPreviousStakingUTXO,
+        input_utxo: &PreviousStakingUTXO,
         tree: &TaprootSpendInfo,
         branch: &ScriptBuf,
         keys: &[XOnlyPublicKey],
     ) -> Input {
-        let tap_key_origins = self.create_tap_key_origins(&branch, keys);
+        let tap_key_origins = self.create_tap_key_origins(branch, keys);
 
         let tap_scripts = self.create_tap_scripts(tree, branch);
 
         // 5. Create psbt input
-        self.create_psbt_input(&reversed_input_utxo, tree, &tap_scripts, &tap_key_origins)
+        self.create_psbt_input(input_utxo, tree, &tap_scripts, &tap_key_origins)
     }
 
     fn create_tap_key_origins(
@@ -187,7 +173,7 @@ impl VaultManager {
 
     fn create_psbt_input(
         &self,
-        reversed_input_utxo: &ReversedPreviousStakingUTXO,
+        input_utxo: &PreviousStakingUTXO,
         tree: &bitcoin::taproot::TaprootSpendInfo,
         tap_scripts: &BTreeMap<bitcoin::taproot::ControlBlock, (ScriptBuf, LeafVersion)>,
         tap_key_origins: &BTreeMap<
@@ -198,8 +184,8 @@ impl VaultManager {
         Input {
             // Add the UTXO being spent
             witness_utxo: Some(TxOut {
-                value: reversed_input_utxo.amount_in_sats,
-                script_pubkey: reversed_input_utxo.script_pubkey.clone(),
+                value: input_utxo.amount_in_sats,
+                script_pubkey: input_utxo.script_pubkey.clone(),
             }),
 
             // Add Taproot-specific data
