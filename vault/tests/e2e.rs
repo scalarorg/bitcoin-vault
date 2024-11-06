@@ -107,6 +107,50 @@ fn test_covenants_user_unstaking() {
     println!("unstaked tx result: {:?}", result);
 }
 
+// cargo test --package bitcoin-vault --test mod -- e2e::test_covenants_protocol_unstaking --exact --show-output
+#[test]
+fn test_covenants_protocol_unstaking() {
+    let staking_tx = TestSuite::new().prepare_staking_tx();
+    let mut unstaked_psbt =
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::CovenantsProtocol);
+
+    // Sign with user key first
+    <VaultManager as Signing>::sign_psbt_by_single_key(
+        &mut unstaked_psbt,
+        &SUITE.get_protocol_privkey_bytes(),
+        NetworkKind::Test,
+        false,
+    )
+    .unwrap();
+
+    // Sign with each covenant key in order
+    for privkey_bytes in SUITE.get_covenant_privkeys() {
+        <VaultManager as Signing>::sign_psbt_by_single_key(
+            &mut unstaked_psbt,
+            &privkey_bytes,
+            NetworkKind::Test,
+            false,
+        )
+        .unwrap();
+    }
+
+    // Finalize the PSBT
+    <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+
+    // Extract and send
+    let result = TestSuite::new().send_psbt(unstaked_psbt);
+    println!(
+        "protocol pubkey: {:?}",
+        SUITE
+            .get_protocol_pubkey()
+            .inner
+            .x_only_public_key()
+            .0
+            .to_string()
+    );
+    println!("unstaked tx result: {:?}", result);
+}
+
 impl<'a> TestSuite<'a> {
     pub fn new() -> Self {
         let env = get_env();
