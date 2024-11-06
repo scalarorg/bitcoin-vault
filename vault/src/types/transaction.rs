@@ -105,45 +105,45 @@ impl From<&TxOut> for VaultChangeTxOutput {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct VaultTxInput {
-    pub script_sig_pubkey: Option<String>,
-    pub witnesses: Vec<String>,
-}
-impl VaultTxInput {
-    pub fn get_pubkey(&self) -> Option<String> {
-        if self.script_sig_pubkey.is_none() {
-            //First witness is the signature
-            //Second witness is the pubkey
-            return self.witnesses.get(1).cloned();
-        }
-        return self.script_sig_pubkey.clone();
-    }
-}
-impl From<&TxIn> for VaultTxInput {
-    fn from(txin: &TxIn) -> Self {
-        let script_sig_pubkey = txin
-            .script_sig
-            .p2pk_public_key()
-            .map(|pk| pk.to_bytes().to_lower_hex_string());
-        let witnesses = txin
-            .witness
-            .iter()
-            .map(|witness| hex::encode(witness))
-            .collect();
-        Self {
-            script_sig_pubkey,
-            witnesses,
-        }
-    }
-}
+// #[derive(Debug, Clone, Default, Deserialize, Serialize)]
+// pub struct VaultTxInput {
+//     pub script_sig_pubkey: Option<String>,
+//     pub witnesses: Vec<String>,
+// }
+// impl VaultTxInput {
+//     pub fn get_pubkey(&self) -> Option<String> {
+//         if self.script_sig_pubkey.is_none() {
+//             //First witness is the signature
+//             //Second witness is the pubkey
+//             return self.witnesses.get(1).cloned();
+//         }
+//         return self.script_sig_pubkey.clone();
+//     }
+// }
+// impl From<&TxIn> for VaultTxInput {
+//     fn from(txin: &TxIn) -> Self {
+//         let script_sig_pubkey = txin
+//             .script_sig
+//             .p2pk_public_key()
+//             .map(|pk| pk.to_bytes().to_lower_hex_string());
+//         let witnesses = txin
+//             .witness
+//             .iter()
+//             .map(|witness| hex::encode(witness))
+//             .collect();
+//         Self {
+//             script_sig_pubkey,
+//             witnesses,
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VaultTransaction {
     // 32 bytes hex string txid
     pub txid: Txid,
     pub tx_content: String,
-    pub inputs: Vec<VaultTxInput>,
+    pub inputs: Vec<TxIn>,
     pub lock_tx: VaultLockTxOutput,
     pub return_tx: VaultReturnTxOutput,
     pub change_tx: Option<VaultChangeTxOutput>,
@@ -173,11 +173,12 @@ impl TryFrom<&Transaction> for VaultTransaction {
         Ok(VaultTransaction {
             txid,
             tx_content: hex::encode(tx_content),
-            inputs: tx
-                .input
-                .iter()
-                .map(|txin| VaultTxInput::from(txin))
-                .collect(),
+            inputs: tx.input.clone(),
+            // inputs: tx
+            //     .input
+            //     .iter()
+            //     .map(|txin| VaultTxInput::from(txin))
+            //     .collect(),
             lock_tx,
             return_tx,
             change_tx,
