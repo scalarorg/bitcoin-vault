@@ -243,12 +243,6 @@ impl Utils for Psbt {
             }
         }
 
-        println!(
-            "script_witness: {:?}, len: {:?}",
-            script_witness,
-            script_witness.len()
-        );
-
         script_witness.push(tap_script.to_bytes());
         script_witness.push(control_block.serialize());
 
