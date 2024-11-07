@@ -4,6 +4,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use bitcoin::bip32::DerivationPath;
+use bitcoin::hex::{Case, DisplayHex};
 use bitcoin::psbt::Input;
 use bitcoin::{
     absolute, address::NetworkChecked, key::Secp256k1, secp256k1::All, transaction, Address,
@@ -43,11 +44,11 @@ pub struct TestSuite<'a> {
 #[test]
 fn test_user_protocol_unstaking() {
     // prepare staking tx
-    let staking_tx = TestSuite::new().prepare_staking_tx();
+    let staking_tx = TestSuite::new().prepare_staking_tx(None);
 
     // prepare unstaking tx
     let mut unstaked_psbt =
-        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::UserProtocol);
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::UserProtocol, None);
 
     // sign unstaking psbt
     <VaultManager as Signing>::sign_psbt_by_single_key(
@@ -72,12 +73,83 @@ fn test_user_protocol_unstaking() {
     println!("unstaked tx result: {:?}", result);
 }
 
+// cargo test --package bitcoin-vault --test mod -- e2e::test_user_protocol_unstaking_with_flag --exact --show-output
+#[test]
+fn test_user_protocol_unstaking_with_flag() {
+    // prepare staking tx
+    let staking_tx = TestSuite::new().prepare_staking_tx(Some(true));
+
+    // prepare unstaking tx
+    let mut unstaked_psbt =
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::UserProtocol, Some(true));
+
+    // sign unstaking psbt
+    <VaultManager as Signing>::sign_psbt_by_single_key(
+        &mut unstaked_psbt,
+        &SUITE.get_user_privkey_bytes(),
+        NetworkKind::Test,
+        false,
+    )
+    .unwrap();
+
+    <VaultManager as Signing>::sign_psbt_by_single_key(
+        &mut unstaked_psbt,
+        &SUITE.get_protocol_privkey_bytes(),
+        NetworkKind::Test,
+        true,
+    )
+    .unwrap();
+
+    //  send unstaking tx
+    let result = TestSuite::new().send_psbt(unstaked_psbt).unwrap();
+
+    println!(
+        "unstaked tx result: {:?}",
+        result.hex.to_hex_string(Case::Lower)
+    );
+}
+
 // cargo test --package bitcoin-vault --test mod -- e2e::test_covenants_user_unstaking --exact --show-output
 #[test]
 fn test_covenants_user_unstaking() {
-    let staking_tx = TestSuite::new().prepare_staking_tx();
+    let staking_tx = TestSuite::new().prepare_staking_tx(None);
     let mut unstaked_psbt =
-        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::CovenantsUser);
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::CovenantsUser, None);
+
+    // Sign with user key first
+    <VaultManager as Signing>::sign_psbt_by_single_key(
+        &mut unstaked_psbt,
+        &SUITE.get_user_privkey_bytes(),
+        NetworkKind::Test,
+        false,
+    )
+    .unwrap();
+
+    // Sign with each covenant key in order
+    for privkey_bytes in SUITE.get_covenant_privkeys() {
+        <VaultManager as Signing>::sign_psbt_by_single_key(
+            &mut unstaked_psbt,
+            &privkey_bytes,
+            NetworkKind::Test,
+            false,
+        )
+        .unwrap();
+    }
+
+    // Finalize the PSBT
+    <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+
+    // Extract and send
+    let result = TestSuite::new().send_psbt(unstaked_psbt);
+    println!("unstaked tx result: {:?}", result);
+}
+
+// cargo test --package bitcoin-vault --test mod -- e2e::test_covenants_user_unstaking_with_flag --exact --show-output
+#[test]
+fn test_covenants_user_unstaking_with_flag() {
+    let staking_tx = TestSuite::new().prepare_staking_tx(Some(true));
+    let mut unstaked_psbt =
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::CovenantsUser, Some(true));
 
     // Sign with user key first
     <VaultManager as Signing>::sign_psbt_by_single_key(
@@ -110,9 +182,9 @@ fn test_covenants_user_unstaking() {
 // cargo test --package bitcoin-vault --test mod -- e2e::test_covenants_protocol_unstaking --exact --show-output
 #[test]
 fn test_covenants_protocol_unstaking() {
-    let staking_tx = TestSuite::new().prepare_staking_tx();
+    let staking_tx = TestSuite::new().prepare_staking_tx(None);
     let mut unstaked_psbt =
-        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::CovenantsProtocol);
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::CovenantsProtocol, None);
 
     // Sign with user key first
     <VaultManager as Signing>::sign_psbt_by_single_key(
@@ -151,6 +223,86 @@ fn test_covenants_protocol_unstaking() {
     println!("unstaked tx result: {:?}", result);
 }
 
+// cargo test --package bitcoin-vault --test mod -- e2e::test_covenants_protocol_unstaking_with_flag --exact --show-output
+#[test]
+fn test_covenants_protocol_unstaking_with_flag() {
+    let staking_tx = TestSuite::new().prepare_staking_tx(Some(true));
+    let mut unstaked_psbt = TestSuite::new().build_unstaking_tx(
+        &staking_tx,
+        UnstakingType::CovenantsProtocol,
+        Some(true),
+    );
+
+    // Sign with user key first
+    <VaultManager as Signing>::sign_psbt_by_single_key(
+        &mut unstaked_psbt,
+        &SUITE.get_protocol_privkey_bytes(),
+        NetworkKind::Test,
+        false,
+    )
+    .unwrap();
+
+    // Sign with each covenant key in order
+    for privkey_bytes in SUITE.get_covenant_privkeys() {
+        <VaultManager as Signing>::sign_psbt_by_single_key(
+            &mut unstaked_psbt,
+            &privkey_bytes,
+            NetworkKind::Test,
+            false,
+        )
+        .unwrap();
+    }
+
+    // Finalize the PSBT
+    <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+
+    // Extract and send
+    let result = TestSuite::new().send_psbt(unstaked_psbt);
+    println!(
+        "protocol pubkey: {:?}",
+        SUITE
+            .get_protocol_pubkey()
+            .inner
+            .x_only_public_key()
+            .0
+            .to_string()
+    );
+    println!("unstaked tx result: {:?}", result);
+}
+
+// cargo test --package bitcoin-vault --test mod -- e2e::test_only_covenants_unstaking --exact --show-output
+#[test]
+fn test_only_covenants_unstaking() {
+    // prepare staking tx
+    let staking_tx = TestSuite::new().prepare_staking_tx(Some(true));
+
+    // prepare unstaking tx
+    let mut unstaked_psbt =
+        TestSuite::new().build_unstaking_tx(&staking_tx, UnstakingType::OnlyCovenants, Some(true));
+
+    // Sign with each covenant key in order
+    for privkey_bytes in SUITE.get_covenant_privkeys() {
+        <VaultManager as Signing>::sign_psbt_by_single_key(
+            &mut unstaked_psbt,
+            &privkey_bytes,
+            NetworkKind::Test,
+            false,
+        )
+        .unwrap();
+    }
+
+    // Finalize the PSBT
+    <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+
+    //  send unstaking tx
+    let result = TestSuite::new().send_psbt(unstaked_psbt).unwrap();
+
+    println!(
+        "unstaked tx result: {:?}",
+        result.hex.to_hex_string(Case::Lower)
+    );
+}
+
 impl<'a> TestSuite<'a> {
     pub fn new() -> Self {
         let env = get_env();
@@ -185,8 +337,10 @@ impl<'a> TestSuite<'a> {
         }
     }
 
-    fn prepare_staking_tx(&self) -> Transaction {
-        let params = self.get_staking_params();
+    fn prepare_staking_tx(&self, have_only_covenants: Option<bool>) -> Transaction {
+        let mut params = self.get_staking_params();
+        params.have_only_covenants = have_only_covenants.unwrap_or(params.have_only_covenants);
+
         let utxo = self.get_approvable_utxos(self.get_staking_amount());
 
         let outputs = <VaultManager as Staking>::build(&MANAGER, &params)
@@ -256,7 +410,12 @@ impl<'a> TestSuite<'a> {
         staking_tx
     }
 
-    fn build_unstaking_tx(&self, staking_tx: &Transaction, unstaking_type: UnstakingType) -> Psbt {
+    fn build_unstaking_tx(
+        &self,
+        staking_tx: &Transaction,
+        unstaking_type: UnstakingType,
+        have_only_covenants: Option<bool>,
+    ) -> Psbt {
         let vout: usize = 0;
 
         <VaultManager as Unstaking>::build(
@@ -276,7 +435,7 @@ impl<'a> TestSuite<'a> {
                 protocol_pub_key: SUITE.get_protocol_pubkey(),
                 covenant_pub_keys: SUITE.get_covenant_pubkeys(),
                 covenant_quorum: SUITE.get_covenant_quorum(),
-                have_only_covenants: SUITE.get_have_only_covenants(),
+                have_only_covenants: have_only_covenants.unwrap_or(SUITE.get_have_only_covenants()),
                 rbf: true,
             },
             unstaking_type,
