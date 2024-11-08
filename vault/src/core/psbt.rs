@@ -17,6 +17,7 @@ use bitcoin::{
 
 const MOCK_SIGNATURE: &[u8] = &[0x00; 64];
 
+#[derive(Debug)]
 pub struct SigningKeyMap(BTreeMap<XOnlyPublicKey, PrivateKey>);
 
 impl SigningKeyMap {

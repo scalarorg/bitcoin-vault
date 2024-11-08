@@ -6,7 +6,7 @@ edition = "2021"
 [lib]
 name = "bitcoin_vault_ffi"
 path = "src/lib.rs"
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["cdylib"]
 
 
 [dependencies]

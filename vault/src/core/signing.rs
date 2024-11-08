@@ -21,11 +21,15 @@ impl Signing for VaultManager {
         let key_map = SigningKeyMap::from_privkey_slice(&SECP, privkey, network_kind)
             .map_err(|err| CoreError::InvalidPrivateKey(err.to_string()))?;
 
+        println!("signing psbt by key map: {:?}", key_map);
+
         psbt.sign_by_key_map(&key_map, &SECP).map_err(|err| {
             let (_, errors) = err;
             let error_messages: Vec<String> = errors.values().map(|e| e.to_string()).collect();
             CoreError::SigningPSBTFailed(error_messages.join(", "))
         })?;
+
+        println!("psbt input sigs: {:?}", psbt.inputs[0].tap_script_sigs);
 
         if finalize {
             <Psbt as SignByKeyMap<All>>::finalize(psbt);
