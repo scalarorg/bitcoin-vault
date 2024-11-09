@@ -1,4 +1,4 @@
-import { bytesToHex, hexToBytes, signPsbt } from "@/utils";
+import { bytesToHex, ECPair, hexToBytes, signPsbt } from "@/utils";
 import Client from "bitcoin-core-ts";
 import * as bitcoin from "bitcoinjs-lib";
 import { Psbt } from "bitcoinjs-lib";
@@ -14,7 +14,7 @@ describe("Vault-Unstaking", () => {
     "should unstake for user",
     async () => {
       const txid =
-        "9e612815522243e794cbe79acabea666af32d41a3e4c33c3a10d24b9972362df";
+        "f83e19e99b19626032a92e728d41bbeb508adb413456e2b3be2ac3cd9b9822f5";
 
       if (!txid) {
         throw new Error("txid is required");
@@ -34,6 +34,8 @@ describe("Vault-Unstaking", () => {
         try {
           tx = await mockBtcClient.command("getrawtransaction", txid, true);
           if (tx.confirmations > 0) {
+            const txHex = tx.hex;
+            console.log("txHex", txHex);
             break;
           }
           await sleep(5000);
@@ -50,9 +52,9 @@ describe("Vault-Unstaking", () => {
         throw new Error("scriptPubkeyOfLocking is undefined");
       }
 
-      const stakerPubKey = Buffer.from(
-        "022ae31ea8709aeda8194ba3e2f7e7e95e680e8b65135c8983c0a298d17bc5350a",
-        "hex"
+      const keyPair = ECPair.fromWIF(
+        "cQ7kMt56n8GeKkshaiCt3Lh2ChuaD3tWdSrH37MwU93PA4qZs9JR",
+        bitcoin.networks.testnet
       );
 
       const protocolPubkey = Buffer.from(
@@ -61,7 +63,7 @@ describe("Vault-Unstaking", () => {
       );
 
       const p2wpkhScript = bitcoin.payments.p2wpkh({
-        pubkey: stakerPubKey,
+        pubkey: keyPair.publicKey,
       }).output;
 
       if (!p2wpkhScript) {
@@ -95,7 +97,7 @@ describe("Vault-Unstaking", () => {
           script: p2wpkhScript,
           value: StaticEnv.STAKING_AMOUNT - BigInt(1_000), // 9_000
         },
-        stakerPubKey,
+        keyPair.publicKey,
         protocolPubkey,
         custodialPubkeysBuffer,
         StaticEnv.CUSTODIAL_QUORUM,
@@ -136,6 +138,12 @@ describe("Vault-Unstaking", () => {
         .toHex();
 
       console.log("hexTxfromPsbt", hexTxfromPsbt);
+
+      const txid2 = await mockBtcClient.command(
+        "sendrawtransaction",
+        hexTxfromPsbt
+      );
+      console.log("txid", txid2);
     },
     TIMEOUT
   );
