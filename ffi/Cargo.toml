@@ -6,7 +6,18 @@ edition = "2021"
 [lib]
 name = "bitcoin_vault_ffi"
 path = "src/lib.rs"
-crate-type = ["cdylib"]
+#crate-type = [
+#    "lib",        # Rust library (default)
+#    "rlib",       # Rust static library
+#    "dylib",      # Dynamic system library
+#    "cdylib",     # Dynamic system library (C compatible)
+#    "staticlib",  # Static system library (C compatible)
+#    "proc-macro"  # Procedural macro library
+# ]
+# TODO: figure out why this is needed
+# cdylib only does not work on linux: 
+# error: cannot produce cdylib for `bitcoin-vault-ffi v0.1.0 (/bitcoin-vault/ffi)` as the target `x86_64-unknown-linux-musl` does not support these crate types
+crate-type = ["cdylib", "staticlib"]
 
 
 [dependencies]
