@@ -5,7 +5,7 @@ import {
   sendrawtransaction,
 } from "@/client";
 import { decodeStakingOutput, logToJSON, signPsbt } from "@/utils";
-import { hexToBytes } from "@/utils/encode";
+import { bytesToHex, hexToBytes } from "@/utils/encode";
 import { PsbtOutputExtended } from "bip174";
 import * as bitcoin from "bitcoinjs-lib";
 
@@ -43,6 +43,27 @@ describe("Vault-Staking", async () => {
     });
     const { fees } = defaultMempoolClient;
     const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
+
+    console.log("buildUnsignedStakingPsbt");
+    console.log("TAG", StaticEnv.TAG);
+    console.log("VERSION", StaticEnv.VERSION);
+    console.log("network", TestSuite.network);
+    console.log("stakerAddress", TestSuite.stakerAddress);
+    console.log("stakerPubKey", bytesToHex(TestSuite.stakerPubKey));
+    console.log("protocolPubkey", bytesToHex(TestSuite.protocolPubkey));
+    console.log("custodialPubkeys", TestSuite.custodialPubkeys);
+    console.log("CUSTODIAL_QUORUM", StaticEnv.CUSTODIAL_QUORUM);
+    console.log("HAVE_ONLY_CUSTODIAL", StaticEnv.HAVE_ONLY_CUSTODIAL);
+    console.log("DEST_CHAIN_ID", StaticEnv.DEST_CHAIN_ID);
+    console.log(
+      "DEST_SMART_CONTRACT_ADDRESS",
+      StaticEnv.DEST_SMART_CONTRACT_ADDRESS
+    );
+    console.log("DEST_USER_ADDRESS", StaticEnv.DEST_USER_ADDRESS);
+    console.log("addressUtxos", addressUtxos);
+    console.log("feeRate", feeRate);
+    console.log("STAKING_AMOUNT", StaticEnv.STAKING_AMOUNT);
+
     //1. Build the unsigned psbt
     const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
       buildUnsignedStakingPsbt(

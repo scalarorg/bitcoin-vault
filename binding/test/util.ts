@@ -44,17 +44,17 @@ const StaticEnvSchema = z.object({
   WALLET_NAME: z.string().optional().default("legacy"),
   STAKING_AMOUNT: z.bigint().optional().default(BigInt(10_000)),
   HAVE_ONLY_CUSTODIAL: z.boolean().optional().default(false),
-  CUSTODIAL_QUORUM: z.number().optional().default(1),
+  CUSTODIAL_QUORUM: z.number().optional().default(3),
   CUSTODIAL_NUMBER: z.number().optional().default(5),
   DEST_CHAIN_ID: z.bigint().min(BigInt(1)).default(BigInt(11155111)),
   DEST_USER_ADDRESS: z
     .string()
     .length(40)
-    .default("130C4810D57140e1E62967cBF742CaEaE91b6ecE"),
+    .default("24a1dB57Fa3ecAFcbaD91d6Ef068439acEeAe090"),
   DEST_SMART_CONTRACT_ADDRESS: z
     .string()
     .length(40)
-    .default("1F98C06D8734D5A9FF0b53e3294626E62e4d232C"),
+    .default("B91e3A8Ef862567026d6F376c9F3d6b814Ca4337"),
   BTC_ENV_PATH: z.string().optional().default(".bitcoin/.env.btc"),
   BOND_HOLDER_ADDRESS: z.string().optional(),
   BOND_HOLDER_PRIVATE_KEY: z.string().optional(),
@@ -163,6 +163,7 @@ export const setupStakingTx = async () => {
   const { fees } = defaultMempoolClient;
   const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
   //1. Build the unsigned psbt
+
   const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
     buildUnsignedStakingPsbt(
       StaticEnv.TAG,
