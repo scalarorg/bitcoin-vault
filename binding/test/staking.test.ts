@@ -1,4 +1,5 @@
 import {
+  BtcMempool,
   defaultMempoolClient,
   getAddressUtxos,
   sendrawtransaction,
@@ -36,10 +37,10 @@ describe("Vault-Staking", async () => {
   });
 
   it("should create, signed and broadcast staking psbt", async () => {
-    const addressUtxos = await getAddressUtxos(
-      TestSuite.stakerAddress,
-      TestSuite.btcClient
-    );
+    const addressUtxos = await getAddressUtxos({
+      address: TestSuite.stakerAddress,
+      mempoolClient: new BtcMempool("https://mempool.space/testnet4/api"),
+    });
     const { fees } = defaultMempoolClient;
     const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
     //1. Build the unsigned psbt
@@ -68,9 +69,7 @@ describe("Vault-Staking", async () => {
       unsignedVaultPsbt
     );
 
-
-    console.log({signedPsbt: signedPsbt.data.inputs})
-
+    console.log({ signedPsbt: signedPsbt.data.inputs });
 
     expect(isValid).toBe(true);
     //3. Extract the transaction and broadcast

@@ -71,7 +71,7 @@ impl VaultWasm {
     pub fn build_user_protocol_spend(
         &self,
         input_script_pubkey: &[u8],
-        input_txid: &[u8],
+        input_txid: &mut [u8],
         input_vout: u32,
         input_amount: u64,
         output_script_pubkey: &[u8],
@@ -104,7 +104,7 @@ impl VaultWasm {
     pub fn build_covenants_protocol_spend(
         &self,
         input_script_pubkey: &[u8],
-        input_txid: &[u8],
+        input_txid: &mut [u8],
         input_vout: u32,
         input_amount: u64,
         output_script_pubkey: &[u8],
@@ -142,7 +142,7 @@ impl VaultWasm {
     pub fn build_covenants_user_spend(
         &self,
         input_script_pubkey: &[u8],
-        input_txid: &[u8],
+        input_txid: &mut [u8],
         input_vout: u32,
         input_amount: u64,
         output_script_pubkey: &[u8],
@@ -175,7 +175,7 @@ impl VaultWasm {
     pub fn build_only_covenants_spend(
         &self,
         input_script_pubkey: &[u8],
-        input_txid: &[u8],
+        input_txid: &mut [u8],
         input_vout: u32,
         input_amount: u64,
         output_script_pubkey: &[u8],
@@ -207,7 +207,7 @@ impl VaultWasm {
     fn build_unstaking(
         &self,
         input_script_pubkey: &[u8],
-        input_txid: &[u8],
+        input_txid: &mut [u8],
         input_vout: u32,
         input_amount: u64,
         output_script_pubkey: &[u8],
@@ -220,6 +220,11 @@ impl VaultWasm {
         rbf: bool,
         unstaking_type: UnstakingType,
     ) -> Result<Vec<u8>, JsValue> {
+        // ### Description
+        // ### Reversed txid is used to match the byte order of the txid in the previous staking UTXO.
+        // ### References: https://learnmeabitcoin.com/technical/general/byte-order/#natural-byte-order
+        input_txid.reverse();
+
         let txid: Txid = Decoder::decode_txid(input_txid)?;
 
         let user_pub_key = Decoder::decode_33bytes_pubkey(staker_pubkey)?;

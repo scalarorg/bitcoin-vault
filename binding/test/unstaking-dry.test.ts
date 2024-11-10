@@ -3,14 +3,17 @@ import * as bitcoin from "bitcoinjs-lib";
 import { Psbt } from "bitcoinjs-lib";
 import { sleep } from "bun";
 import { describe, it } from "bun:test";
-import { buildUnsignedUnstakingUserProtocolPsbt, sendrawtransaction } from "..";
+import {
+  buildUnsignedUnstakingUserProtocolPsbt,
+  sendrawtransaction,
+} from "../src";
 import { setUpTest, StaticEnv } from "./util";
 
 const TIMEOUT = 900_000;
 
 // txid=<txid> bun test unstaking-dry
 // Eg:
-// txid=b43da04e4968227daed5f667f68af19988af4201b36ca552ca15e07e8c70a4fd bun test unstaking-dry
+// txid=10f5d2f7167428cfd983bfbaad566adce246f98d3a0ca8ab590844bcab9b2c81 bun test test/unstaking-dry.test.ts
 
 describe("Vault-Unstaking", () => {
   it(
@@ -58,6 +61,8 @@ describe("Vault-Unstaking", () => {
         throw new Error("p2wpkhScript is undefined");
       }
       console.log("p2wpkhScript", bytesToHex(p2wpkhScript));
+
+      // Build the unsigned psbt
       const psbtHex = buildUnsignedUnstakingUserProtocolPsbt(
         StaticEnv.TAG,
         StaticEnv.VERSION,
@@ -84,6 +89,7 @@ describe("Vault-Unstaking", () => {
 
       const psbtFromHex = Psbt.fromBuffer(hexToBytes(psbtStr));
 
+      // User signs the psbt
       const stakerSignedPsbt = signPsbt(
         TestSuite.network,
         TestSuite.stakerWif,
@@ -91,12 +97,14 @@ describe("Vault-Unstaking", () => {
         false
       );
 
+      // Protocol signs the psbt
       const serviceSignedPsbt = signPsbt(
         TestSuite.network,
         TestSuite.protocolKeyPair.toWIF(),
         stakerSignedPsbt.signedPsbt,
         true
       );
+
       const hexTxfromPsbt = serviceSignedPsbt.signedPsbt
         .extractTransaction()
         .toHex();
@@ -105,6 +113,7 @@ describe("Vault-Unstaking", () => {
       console.log(hexTxfromPsbt);
 
       console.log("==== sendrawtransaction ====");
+      // Broadcast the transaction
       const unstakedTxid = await sendrawtransaction(
         hexTxfromPsbt,
         TestSuite.btcClient

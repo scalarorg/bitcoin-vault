@@ -100,6 +100,7 @@ export const setUpTest = async () => {
     password: StaticEnv.PASSWORD,
   });
 
+
   const custodialPubkeys = envMap.get("COVENANT_PUBKEYS")?.split(",");
   if (!custodialPubkeys) {
     throw new Error("COVENANT_PUBKEYS is not set");
