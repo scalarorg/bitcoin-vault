@@ -31,7 +31,7 @@ export const readEnv = async () => {
 };
 
 const StaticEnvSchema = z.object({
-  TAG: z.string().optional().default("01020304"),
+  TAG: z.string().optional().default("53180104"),
   VERSION: z.number().optional().default(0),
   NETWORK: z
     .enum(["bitcoin", "testnet", "regtest", "testnet4"])
@@ -100,7 +100,6 @@ export const setUpTest = async () => {
     password: StaticEnv.PASSWORD,
   });
 
-
   const custodialPubkeys = envMap.get("COVENANT_PUBKEYS")?.split(",");
   if (!custodialPubkeys) {
     throw new Error("COVENANT_PUBKEYS is not set");
@@ -157,10 +156,10 @@ export const setUpTest = async () => {
 export const setupStakingTx = async () => {
   const TestSuite = await setUpTest();
   console.log("TestSuite.stakerAddress", TestSuite.stakerAddress);
-  const addressUtxos = await getAddressUtxos(
-    TestSuite.stakerAddress,
-    TestSuite.btcClient
-  );
+  const addressUtxos = await getAddressUtxos({
+    address: TestSuite.stakerAddress,
+    btcClient: TestSuite.btcClient,
+  });
   const { fees } = defaultMempoolClient;
   const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
   //1. Build the unsigned psbt
