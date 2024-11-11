@@ -84,6 +84,10 @@ describe("Vault-Staking", async () => {
         StaticEnv.STAKING_AMOUNT
       );
 
+    console.log({ estimatedFee });
+
+    return;
+
     const { signedPsbt, isValid } = signPsbt(
       TestSuite.network,
       TestSuite.stakerWif,

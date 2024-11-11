@@ -44,7 +44,7 @@ export const getStakingTxInputUTXOsAndFees = (
   outputScriptSize: number,
   stakingAmount: number,
   feeRate: number,
-  outputs: PsbtOutputExtended[],
+  outputs: PsbtOutputExtended[]
 ): {
   selectedUTXOs: UTXO[];
   fee: number;
@@ -64,8 +64,13 @@ export const getStakingTxInputUTXOsAndFees = (
     accumulatedValue += utxo.value;
 
     // Calculate the fee for the current set of UTXOs and outputs
-    const estimatedSize = getEstimatedSize(network, selectedUTXOs, outputScriptSize, outputs);
-    estimatedFee = estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);
+    const estimatedSize = getEstimatedSize(
+      network,
+      selectedUTXOs,
+      outputScriptSize,
+      outputs
+    );
+    estimatedFee = getEstimatedTxFee(estimatedSize, feeRate);
     // Check if there will be any change left after the staking amount and fee.
     // If there is, a change output needs to be added, which also comes with an additional fee.
     if (accumulatedValue - (stakingAmount + estimatedFee) > BTC_DUST_SAT) {
@@ -81,7 +86,7 @@ export const getStakingTxInputUTXOsAndFees = (
 
   if (accumulatedValue < stakingAmount + estimatedFee) {
     throw new Error(
-      "Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees",
+      "Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees"
     );
   }
 
@@ -114,6 +119,13 @@ export const getWithdrawTxFee = (feeRate: number): number => {
   );
 };
 
+export const getEstimatedTxFee = (
+  estimatedSize: number,
+  feeRate: number
+): number => {
+  return estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);
+};
+
 /**
  * Calculates the estimated transaction size using a heuristic formula which
  * includes the input size, output size, and a fixexd buffer for the transaction size.
@@ -126,12 +138,11 @@ export const getWithdrawTxFee = (feeRate: number): number => {
  * @param outputs - The outputs in the transaction.
  * @returns The estimated transaction size in bytes.
  */
-const getEstimatedSize = (
+export const getEstimatedSize = (
   network: Network,
   inputUtxos: UTXO[],
-  //scriptPubKey: Buffer,
   outputScriptSize: number,
-  outputs: PsbtOutputExtended[],
+  outputs: PsbtOutputExtended[]
 ): number => {
   // Estimate the input size
   const inputSize = inputUtxos.reduce((acc: number, u: UTXO): number => {
@@ -142,7 +153,7 @@ const getEstimatedSize = (
     //     "Failed to decompile script when estimating fees for inputs",
     //   );
     // }
-    return acc + outputScriptSize//getInputSizeByScript(script);
+    return acc + outputScriptSize; //getInputSizeByScript(script);
   }, 0);
 
   // Estimate the output size

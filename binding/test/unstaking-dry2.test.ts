@@ -1,4 +1,10 @@
-import { bytesToHex, hexToBytes, signPsbt } from "@/utils";
+import {
+  bytesToHex,
+  getEstimatedSize,
+  getEstimatedTxFee,
+  hexToBytes,
+  signPsbt,
+} from "@/utils";
 import Client from "bitcoin-core-ts";
 import * as bitcoin from "bitcoinjs-lib";
 import { Psbt } from "bitcoinjs-lib";
@@ -85,20 +91,49 @@ describe("Vault-Unstaking", () => {
         custodialPubkeysBuffer.set(hexToBytes(custodialPubkeys[i]), i * 33);
       }
 
+      const input = {
+        txid,
+        vout: 0,
+        value: StaticEnv.STAKING_AMOUNT,
+        script_pubkey: scriptPubkeyOfLocking,
+      };
+
+      const output = {
+        script: p2wpkhScript,
+        value: StaticEnv.STAKING_AMOUNT,
+      };
+
+      const estimatedSize = getEstimatedSize(
+        bitcoin.networks.testnet,
+        [
+          {
+            ...input,
+            value: Number(input.value),
+          },
+        ],
+        p2wpkhScript.length,
+        [
+          {
+            ...output,
+            script: Buffer.from(output.script),
+          },
+        ]
+      );
+
+      const estimatedFee = getEstimatedTxFee(estimatedSize, 1);
+
+      output.value = BigInt(Number(output.value) - estimatedFee);
+
+      console.log("Staking Amount", StaticEnv.STAKING_AMOUNT);
+      console.log("estimatedFee", estimatedFee);
+      console.log("output.value", output.value);
+
       // Build the unsigned psbt
       const psbtHex = buildUnsignedUnstakingUserProtocolPsbt(
         StaticEnv.TAG,
         StaticEnv.VERSION,
-        {
-          txid,
-          vout: 0,
-          value: StaticEnv.STAKING_AMOUNT, // 10_000
-          script_pubkey: scriptPubkeyOfLocking,
-        },
-        {
-          script: p2wpkhScript,
-          value: StaticEnv.STAKING_AMOUNT - BigInt(1_000), // 9_000
-        },
+        input,
+        output,
         stakerPubKey,
         protocolPubkey,
         custodialPubkeysBuffer,
