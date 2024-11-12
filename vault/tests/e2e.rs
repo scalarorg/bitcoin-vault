@@ -40,6 +40,16 @@ pub struct TestSuite<'a> {
     user_address: Address<NetworkChecked>,
 }
 
+// cargo test --package bitcoin-vault --test mod -- e2e::test_staking --exact --show-output
+#[test]
+fn test_staking() {
+    let staking_tx = TestSuite::new().prepare_staking_tx(None);
+    println!("tx_id: {:?}", staking_tx.compute_txid());
+}
+
+
+// Note: if you want to test on testnet4, you need to set the network to testnet4 in the .env file, ssh <testnet4> -L 48332:127.0.0.1:48332
+
 // cargo test --package bitcoin-vault --test mod -- e2e::test_user_protocol_unstaking --exact --show-output
 #[test]
 fn test_user_protocol_unstaking() {
@@ -315,9 +325,15 @@ impl<'a> TestSuite<'a> {
         )
         .expect("Failed to create RPC client");
 
+        let network = match env.network.as_str() {
+            "testnet4" => bitcoin::Network::Testnet4,
+            "regtest" => bitcoin::Network::Regtest,
+            _ => panic!("Invalid network"),
+        };
+
         let user_address: Address<NetworkChecked> = Address::from_str(&env.user_address)
             .unwrap()
-            .require_network(bitcoin::Network::Regtest)
+            .require_network(network)
             .unwrap();
 
         let mut covenant_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)> = BTreeMap::new();

@@ -7,6 +7,8 @@ pub enum CoreError {
     InsufficientUTXOs { required: u64, available: u64 },
     #[error("Invalid tag")]
     InvalidTag,
+    #[error("Invalid service tag")]
+    InvalidServiceTag,
     #[error("Duplicate covenant keys")]
     DuplicateCovenantKeys,
     #[error("Other error: {0}")]
@@ -39,4 +41,6 @@ pub enum CoreError {
     FailedToExtractTx,
     #[error("Invalid unstaking type")]
     InvalidUnstakingType,
+    #[error("Cannot convert op_return data to slice")]
+    CannotConvertOpReturnDataToSlice,
 }

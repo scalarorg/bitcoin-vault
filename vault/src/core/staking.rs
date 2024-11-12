@@ -81,7 +81,9 @@ impl Staking for VaultManager {
 
         let embedded_data_script = DataScript::new(&DataScriptParams {
             tag: self.tag(),
+            service_tag: self.service_tag(),
             version: self.version(),
+            network_id: self.network_id(),
             destination_chain_id: &params.destination_chain_id,
             destination_contract_address: &params.destination_contract_address,
             destination_recipient_address: &params.destination_recipient_address,

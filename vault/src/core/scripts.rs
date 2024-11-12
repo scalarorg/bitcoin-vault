@@ -9,7 +9,7 @@ use bitcoin::{
 
 use super::{
     CoreError, DestinationAddress, DestinationChainId, TaprootTree, EMBEDDED_DATA_SCRIPT_SIZE,
-    TAG_HASH_SIZE,
+    SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
 };
 
 #[derive(Debug)]
@@ -49,7 +49,9 @@ impl LockingScript {
 
 pub struct DataScriptParams<'a> {
     pub tag: &'a Vec<u8>,
+    pub service_tag: &'a Vec<u8>,
     pub version: u8,
+    pub network_id: u8,
     pub destination_chain_id: &'a DestinationChainId,
     pub destination_contract_address: &'a DestinationAddress,
     pub destination_recipient_address: &'a DestinationAddress,
@@ -61,7 +63,6 @@ pub struct DataScript(ScriptBuf);
 impl DataScript {
     pub fn new(params: &DataScriptParams) -> Result<Self, CoreError> {
         let tag_bytes = params.tag.as_slice();
-
         let hash: [u8; TAG_HASH_SIZE] = if params.tag.len() <= TAG_HASH_SIZE {
             tag_bytes[0..TAG_HASH_SIZE]
                 .try_into()
@@ -72,14 +73,35 @@ impl DataScript {
                 .map_err(|_| CoreError::InvalidTag)?
         };
 
+        let service_tag_bytes = params.service_tag.as_slice();
+        let service_tag_hash: [u8; SERVICE_TAG_HASH_SIZE] =
+            if params.service_tag.len() <= SERVICE_TAG_HASH_SIZE {
+                service_tag_bytes[0..SERVICE_TAG_HASH_SIZE]
+                    .try_into()
+                    .map_err(|_| CoreError::InvalidServiceTag)?
+            } else {
+                Sha256dHash::hash(service_tag_bytes)[0..SERVICE_TAG_HASH_SIZE]
+                    .try_into()
+                    .map_err(|_| CoreError::InvalidServiceTag)?
+            };
+
+        let mut data = Vec::<u8>::with_capacity(EMBEDDED_DATA_SCRIPT_SIZE);
+        data.extend_from_slice(&hash);
+        data.extend_from_slice(&service_tag_hash);
+        data.push(params.version);
+        data.push(params.network_id);
+        data.extend_from_slice(params.destination_chain_id);
+        data.extend_from_slice(params.destination_contract_address);
+        data.extend_from_slice(params.destination_recipient_address);
+
+        let data_slice: &[u8; EMBEDDED_DATA_SCRIPT_SIZE] = data
+            .as_slice()
+            .try_into()
+            .map_err(|_| CoreError::CannotConvertOpReturnDataToSlice)?;
+
         let embedded_data_script = script::Builder::new()
             .push_opcode(OP_RETURN)
-            .push_int(EMBEDDED_DATA_SCRIPT_SIZE as i64)
-            .push_slice(hash)
-            .push_slice(params.version.to_le_bytes())
-            .push_slice(params.destination_chain_id)
-            .push_slice(params.destination_contract_address)
-            .push_slice(params.destination_recipient_address)
+            .push_slice(data_slice)
             .into_script();
 
         Ok(DataScript(embedded_data_script))

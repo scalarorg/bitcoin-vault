@@ -41,18 +41,6 @@ impl Decoder {
 #[cfg(test)]
 mod tests {
     use super::Decoder;
-    use bitcoin::{
-        bip32::{ChildNumber, Xpriv, Xpub},
-        key::Secp256k1,
-        secp256k1::All,
-        Address, CompressedPublicKey, KnownHrp, Network,
-    };
-    fn generate_secp256k1_keys(secp: &Secp256k1<All>) -> (Xpriv, Xpub) {
-        let random_bytes = "000102030405060708090a0b0c0d0e0f".as_bytes();
-        let sk = Xpriv::new_master(Network::Bitcoin, &random_bytes).unwrap();
-        let pk = Xpub::from_priv(secp, &sk);
-        (sk, pk)
-    }
     #[test]
     fn test_pubkey() {
         let pubkey_bytes = [

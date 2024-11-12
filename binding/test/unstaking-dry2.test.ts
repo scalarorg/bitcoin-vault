@@ -120,6 +120,8 @@ describe("Vault-Unstaking", () => {
         ]
       );
 
+      console.log("estimatedSize", estimatedSize);
+
       const estimatedFee = getEstimatedTxFee(estimatedSize, 1);
 
       output.value = BigInt(Number(output.value) - estimatedFee);

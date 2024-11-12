@@ -3,7 +3,9 @@ use bitcoin::{key::Secp256k1, secp256k1::All, PublicKey, XOnlyPublicKey};
 pub struct VaultManager {
     secp: Secp256k1<All>,
     tag: Vec<u8>,
+    service_tag: Vec<u8>,
     version: u8,
+    network_id: u8,
 }
 
 #[derive(Debug)]
@@ -14,9 +16,15 @@ pub struct XOnlyKeys {
 }
 
 impl VaultManager {
-    pub fn new(tag: Vec<u8>, version: u8) -> Self {
+    pub fn new(tag: Vec<u8>, service_tag: Vec<u8>, version: u8, network_id: u8) -> Self {
         let secp = Secp256k1::new();
-        Self { secp, tag, version }
+        Self {
+            secp,
+            tag,
+            service_tag,
+            version,
+            network_id,
+        }
     }
 
     pub fn secp(&self) -> &Secp256k1<All> {
@@ -27,8 +35,16 @@ impl VaultManager {
         &self.tag
     }
 
+    pub fn service_tag(&self) -> &Vec<u8> {
+        &self.service_tag
+    }
+
     pub fn version(&self) -> u8 {
         self.version
+    }
+
+    pub fn network_id(&self) -> u8 {
+        self.network_id
     }
 
     pub fn convert_to_x_only_keys(

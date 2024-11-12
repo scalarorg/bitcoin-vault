@@ -1,6 +1,4 @@
 use crate::{hex_to_vec, TEST_PSBT_HEX};
-// use bitcoin::base64::prelude::BASE64_STANDARD;
-use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hex::DisplayHex;
 use bitcoin::key::{Keypair, Secp256k1};
 use bitcoin::secp256k1::All;

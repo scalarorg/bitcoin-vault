@@ -86,8 +86,6 @@ describe("Vault-Staking", async () => {
 
     console.log({ estimatedFee });
 
-    return;
-
     const { signedPsbt, isValid } = signPsbt(
       TestSuite.network,
       TestSuite.stakerWif,
@@ -104,6 +102,9 @@ describe("Vault-Staking", async () => {
     const txHexfromPsbt = transaction.toHex();
     logToJSON({ txHexfromPsbt, fee: estimatedFee });
     //4. Broadcast the transaction
+
+    console.log("txHexfromPsbt", txHexfromPsbt);
+    return;
     const txid = await sendrawtransaction(txHexfromPsbt, TestSuite.btcClient);
     console.log("Successfully broadcasted txid", txid);
   });

@@ -20,9 +20,9 @@ pub struct VaultWasm {
 #[wasm_bindgen]
 impl VaultWasm {
     #[wasm_bindgen]
-    pub fn new(tag: &[u8], version: u8) -> Self {
+    pub fn new(tag: &[u8], service_tag: &[u8], version: u8, network_id: u8) -> Self {
         VaultWasm {
-            manager: VaultManager::new(tag.to_vec(), version),
+            manager: VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_id),
         }
     }
 

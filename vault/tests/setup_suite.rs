@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 use bitcoin::hashes::Hash;
 use bitcoin::key::Secp256k1;
-use bitcoin::{Amount, CompressedPublicKey, OutPoint, ScriptBuf, TxOut};
+use bitcoin::{Amount, CompressedPublicKey, NetworkKind, OutPoint, ScriptBuf, TxOut};
 use bitcoin::{PrivateKey, PublicKey, Txid};
 use bitcoin_vault::VaultManager;
 use bitcoin_vault::{BuildUnstakingParams, PreviousStakingUTXO};
@@ -17,8 +17,8 @@ pub const TEST_UTXO_AMOUNT: u64 = 10_000;
 pub const TEST_FEE_AMOUNT: u64 = 1000;
 pub const TEST_UTXO_VOUT: u32 = 0;
 pub const TEST_VERSION: u8 = 0;
-pub const TEST_TAG: [u8; 4] = [1, 2, 3, 4];
-
+pub const TEST_TAG: [u8; 6] = [83, 67, 65, 76, 65, 82];
+pub const TEST_SERVICE_TAG: [u8; 5] = [100, 97, 118, 105, 100];
 pub const TEST_PSBT_HEX: &str = "70736274ff0100520200000001e0a68346c9118f584c22c9afa89b641e06127d1b1fa661788ea922261dee37600000000000fdffffff012823000000000000160014acd07b22adf2299c56909c9ca537fd2c58127ecc000000000001012b102700000000000022512054bfa5690019d09073d75d1094d6eb9a551a5d61b0fcfc1fd474da6bfea88627010304000000004215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac007e94635a4727997d13497f6529f00a9ca291c2e6e10253eb995eecd130a9eeb4520f02e0d96250daf3ed999f12a2a7c3c198e7d26f6bef5add3ef764831004d256fad20992b50ef84354a4c0b5831bc90b36b5da98f7fc8969df5f4c88f5ec270b0dfbbacc02116992b50ef84354a4c0b5831bc90b36b5da98f7fc8969df5f4c88f5ec270b0dfbb25019e450b1a6179e18dd5ab6aeff0e5172728cb84fc236261768579eb5252cd574a000000002116f02e0d96250daf3ed999f12a2a7c3c198e7d26f6bef5add3ef764831004d256f25019e450b1a6179e18dd5ab6aeff0e5172728cb84fc236261768579eb5252cd574a0000000001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0011820867e83e93516ecde27680f5af69af0bd633f9918874b975c7e65c0b2419047ee0000";
 
 pub const USER_SCRIPT_PUBKEY: &str = "0014acd07b22adf2299c56909c9ca537fd2c58127ecc";
@@ -48,7 +48,12 @@ pub static MOCK_ENV: LazyLock<Env> = LazyLock::new(|| {
 lazy_static! {
     pub static ref BUILD_USER_PROTOCOL_SPEND_PARAMS: BuildUnstakingParams =
         load_build_user_protocol_spend_params();
-    pub static ref MANAGER: VaultManager = VaultManager::new(TEST_TAG.to_vec(), TEST_VERSION);
+    pub static ref MANAGER: VaultManager = VaultManager::new(
+        TEST_TAG.to_vec(),
+        TEST_SERVICE_TAG.to_vec(),
+        TEST_VERSION,
+        NetworkKind::Test as u8
+    );
 }
 
 fn load_build_user_protocol_spend_params() -> BuildUnstakingParams {

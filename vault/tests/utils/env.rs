@@ -55,6 +55,9 @@ pub struct Env {
 
     #[validate(length(min = 44))]
     pub script_pubkey: String,
+
+    #[validate(length(min = 3))]
+    pub network: String,
 }
 
 lazy_static! {
@@ -131,6 +134,7 @@ impl Env {
                 .unwrap_or_default(),
             script_pubkey: env::var("SCRIPT_PUBKEY")
                 .unwrap_or("00141302a4ea98285baefb2d290de541d069356d88e9".to_string()),
+            network: env::var("NETWORK").unwrap_or("regtest".to_string()),
         };
 
         if let Err(err) = env.validate() {
@@ -162,6 +166,7 @@ impl Default for Env {
             utxo_amount: 10_000_100,
             utxo_vout: 0,
             script_pubkey: "00141302a4ea98285baefb2d290de541d069356d88e9".to_string(),
+            network: "regtest".to_string(),
         }
     }
 }

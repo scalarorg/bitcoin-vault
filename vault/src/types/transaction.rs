@@ -1,6 +1,4 @@
-use bitcoin::{
-    consensus::Encodable, hex::DisplayHex, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid,
-};
+use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
 use serde::{Deserialize, Serialize};
 
 use crate::{DestinationAddress, DestinationChainId};
@@ -165,7 +163,7 @@ impl TryFrom<&Transaction> for VaultTransaction {
         } else {
             None
         };
-        let Some(input) = tx.input.first() else {
+        let Some(_) = tx.input.first() else {
             return Err(ParserError::InvalidTransactionHex);
         };
         let mut tx_content = vec![];
