@@ -84,6 +84,8 @@ impl Staking for VaultManager {
             service_tag: self.service_tag(),
             version: self.version(),
             network_id: self.network_id(),
+            have_only_covenants: params.have_only_covenants,
+            covenant_quorum: params.covenant_quorum,
             destination_chain_id: &params.destination_chain_id,
             destination_contract_address: &params.destination_contract_address,
             destination_recipient_address: &params.destination_recipient_address,

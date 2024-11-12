@@ -21,6 +21,8 @@ pub enum ParserError {
     ControlBlockNotFound,
     #[error("Invalid transaction hex")]
     InvalidTransactionHex,
+    #[error("Invalid instruction")]
+    InvalidInstruction,
     #[error("Invalid embedded data")]
     InvalidEmbeddedData,
     #[error("Invalid control block")]

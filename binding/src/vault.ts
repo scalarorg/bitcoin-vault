@@ -172,7 +172,7 @@ export class VaultUtils {
       throw new Error("Network not initialized");
     }
 
-    const keyPair = ECPairFactory(ecc).fromWIF(params.wif, this.network);
+    const keyPair = VaultUtils.ECPair.fromWIF(params.wif, this.network);
 
     const signedPsbt = params.psbt.signAllInputs(keyPair);
 

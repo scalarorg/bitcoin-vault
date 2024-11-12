@@ -52,6 +52,8 @@ pub struct DataScriptParams<'a> {
     pub service_tag: &'a Vec<u8>,
     pub version: u8,
     pub network_id: u8,
+    pub have_only_covenants: bool,
+    pub covenant_quorum: u8,
     pub destination_chain_id: &'a DestinationChainId,
     pub destination_contract_address: &'a DestinationAddress,
     pub destination_recipient_address: &'a DestinationAddress,
@@ -90,6 +92,8 @@ impl DataScript {
         data.extend_from_slice(&service_tag_hash);
         data.push(params.version);
         data.push(params.network_id);
+        data.push(params.have_only_covenants as u8);
+        data.push(params.covenant_quorum);
         data.extend_from_slice(params.destination_chain_id);
         data.extend_from_slice(params.destination_contract_address);
         data.extend_from_slice(params.destination_recipient_address);

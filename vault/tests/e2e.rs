@@ -588,7 +588,10 @@ impl<'a> TestSuite<'a> {
         self.protocol_pair.0.to_bytes()
     }
 
+    // for one input
     fn get_fee(&self, n_outputs: u64) -> u64 {
         (148 + (34 * n_outputs) + 10) * self.get_fee_rate()
+
+        // (148 * n_inputs + 34 * n_outputs + 10) * fee_rate
     }
 }
