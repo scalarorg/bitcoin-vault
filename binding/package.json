@@ -1,6 +1,6 @@
 {
   "name": "@scalar-lab/bitcoin-vault",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "license": "MIT",
   "type": "module",
   "module": "dist/index.js",
@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@mempool/mempool.js": "^2.3.0",
-    "@scalar-lab/bitcoin-wasm": "0.0.13",
+    "@scalar-lab/bitcoin-wasm": "0.0.14",
     "bip174": "^3.0.0-rc.1",
     "bip32": "^5.0.0-rc.0",
     "bitcoin-core-ts": "^3.0.3",
@@ -34,17 +34,19 @@
   },
   "devDependencies": {
     "@types/bun": "^1.1.12",
+    "barrelsby": "^2.8.1",
     "dts-bundle-generator": "^9.5.1",
     "ethers": "^6.13.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   },
   "scripts": {
-    "build": "bun build.ts",
+    "build": "bun run barrelsby && bun build.ts",
     "clean": "rm -rf lib/*",
     "test": "mocha -r ts-node/register test/*.test.ts --exit --no-timeout",
     "lint": "tslint -c tslint.json test/*.ts",
-    "fmt": "prettier --tab-width 4 --print-width 120 --parser typescript --write test/*.ts"
+    "fmt": "prettier --tab-width 4 --print-width 120 --parser typescript --write test/*.ts",
+    "barrelsby": "barrelsby --config .barrelsby.json -q"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",

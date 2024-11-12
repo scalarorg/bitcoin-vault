@@ -1,0 +1,5 @@
+{
+  "directory": ["./src/types"],
+  "exclude": ["dist", ".test.ts", "dist", "test", "build.ts"],
+  "delete": true
+}

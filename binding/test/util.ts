@@ -1,20 +1,15 @@
+import Client from "bitcoin-core-ts";
+import * as bitcoin from "bitcoinjs-lib";
+import { z } from "zod";
 import {
-  defaultMempoolClient,
+  TBuildUnsignedStakingPsbt,
   getAddressUtxos,
   sendrawtransaction,
-} from "@/client";
-import { buildUnsignedStakingPsbt } from "@/staking";
-import {
-  createVaultWasm,
-  ECPair,
-  hexToBytes,
-  logToJSON,
-  signPsbt,
-  getNetwork,
+  getMempoolClient,
   bytesToHex,
-} from "@/utils";
-import Client from "bitcoin-core-ts";
-import { z } from "zod";
+  hexToBytes,
+  VaultUtils,
+} from "../src";
 
 export const readEnv = async () => {
   const envText = await Bun.file(StaticEnv.BTC_ENV_PATH).text();
@@ -31,7 +26,8 @@ export const readEnv = async () => {
 };
 
 const StaticEnvSchema = z.object({
-  TAG: z.string().optional().default("53180104"),
+  TAG: z.string().optional().default("SCALAR"),
+  SERVICE_TAG: z.string().optional().default("light"),
   VERSION: z.number().optional().default(0),
   NETWORK: z
     .enum(["bitcoin", "testnet", "regtest", "testnet4"])
@@ -84,15 +80,19 @@ export const StaticEnv = StaticEnvSchema.parse({
 export const setUpTest = async () => {
   const envMap = await readEnv();
   console.log("envMap", envMap);
-
   console.log("StaticEnv", StaticEnv);
 
-  const vaultWasm = createVaultWasm(StaticEnv.TAG, StaticEnv.VERSION);
+  const vaultUtils = VaultUtils.getInstance(
+    StaticEnv.TAG,
+    StaticEnv.SERVICE_TAG,
+    StaticEnv.VERSION,
+    StaticEnv.NETWORK
+  );
 
-  const network = getNetwork(StaticEnv.NETWORK);
+  const network = vaultUtils.getNetwork();
 
   const btcClient = new Client({
-    network: StaticEnv.NETWORK,
+    network: StaticEnv.NETWORK === "testnet4" ? "testnet" : StaticEnv.NETWORK,
     host: StaticEnv.HOST,
     port: StaticEnv.PORT,
     wallet: StaticEnv.WALLET_NAME,
@@ -125,7 +125,7 @@ export const setUpTest = async () => {
     throw new Error("BOND_HOLDER_PRIVATE_KEY is not set");
   }
 
-  const keyPair = ECPair.fromWIF(bondHolderWif, network);
+  const keyPair = VaultUtils.ECPair.fromWIF(bondHolderWif, network);
 
   const protocolPubkey = envMap.get("PROTOCOL_PUBLIC_KEY");
   if (!protocolPubkey) {
@@ -140,16 +140,17 @@ export const setUpTest = async () => {
   console.log("STAKER_PUBKEY", bytesToHex(keyPair.publicKey));
 
   return {
-    network,
+    network: vaultUtils.getNetwork(),
     btcClient,
-    vaultWasm,
+    vaultUtils,
+    mempoolClient: getMempoolClient(StaticEnv.NETWORK),
     custodialPubkeys: custodialPubkeysBuffer,
     stakerAddress: bondHolderAddress,
     stakerWif: bondHolderWif,
     stakerPubKey: keyPair.publicKey,
     stakerKeyPair: keyPair,
     protocolPubkey: hexToBytes(protocolPubkey),
-    protocolKeyPair: ECPair.fromWIF(protocolPrivkey, network),
+    protocolKeyPair: VaultUtils.ECPair.fromWIF(protocolPrivkey, network),
   };
 };
 
@@ -160,38 +161,37 @@ export const setupStakingTx = async () => {
     address: TestSuite.stakerAddress,
     btcClient: TestSuite.btcClient,
   });
-  const { fees } = defaultMempoolClient;
-  const { fastestFee: feeRate } = await fees.getFeesRecommended(); // Get this from Mempool API
+  const { fastestFee: feeRate } =
+    await TestSuite.mempoolClient.fees.getFeesRecommended(); // Get this from Mempool API
   //1. Build the unsigned psbt
 
-  const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
-    buildUnsignedStakingPsbt(
-      StaticEnv.TAG,
-      StaticEnv.VERSION,
-      TestSuite.network,
-      TestSuite.stakerAddress,
-      TestSuite.stakerPubKey,
-      TestSuite.protocolPubkey,
-      TestSuite.custodialPubkeys,
-      StaticEnv.CUSTODIAL_QUORUM,
-      StaticEnv.HAVE_ONLY_CUSTODIAL,
-      StaticEnv.DEST_CHAIN_ID,
-      hexToBytes(StaticEnv.DEST_SMART_CONTRACT_ADDRESS),
-      hexToBytes(StaticEnv.DEST_USER_ADDRESS),
-      addressUtxos,
-      feeRate,
-      StaticEnv.STAKING_AMOUNT
-    );
-  //2. Sign the psbt
-  const { signedPsbt, isValid } = signPsbt(
-    TestSuite.network,
-    TestSuite.stakerWif,
-    unsignedVaultPsbt
-  );
+  const params: TBuildUnsignedStakingPsbt = {
+    stakingAmount: StaticEnv.STAKING_AMOUNT,
+    stakerPubkey: TestSuite.stakerPubKey,
+    stakerAddress: TestSuite.stakerAddress,
+    protocolPubkey: TestSuite.protocolPubkey,
+    custodialPubkeys: TestSuite.custodialPubkeys,
+    covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
+    haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
+    destinationChainId: StaticEnv.DEST_CHAIN_ID,
+    destinationSmartContractAddress: hexToBytes(
+      StaticEnv.DEST_SMART_CONTRACT_ADDRESS
+    ),
+    destinationRecipientAddress: hexToBytes(StaticEnv.DEST_USER_ADDRESS),
+    availableUTXOs: addressUtxos,
+    feeRate,
+    rbf: true,
+  };
 
-  if (!isValid) {
-    throw new Error("Invalid psbt");
-  }
+  const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
+    TestSuite.vaultUtils.buildStakingOutput(params);
+  //2. Sign the psbt
+  const signedPsbt = TestSuite.vaultUtils.signPsbt({
+    psbt: unsignedVaultPsbt,
+    wif: TestSuite.stakerWif,
+    finalize: true,
+  });
+
   //3. Extract the transaction and broadcast
   let transaction = signedPsbt.extractTransaction(false);
   const txHexfromPsbt = transaction.toHex();
@@ -206,3 +206,31 @@ export const setupStakingTx = async () => {
     scriptPubkeyOfLocking,
   };
 };
+
+export function logToJSON(any: any) {
+  console.log(
+    JSON.stringify(
+      any,
+      (k, v) => {
+        if (v.type === "Buffer") {
+          return Buffer.from(v.data).toString("hex");
+        }
+        if (k === "network") {
+          switch (v) {
+            case bitcoin.networks.bitcoin:
+              return "bitcoin";
+            case bitcoin.networks.testnet:
+              return "testnet";
+            case bitcoin.networks.regtest:
+              return "regtest";
+          }
+        }
+        if (typeof v == "bigint") {
+          return v.toString(10);
+        }
+        return v;
+      },
+      2
+    )
+  );
+}

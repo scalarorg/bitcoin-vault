@@ -1,10 +1,7 @@
 import { AddressTxsUtxo } from "@mempool/mempool.js/lib/interfaces/bitcoin/addresses";
-import { default as BtcMempool, defaultMempoolClient } from "./mempool";
-import {
-  defaultClient as defaultBtcClient,
-  getUnspentTransactionOutputs,
-} from "./bitcoin";
 import Client from "bitcoin-core-ts";
+import { getUnspentTransactionOutputs } from "./bitcoin";
+import { default as BtcMempool, defaultMempoolClient } from "./mempool";
 
 export { sendrawtransaction, testmempoolaccept } from "./bitcoin";
 
@@ -56,3 +53,6 @@ export async function getAddressUtxos(config: {
 
   return utxos;
 }
+
+export * from "./bitcoin";
+export * from "./mempool";

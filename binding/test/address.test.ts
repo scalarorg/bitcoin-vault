@@ -1,8 +1,8 @@
-import { AddressType } from "@/types";
-import { defineAddressType } from "@/utils";
 import * as bitcoin from "bitcoinjs-lib";
 
 import { describe, expect, it } from "bun:test";
+import { AddressType } from "../src/types";
+import { defineAddressType } from "../src/utils";
 
 //Start local regtest bitcoin node before running the test
 describe("Vault-AddressType", () => {
