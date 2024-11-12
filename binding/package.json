@@ -1,6 +1,6 @@
 {
   "name": "@scalar-lab/bitcoin-vault",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "license": "MIT",
   "type": "module",
   "module": "dist/index.js",
@@ -41,7 +41,7 @@
     "typescript": "^5.6.3"
   },
   "scripts": {
-    "build": "bun run barrelsby && bun build.ts",
+    "build": "rm -rf dist && bun run barrelsby && bun build.ts",
     "clean": "rm -rf lib/*",
     "test": "mocha -r ts-node/register test/*.test.ts --exit --no-timeout",
     "lint": "tslint -c tslint.json test/*.ts",

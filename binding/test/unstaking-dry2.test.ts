@@ -19,7 +19,7 @@ describe("Vault-Unstaking", () => {
     "should unstake for user",
     async () => {
       const txid =
-        "560d74ba21947dd5ec016a619575cdc8732e42bea3e517918c686af97d9977c1";
+        "fafcafacb758cf4720250fc450519493a8b489198316fd7afeb969d10be21317";
 
       if (!txid) {
         throw new Error("txid is required");
