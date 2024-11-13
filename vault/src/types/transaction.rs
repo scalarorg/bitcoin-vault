@@ -41,15 +41,11 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         // Skip OP_RETURN
         instructions.next();
 
-        println!("instructions: {:?}", instructions);
-
         let instruction = instructions
             .next()
             .transpose()
             .map_err(ParserError::from)?
             .ok_or(ParserError::InvalidInstruction)?;
-
-        println!("instruction: {:?}", instruction);
 
         let push_bytes = instruction
             .push_bytes()
@@ -110,6 +106,15 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
             destination_chain_id,
             destination_contract_address,
             destination_recipient_address,
+        })
+    }
+}
+
+impl VaultReturnTxOutput {
+    pub fn try_from_script_pubkey(script_pubkey: &[u8]) -> Result<Self, ParserError> {
+        Self::try_from(&TxOut {
+            value: Amount::ZERO,
+            script_pubkey: ScriptBuf::from_bytes(script_pubkey.to_vec()),
         })
     }
 }

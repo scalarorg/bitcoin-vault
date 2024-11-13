@@ -6,7 +6,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/scalarorg/bitcoin-vault/ffi/go-psbt"
+	"github.com/scalarorg/bitcoin-vault/ffi/go-vault"
 )
 
 const PSBT_HEX = "70736274ff0100520200000001df622397b9240da1c3334c3e1ad432af66a6beca9ae7cb94e74322521528619e0000000000fdffffff01282300000000000016001450dceca158a9c872eb405d52293d351110572c9e000000000001012b1027000000000000225120dade785d43c753bcc8c66f21fef05643ebb4d9812aa60782c7440189255bbb4b0103040000000041142ae31ea8709aeda8194ba3e2f7e7e95e680e8b65135c8983c0a298d17bc5350a8b212098a1c9f95fadf69babfe738c34897215e91707f1fdba99fa5474d93b1f400addd97a3e1e1aa7daf64b77e4356d629c33918afea40c9c10227eba3425a258e32a606ec141005a9b4db68f5ebcdc9d2c7165d272269d817b1433a9ed78d2f94215c050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0b03e4f11ba594a5e348a85f4c2d16f3b9b19be3eeff494c12c3050153585255045202ae31ea8709aeda8194ba3e2f7e7e95e680e8b65135c8983c0a298d17bc5350aad201387aab21303782b17e760c670432559df3968e52cb82cc2d8f9be43a227d5dcacc021161387aab21303782b17e760c670432559df3968e52cb82cc2d8f9be43a227d5dc25018b212098a1c9f95fadf69babfe738c34897215e91707f1fdba99fa5474d93b1f0000000021162ae31ea8709aeda8194ba3e2f7e7e95e680e8b65135c8983c0a298d17bc5350a25018b212098a1c9f95fadf69babfe738c34897215e91707f1fdba99fa5474d93b1f0000000001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac001182016ad63a6cd0845d626c76064f7a89106ad21d49909e5f1b060575464d86f96060000"
@@ -26,11 +26,11 @@ func TestSignPsbtBySingleKey(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	signedPsbt, err := psbt.SignPsbtBySingleKey(
-		psbtBytes,               // []byte containing PSBT
-		privkeyBytes,            // []byte containing private key
-		psbt.NetworkKindTestnet, // TestNet
-		true,                    // finalize
+	signedPsbt, err := vault.SignPsbtBySingleKey(
+		psbtBytes,                // []byte containing PSBT
+		privkeyBytes,             // []byte containing private key
+		vault.NetworkKindTestnet, // TestNet
+		true,                     // finalize
 	)
 	if err != nil {
 		log.Fatal(err)

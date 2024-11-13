@@ -23,3 +23,4 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 bitcoin-vault = { package = "bitcoin-vault", path = "../vault" }
 bitcoin = { version = "0.32.3", features = ["serde"] }
+serde_json = "1.0.132"

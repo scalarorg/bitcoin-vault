@@ -1,4 +1,4 @@
-package psbt
+package vault
 
 /*
 #include <stdint.h>
@@ -40,7 +40,7 @@ func (n NetworkKind) Valid() bool {
 
 func SignPsbtBySingleKey(psbt []byte, privkey []byte, network NetworkKind, finalize bool) ([]byte, error) {
 	if !network.Valid() {
-		return nil, fmt.Errorf("invalid network kind")
+		return nil, ErrInvalidNetwork
 	}
 
 	result := C.sign_psbt_by_single_key(
