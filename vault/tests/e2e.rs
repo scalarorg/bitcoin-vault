@@ -20,15 +20,9 @@ use bitcoincore_rpc::json::{
     GetTransactionResult, ListUnspentQueryOptions, ListUnspentResultEntry,
 };
 
-use crate::{get_env, hex_to_vec, Env, MANAGER};
-
-use lazy_static::lazy_static;
-
 use bitcoincore_rpc::{Auth, Client, RpcApi};
 
-lazy_static! {
-    pub static ref SUITE: TestSuite<'static> = TestSuite::new();
-}
+use crate::{get_env, hex_to_vec, Env, MANAGER, SUITE};
 
 #[derive(Debug)]
 pub struct TestSuite<'a> {
@@ -46,7 +40,6 @@ fn test_staking() {
     let staking_tx = TestSuite::new().prepare_staking_tx(None);
     println!("tx_id: {:?}", staking_tx.compute_txid());
 }
-
 
 // Note: if you want to test on testnet4, you need to set the network to testnet4 in the .env file, ssh <testnet4> -L 48332:127.0.0.1:48332
 
@@ -139,7 +132,7 @@ fn test_covenants_user_unstaking() {
     for privkey_bytes in SUITE.get_covenant_privkeys() {
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &privkey_bytes,
+            privkey_bytes.as_slice(),
             NetworkKind::Test,
             false,
         )
@@ -174,7 +167,7 @@ fn test_covenants_user_unstaking_with_flag() {
     for privkey_bytes in SUITE.get_covenant_privkeys() {
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &privkey_bytes,
+            privkey_bytes.as_slice(),
             NetworkKind::Test,
             false,
         )
@@ -209,7 +202,7 @@ fn test_covenants_protocol_unstaking() {
     for privkey_bytes in SUITE.get_covenant_privkeys() {
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &privkey_bytes,
+            privkey_bytes.as_slice(),
             NetworkKind::Test,
             false,
         )
@@ -256,7 +249,7 @@ fn test_covenants_protocol_unstaking_with_flag() {
     for privkey_bytes in SUITE.get_covenant_privkeys() {
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &privkey_bytes,
+            privkey_bytes.as_slice(),
             NetworkKind::Test,
             false,
         )
@@ -294,7 +287,7 @@ fn test_only_covenants_unstaking() {
     for privkey_bytes in SUITE.get_covenant_privkeys() {
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &privkey_bytes,
+            privkey_bytes.as_slice(),
             NetworkKind::Test,
             false,
         )
@@ -526,13 +519,13 @@ impl<'a> TestSuite<'a> {
     }
 
     fn get_destination_contract_address(&self) -> [u8; 20] {
-        hex_to_vec!(self.env.destination_contract_address)
+        hex_to_vec(&self.env.destination_contract_address)
             .try_into()
             .unwrap()
     }
 
     fn get_destination_recipient_address(&self) -> [u8; 20] {
-        hex_to_vec!(self.env.destination_recipient_address)
+        hex_to_vec(&self.env.destination_recipient_address)
             .try_into()
             .unwrap()
     }
