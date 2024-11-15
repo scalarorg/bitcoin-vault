@@ -1,12 +1,7 @@
 package goutils
 
 import (
-	"fmt"
-	"math/big"
-
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"encoding/binary"
 )
 
 /**
@@ -30,39 +25,26 @@ func CalculateStakingPayloadHash(
 	amount int64,
 	sourceTxHash [32]byte,
 ) ([]byte, []byte, error) {
+	// Manual ABI encoding:
+	// 1. address: left-pad to 32 bytes
+	// 2. uint256: left-pad to 32 bytes
+	// 3. bytes32: already 32 bytes
 
-	// Create arguments array
-	arguments := abi.Arguments{
-		{Type: GetAddressType()},
-		{Type: GetUint256Type()},
-		{Type: GetBytes32Type()},
-	}
+	payloadBytes := make([]byte, 96) // 3 * 32 bytes
 
-	// Pack the values
-	payloadBytes, err := arguments.Pack(
-		common.BytesToAddress(sender[:]),
-		new(big.Int).SetInt64(amount),
-		sourceTxHash,
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to pack values: %w", err)
-	}
-	payloadHash := crypto.Keccak256(payloadBytes)
+	// Encode address (left-pad sender to 32 bytes)
+	copy(payloadBytes[12:32], sender[:])
+
+	// Encode amount (left-pad to 32 bytes)
+	amountBytes := make([]byte, 32)
+	binary.BigEndian.PutUint64(amountBytes[24:], uint64(amount))
+	copy(payloadBytes[32:64], amountBytes)
+
+	// Copy bytes32 sourceTxHash
+	copy(payloadBytes[64:96], sourceTxHash[:])
+
+	// Calculate keccak256 hash
+	payloadHash := Keccak256(payloadBytes)
+
 	return payloadBytes, payloadHash, nil
-}
-
-// Helper functions to create ABI types
-func GetAddressType() abi.Type {
-	t, _ := abi.NewType("address", "", nil)
-	return t
-}
-
-func GetUint256Type() abi.Type {
-	t, _ := abi.NewType("uint256", "", nil)
-	return t
-}
-
-func GetBytes32Type() abi.Type {
-	t, _ := abi.NewType("bytes32", "", nil)
-	return t
 }
