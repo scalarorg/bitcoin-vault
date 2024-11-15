@@ -106,14 +106,16 @@ impl<C> SignByKeyMap<C> for Psbt {
                 }
 
                 Ok(SigningAlgorithm::Schnorr) => {
-                    match self.key_map_sign_schnorr(key_map, i, &mut cache, secp) {
-                        Ok(v) => {
-                            used.insert(i, SigningKeys::Schnorr(v));
-                        }
-                        Err(e) => {
-                            errors.insert(i, e);
-                        }
-                    }
+                    // match self.key_map_sign_schnorr(key_map, i, &mut cache, secp) {
+                    //     Ok(v) => {
+                    //         used.insert(i, SigningKeys::Schnorr(v));
+                    //     }
+                    //     Err(e) => {
+                    //         errors.insert(i, e);
+                    //     }
+                    // }
+
+                    panic!("schnorr not implemented");
                 }
 
                 _ => {

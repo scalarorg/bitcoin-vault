@@ -19,7 +19,7 @@ dotenv = "0.15.0"
 hex = "0.4.3"
 lazy_static = "1.5.0"
 serde = "1.0.213"
-thiserror = "1.0.65"
+thiserror = "2.0.3"
 validator = { version = "0.19.0", features = ["derive"] }
 
 

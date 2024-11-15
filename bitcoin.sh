@@ -16,187 +16,220 @@ run() {
 }
 
 createwallet_descriptors() {
+    STAKE_WALLET_NAME=${1:-staker}
+    PROTOCOL_WALLET_NAME=${2:-protocol}
+    WALLET_PASSPHRASE=${3:-passphrase}
+
+    bitcoin-cli -named createwallet \
+        "wallet_name=${STAKE_WALLET_NAME}" \
+        "passphrase=${WALLET_PASSPHRASE}" \
+        "load_on_startup=true" \
+        "descriptors=true" # Use descriptors for Taproot and P2WPKH addresses
+
+    bitcoin-cli -named createwallet \
+        "wallet_name=${PROTOCOL_WALLET_NAME}" \
+        "passphrase=${WALLET_PASSPHRASE}" \
+        "load_on_startup=true" \
+        "descriptors=true" # Use descriptors for Taproot and P2WPKH addresses
+
+    echo "LISTING WALLETS"
+    bitcoin-cli listwallets
+}
+
+create_miner_wallet() {
+    MINER_WALLET_NAME=${1:-miner}
+    WALLET_PASSPHRASE=${2:-passphrase}
+
+    bitcoin-cli -named createwallet \
+        "wallet_name=${MINER_WALLET_NAME}" \
+        "passphrase=${WALLET_PASSPHRASE}" \
+        "load_on_startup=true" \
+        "descriptors=true" # Use descriptors for Taproot and P2WPKH addresses
+
+    # create a p2tr address
+
+    BTC_ADDRESS=$(bitcoin-cli -rpcwallet=${MINER_WALLET_NAME} getnewaddress $LABEL bech32m)
+
+    echo $BTC_ADDRESS >$WORKDIR/${MINER_WALLET_NAME}-p2tr.txt
+}
+
+unlock_wallet() {
     WALLET_NAME=${1:-staker}
     WALLET_PASSPHRASE=${2:-passphrase}
-    bitcoin-cli -named createwallet \
-        wallet_name=${WALLET_NAME} \
-        passphrase=${WALLET_PASSPHRASE} \
-        load_on_startup=true \
-        descriptors=true # Use descriptors for Taproot and P2WPKH addresses
+    bitcoin-cli -rpcwallet=${WALLET_NAME} walletpassphrase ${WALLET_PASSPHRASE} 60
 }
 
-getnewtaprootaddress() {
-    WORKDIR=${DATADIR:-/data/.bitcoin}
-    LABEL="p2tr"
-    BTC_ADDRESS=$(bitcoin-cli -rpcwallet=${WALLET_NAME} getnewaddress $LABEL bech32m)
-    echo $BTC_ADDRESS >$WORKDIR/${LABEL}.txt
-    bitcoin-cli -rpcwallet=${WALLET_NAME} walletpassphrase ${WALLET_PASSPHRASE:-passphrase} 60
-    bitcoin-cli -rpcwallet=${WALLET_NAME} getaddressinfo $BTC_ADDRESS >$WORKDIR/${LABEL}-info.txt
-    bitcoin-cli -rpcwallet=${WALLET_NAME} generatetoaddress 101 ${BTC_ADDRESS}
+import_wallet_by_wif() {
+    WALLET_NAME=${1:-staker}
+    WIF=${2}
+    ADDRESS_TYPE=${3:-p2tr}
+    WALLET_PASSPHRASE=${4:-passphrase}
+
+    if [ -z "$WIF" ]; then
+        echo "WIF is required"
+        exit 1
+    fi
+
+    unlock_wallet ${WALLET_NAME} ${WALLET_PASSPHRASE}
+
+    ADDRESS=""
+
+    if [ "$ADDRESS_TYPE" = "p2tr" ]; then
+        ADDRESS=$(p2tr ${WALLET_NAME} ${WIF})
+
+    elif [ "$ADDRESS_TYPE" = "p2wpkh" ]; then
+        echo "Implementing p2wpkh"
+    else
+        echo "Invalid address type"
+        exit 1
+    fi
+
+    echo "$ADDRESS_TYPE address: $ADDRESS"
+    echo $ADDRESS >$WORKDIR/${WALLET_NAME}-${ADDRESS_TYPE}.txt
 }
 
-getnewp2wpkhaddress() {
-    WORKDIR=${DATADIR:-/data/.bitcoin}
-    LABEL="p2wpkh"
-    BTC_ADDRESS=$(bitcoin-cli -rpcwallet=${WALLET_NAME} getnewaddress $LABEL bech32)
-    echo $BTC_ADDRESS >$WORKDIR/${LABEL}.txt
-    bitcoin-cli -rpcwallet=${WALLET_NAME} walletpassphrase ${WALLET_PASSPHRASE:-passphrase} 60
-    bitcoin-cli -rpcwallet=${WALLET_NAME} getaddressinfo $BTC_ADDRESS >$WORKDIR/${LABEL}-info.txt
-    bitcoin-cli -rpcwallet=${WALLET_NAME} generatetoaddress 101 ${BTC_ADDRESS}
+p2tr() {
+    WALLET_NAME=${1:-staker}
+
+    WIF=${2}
+
+    ORIGINAL_DESC="tr(${WIF})"
+    DESC_INFO=$(bitcoin-cli -rpcwallet=${WALLET_NAME} getdescriptorinfo "$ORIGINAL_DESC")
+    CHECKSUM=$(echo "$DESC_INFO" | jq -r '.checksum')
+    RESULT=$(bitcoin-cli -rpcwallet=${WALLET_NAME} importdescriptors '[{ "desc": "'"$ORIGINAL_DESC"'#'"$CHECKSUM"'", "timestamp": "now", "internal": true }]')
+
+    ADDRESS_ARRAY=$(bitcoin-cli -rpcwallet=${WALLET_NAME} deriveaddresses "$ORIGINAL_DESC#$CHECKSUM")
+
+    ADDRESS=$(echo $ADDRESS_ARRAY | jq -r '.[0]')
+
+    echo $ADDRESS
 }
 
-generate_blocks() {
-    WORKDIR=${DATADIR:-/data/.bitcoin}
-    while :; do
-        echo "Generating blocks to p2tr"
-        bitcoin-cli -rpcwallet=${WALLET_NAME} generatetoaddress 1 $(cat $WORKDIR/p2tr.txt)
-        echo "Generating blocks to p2wpkh"
-        bitcoin-cli -rpcwallet=${WALLET_NAME} generatetoaddress 1 $(cat $WORKDIR/p2wpkh.txt)
-        sleep 30
-    done
+list_descriptors() {
+    bitcoin-cli listdescriptors
 }
 
 entrypoint() {
     apk add --no-cache jq
     WORKDIR=${DATADIR:-/data/.bitcoin}
-    rm -rf ${WORKDIR}/p2tr*
-    rm -rf ${WORKDIR}/p2wpkh*
     bitcoind
     while ! nc -z 127.0.0.1 18332; do
         sleep 1
     done
-    sleep 15
 
-    # Create wallet and addresses
-    # createwallet_descriptors staker
-    # getnewtaprootaddress
-    # getnewp2wpkhaddress
+    createwallet_descriptors
 
-    # generate_blocks
+    STAKER_WIF=cQ7kMt56n8GeKkshaiCt3Lh2ChuaD3tWdSrH37MwU93PA4qZs9JR
+    PROTOCOL_WIF=cVpL6mBRYV3Dmkx87wfbtZ4R3FTD6g58VkTt1ERkqGTMzTcDVw5M
+
+    import_wallet_by_wif staker $STAKER_WIF p2tr passphrase
+    fund_address staker $(cat $WORKDIR/staker-p2tr.txt)
+    list_unspent staker $(cat $WORKDIR/staker-p2tr.txt)
+
+    import_wallet_by_wif protocol $PROTOCOL_WIF p2tr passphrase
+
+    ln -s /root/bitcoin.sh /usr/local/bin/bsh
+
+    create_miner_wallet miner passphrase
+
+    while true; do
+        MINER_ADDRESS=$(cat $WORKDIR/miner-p2tr.txt)
+        echo "Mining 1 block to ${MINER_ADDRESS}"
+        fund_address miner ${MINER_ADDRESS}
+    done
+
     sleep infinity
 }
 
-create_psbt() {
-    FROM_ADDRESS=$(jq -r '.address' "$WORKDIR/root/.bitcoin/p2tr-info.txt")
-    TO_ADDRESS=$(jq -r '.address' "$WORKDIR/root/.bitcoin/p2wpkh-info.txt")
+fund_address() {
+    WALLET_NAME=${1:-staker}
+    ADDRESS=${2}
+    bitcoin-cli -rpcwallet=${WALLET_NAME} generatetoaddress 101 ${ADDRESS} >/dev/null 2>&1
+    sleep 5
+}
 
-    # Get the UTXO details
-    UTXOS=$(bitcoin-cli -rpcwallet=staker listunspent 6 9999999 "[\"${FROM_ADDRESS}\"]")
-    TXID=$(echo $UTXOS | jq -r '.[0].txid')
-    VOUT=$(echo $UTXOS | jq -r '.[0].vout')
+list_unspent() {
+    WALLET_NAME=${1:-staker}
+    ADDRESS=${2}
+    bitcoin-cli -rpcwallet=${WALLET_NAME} listunspent 6 9999999 "[\"${ADDRESS}\"]"
+}
 
-    echo "TXID: $TXID"
-    echo "VOUT: $VOUT"
-    echo "UTXOS[0]: $(echo $UTXOS | jq -r '.[0]')"
-    echo "FROM_ADDRESS: $FROM_ADDRESS"
-    echo "TO_ADDRESS: $TO_ADDRESS"
+getrawtx() {
+    TXID=${1}
+    bitcoin-cli getrawtransaction ${TXID} true
+}
 
-    # Create PSBT
-    PSBT_RESULT=$(bitcoin-cli -rpcwallet=staker walletcreatefundedpsbt \
-        "[{\"txid\":\"${TXID}\",\"vout\":${VOUT}}]" \
-        "[{\"${TO_ADDRESS}\": 30}]" \
-        0 '{"replaceable": true, "feeRate": 0.0001}')
+gettx() {
+    TXID=${1}
+    WALLET_NAME=${2:-staker}
+    bitcoin-cli -rpcwallet=${WALLET_NAME} gettransaction ${TXID}
+}
 
-    echo "PSBT Result: $PSBT_RESULT"
+decodepsbt() {
+    PSBT=${1}
+    bitcoin-cli decodepsbt ${PSBT}
+}
 
-    bitcoin-cli -rpcwallet=staker walletpassphrase ${WALLET_PASSPHRASE:-passphrase} 60
+processpsbt() {
+    PSBT=${1}
+    WALLET_NAME=${2:-staker}
+    WALLET_PASSPHRASE=${3:-passphrase}
+    unlock_wallet ${WALLET_NAME} ${WALLET_PASSPHRASE}
+    bitcoin-cli -rpcwallet=${WALLET_NAME} walletprocesspsbt ${PSBT}
+}
 
-    # Process PSBT using wallet
-    SIGNED_RESULT=$(bitcoin-cli -rpcwallet=staker walletprocesspsbt $(echo $PSBT_RESULT | jq -r '.psbt'))
+processpsbt_and_broadcast() {
+    PSBT=${1}
+    WALLET_NAME=${2:-staker}
+    WALLET_PASSPHRASE=${3:-passphrase}
+    result=$(processpsbt ${PSBT} ${WALLET_NAME} ${WALLET_PASSPHRASE})
+    echo "Process Result: $result"
 
-    echo "Signed Result: $SIGNED_RESULT"
-
-    if [ "$(echo $SIGNED_RESULT | jq -r '.complete')" = "true" ]; then
-        # If signing is complete, finalize and broadcast
-        FINAL_RESULT=$(bitcoin-cli finalizepsbt $(echo $SIGNED_RESULT | jq -r '.psbt'))
-        if [ "$(echo $FINAL_RESULT | jq -r '.complete')" = "true" ]; then
-            # Broadcast the transaction
-            TXID=$(bitcoin-cli sendrawtransaction $(echo $FINAL_RESULT | jq -r '.hex'))
-            echo "Transaction broadcast: $TXID"
-        else
-            echo "Failed to finalize PSBT"
-        fi
+    if [ "$(echo $result | jq -r '.complete')" = "true" ]; then
+        psbt=$(echo $result | jq -r '.psbt')
+        finalize_and_broadcast ${psbt} ${WALLET_NAME} ${WALLET_PASSPHRASE}
+        bitcoin-cli getrawtransaction ${txid} true
+        #
     else
         echo "Failed to sign PSBT completely"
     fi
 }
 
-import_private_key() {
-    WALLET_NAME=${1:-staker}
-    PRIVATE_KEY=${2:-"cQT95AF79E2WrWbxKEsZq3uH2GZj2gs34b7NGW8CPnL16po68CBg"}
-    LABEL=${3:-"imported_key"}
-
-    WALLET_PASSPHRASE=${WALLET_PASSPHRASE:-passphrase}
-    bitcoin-cli -rpcwallet=${WALLET_NAME} walletpassphrase ${WALLET_PASSPHRASE} 60
-
-    # Create the ranged descriptor with the private key
-    TR_DESC=$(bitcoin-cli getdescriptorinfo "tr($PRIVATE_KEY)")
-    echo "TR_DESC: $TR_DESC"
-
-    # Import the descriptor with a range
-    bitcoin-cli -rpcwallet=${WALLET_NAME} importdescriptors '[
-        {
-            "desc": "'$(echo $TR_DESC | jq -r '.descriptor')'",
-            "timestamp": "now",
-            "label": "'$LABEL'_tr",
-            "internal": false,
-            "active": true,
-            "range": [0,0]
-        }
-    ]'
+pab() {
+    processpsbt_and_broadcast $@
 }
 
-p2tr() {
-    WALLET_NAME=staker
-    PRIVATE_KEY="cQ7kMt56n8GeKkshaiCt3Lh2ChuaD3tWdSrH37MwU93PA4qZs9JR"
-    WALLET_PASSPHRASE=passphrase
-    # XONLY_PUBKEY="155f0dd5185e65acd2167b9528a92b9fccaa6cf914a3c10416abd3e5de77377d"
-
-    # Unlock the wallet
-    bitcoin-cli -rpcwallet=${WALLET_NAME} walletpassphrase ${WALLET_PASSPHRASE} 60
-
-    ORIGINAL_DESC="tr(${PRIVATE_KEY})"
-
-    DESC_INFO=$(bitcoin-cli getdescriptorinfo "$ORIGINAL_DESC")
-
-    echo "DESC_INFO: $DESC_INFO"
-
-    CHECKSUM=$(echo "$DESC_INFO" | jq -r '.checksum')
-
-    echo "CHECKSUM: $CHECKSUM"
-
-    RESULT=$(bitcoin-cli importdescriptors '[{ "desc": "'"$ORIGINAL_DESC"'#'"$CHECKSUM"'", "timestamp": "now", "internal": true }]')
-
-    echo "RESULT: $RESULT"
-
-    ADDRESS_ARRAY=$(bitcoin-cli deriveaddresses "$ORIGINAL_DESC#$CHECKSUM")
-
-    echo "Derived address: $ADDRESS_ARRAY"
-
-    ADDRESS=$(echo $ADDRESS_ARRAY | jq -r '.[0]')
-
-    UTXOS=$(bitcoin-cli -rpcwallet=staker listunspent 6 9999999 "[\"${ADDRESS}\"]")
-
-    echo "Before: $UTXOS"
-
-    ## fund the address
-    bitcoin-cli -rpcwallet=${WALLET_NAME} generatetoaddress 1 $ADDRESS
-
-    sleep 10
-
-    UTXOS=$(bitcoin-cli -rpcwallet=staker listunspent 6 9999999 "[\"${ADDRESS}\"]")
-
-    echo "After: $UTXOS"
+finalize_and_broadcast() {
+    PSBT=${1}
+    WALLET_NAME=${2:-staker}
+    WALLET_PASSPHRASE=${3:-passphrase}
+    result=$(bitcoin-cli -rpcwallet=${WALLET_NAME} finalizepsbt ${PSBT})
+    echo "Finalize Result: $result"
+    if [ "$(echo $result | jq -r '.complete')" = "true" ]; then
+        hex=$(echo $result | jq -r '.hex')
+        echo "Transaction Hex: $hex"
+        txid=$(bitcoin-cli sendrawtransaction ${hex})
+        echo "Transaction broadcast, txid: $txid"
+    else
+        echo "Failed to finalize PSBT"
+    fi
 }
 
-list() {
 
-    FROM_ADDRESS="tb1p5hpkty3ykt92qx6m0rastprnreqx6dqexagg8mgp3hgz53p9lk3qd2c4f2"
+# Dont know how to use descriptors to handle dynamic scripts
+import2() {
+    # WALLET_NAME=${1:-protocol}
+    # WIF=cVpL6mBRYV3Dmkx87wfbtZ4R3FTD6g58VkTt1ERkqGTMzTcDVw5M
+    # WALLET_PASSPHRASE=${2:-passphrase}
+    # NUMS=50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0
+    # USER=2ae31ea8709aeda8194ba3e2f7e7e95e680e8b65135c8983c0a298d17bc5350a
 
-    UTXOS=$(bitcoin-cli -rpcwallet=staker listunspent 6 9999999 "[\"${FROM_ADDRESS}\"]")
+    # unlock_wallet ${WALLET_NAME} ${WALLET_PASSPHRASE}
 
-    echo "UTXOS: $UTXOS"
+    # DESCRIPTOR="tr($NUMS,{and_v(v:pk_k($USER),pk_k(key($WIF)))})"
+
+    # DESC_INFO=$(bitcoin-cli getdescriptorinfo "$DESCRIPTOR")
+    # DESCRIPTOR_WITH_CHECKSUM=$(echo "$DESC_INFO" | jq -r '.descriptor')
 
 }
-
 $@

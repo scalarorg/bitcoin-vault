@@ -2,28 +2,15 @@ import Client from "bitcoin-core-ts";
 import * as bitcoin from "bitcoinjs-lib";
 import { z } from "zod";
 import {
-  TBuildUnsignedStakingPsbt,
   getAddressUtxos,
-  sendrawtransaction,
   getMempoolClient,
-  bytesToHex,
   hexToBytes,
+  sendrawtransaction,
+  TBuildUnsignedStakingPsbt,
   VaultUtils,
 } from "../src";
 
-export const readEnv = async () => {
-  const envText = await Bun.file(StaticEnv.BTC_ENV_PATH).text();
-  const envMap = new Map(
-    envText
-      .split("\n")
-      .filter((line) => line.trim() && !line.startsWith("#"))
-      .map((line) => {
-        const [key, value] = line.split("=").map((part) => part.trim());
-        return [key, value];
-      })
-  );
-  return envMap;
-};
+import * as ecc from "tiny-secp256k1";
 
 const StaticEnvSchema = z.object({
   TAG: z.string().optional().default("SCALAR"),
@@ -37,11 +24,11 @@ const StaticEnvSchema = z.object({
   PORT: z.string().optional().default("18332"),
   USERNAME: z.string().optional().default("user"),
   PASSWORD: z.string().optional().default("password"),
-  WALLET_NAME: z.string().optional().default("legacy"),
+  WALLET_NAME: z.string().optional().default("staker"),
   STAKING_AMOUNT: z.bigint().optional().default(BigInt(10_000)),
   HAVE_ONLY_CUSTODIAL: z.boolean().optional().default(false),
   CUSTODIAL_QUORUM: z.number().optional().default(3),
-  CUSTODIAL_NUMBER: z.number().optional().default(5),
+  COVENANT_PRIVKEYS: z.string().min(10),
   DEST_CHAIN_ID: z.bigint().min(BigInt(1)).default(BigInt(11155111)),
   DEST_USER_ADDRESS: z
     .string()
@@ -52,8 +39,9 @@ const StaticEnvSchema = z.object({
     .length(40)
     .default("B91e3A8Ef862567026d6F376c9F3d6b814Ca4337"),
   BTC_ENV_PATH: z.string().optional().default(".bitcoin/.env.btc"),
-  BOND_HOLDER_ADDRESS: z.string().optional(),
-  BOND_HOLDER_PRIVATE_KEY: z.string().optional(),
+  BOND_HOLDER_ADDRESS: z.string().min(10),
+  BOND_HOLDER_PRIVATE_KEY: z.string().min(10),
+  PROTOCOL_PRIVATE_KEY: z.string().min(10),
 });
 
 export const StaticEnv = StaticEnvSchema.parse({
@@ -68,19 +56,22 @@ export const StaticEnv = StaticEnvSchema.parse({
   STAKING_AMOUNT: process.env.STAKING_AMOUNT,
   HAVE_ONLY_CUSTODIAL: process.env.HAVE_ONLY_CUSTODIAL,
   CUSTODIAL_QUORUM: process.env.CUSTODIAL_QUORUM,
-  CUSTODIAL_NUMBER: process.env.CUSTODIAL_NUMBER,
+  COVENANT_PRIVKEYS: process.env.COVENANT_PRIVKEYS,
   DEST_CHAIN_ID: process.env.DEST_CHAIN_ID,
   DEST_USER_ADDRESS: process.env.DEST_USER_ADDRESS,
   DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS,
   BTC_ENV_PATH: process.env.BTC_ENV_PATH,
   BOND_HOLDER_ADDRESS: process.env.BOND_HOLDER_ADDRESS,
   BOND_HOLDER_PRIVATE_KEY: process.env.BOND_HOLDER_PRIVATE_KEY,
+  PROTOCOL_PRIVATE_KEY: process.env.PROTOCOL_PRIVATE_KEY,
 });
 
 export const setUpTest = async () => {
-  const envMap = await readEnv();
-  console.log("envMap", envMap);
   console.log("StaticEnv", StaticEnv);
+
+  console.log("init ECC lib");
+
+  bitcoin.initEccLib(ecc);
 
   const vaultUtils = VaultUtils.getInstance(
     StaticEnv.TAG,
@@ -100,44 +91,45 @@ export const setUpTest = async () => {
     password: StaticEnv.PASSWORD,
   });
 
-  const custodialPubkeys = envMap.get("COVENANT_PUBKEYS")?.split(",");
-  if (!custodialPubkeys) {
-    throw new Error("COVENANT_PUBKEYS is not set");
+  // const custodialPubkeys = envMap.get("COVENANT_PUBKEYS")?.split(",");
+  // if (!custodialPubkeys) {
+  //   throw new Error("COVENANT_PUBKEYS is not set");
+  // }
+
+  const covenantsPrivateKeys = StaticEnv.COVENANT_PRIVKEYS?.split(",");
+
+  if (!covenantsPrivateKeys || covenantsPrivateKeys.length === 0) {
+    throw new Error("COVENANTS_PRIVATE_KEYS is not set");
   }
 
-  const custodialPubkeysBuffer = new Uint8Array(
-    33 * StaticEnv.CUSTODIAL_NUMBER
-  );
+  const numberOfCovenants = covenantsPrivateKeys.length;
 
-  for (let i = 0; i < StaticEnv.CUSTODIAL_NUMBER; i++) {
-    custodialPubkeysBuffer.set(hexToBytes(custodialPubkeys[i]), i * 33);
+  const covenantPubkeys = covenantsPrivateKeys.map((privateKey) => {
+    const keyPair = VaultUtils.ECPair.fromWIF(privateKey, network);
+    return keyPair.publicKey;
+  });
+
+  const custodialPubkeysBuffer = new Uint8Array(33 * numberOfCovenants);
+
+  for (let i = 0; i < numberOfCovenants; i++) {
+    custodialPubkeysBuffer.set(covenantPubkeys[i], i * 33);
   }
 
-  const bondHolderAddress =
-    StaticEnv.BOND_HOLDER_ADDRESS || envMap.get("BOND_HOLDER_ADDRESS");
+  const bondHolderAddress = StaticEnv.BOND_HOLDER_ADDRESS;
   if (!bondHolderAddress) {
     throw new Error("BOND_HOLDER_ADDRESS is not set");
   }
 
-  const bondHolderWif =
-    StaticEnv.BOND_HOLDER_PRIVATE_KEY || envMap.get("BOND_HOLDER_PRIVATE_KEY");
+  const bondHolderWif = StaticEnv.BOND_HOLDER_PRIVATE_KEY;
   if (!bondHolderWif) {
     throw new Error("BOND_HOLDER_PRIVATE_KEY is not set");
   }
 
   const keyPair = VaultUtils.ECPair.fromWIF(bondHolderWif, network);
 
-  const protocolPubkey = envMap.get("PROTOCOL_PUBLIC_KEY");
-  if (!protocolPubkey) {
-    throw new Error("PROTOCOL_PUBLIC_KEY is not set");
-  }
+  const protocolPrivkey = StaticEnv.PROTOCOL_PRIVATE_KEY;
 
-  const protocolPrivkey = envMap.get("PROTOCOL_PRIVATE_KEY");
-  if (!protocolPrivkey) {
-    throw new Error("PROTOCOL_PRIVATE_KEY is not set");
-  }
-
-  console.log("STAKER_PUBKEY", bytesToHex(keyPair.publicKey));
+  const protocolKeyPair = VaultUtils.ECPair.fromWIF(protocolPrivkey, network);
 
   return {
     network: vaultUtils.getNetwork(),
@@ -149,8 +141,8 @@ export const setUpTest = async () => {
     stakerWif: bondHolderWif,
     stakerPubKey: keyPair.publicKey,
     stakerKeyPair: keyPair,
-    protocolPubkey: hexToBytes(protocolPubkey),
-    protocolKeyPair: VaultUtils.ECPair.fromWIF(protocolPrivkey, network),
+    protocolPubkey: protocolKeyPair.publicKey,
+    protocolKeyPair,
   };
 };
 

@@ -1,121 +1,156 @@
-// import * as bitcoin from "bitcoinjs-lib";
-// import { Psbt } from "bitcoinjs-lib";
-// import { sleep } from "bun";
-// import { describe, it } from "bun:test";
+import * as bitcoin from "bitcoinjs-lib";
+import { Psbt } from "bitcoinjs-lib";
+import { sleep } from "bun";
+import { describe, it } from "bun:test";
+import { setUpTest, StaticEnv } from "./util";
+import {
+  bytesToHex,
+  getEstimatedFee,
+  hexToBytes,
+  sendrawtransaction,
+  TBuildUnsignedUnstakingUserProtocolPsbt,
+} from "../src";
+import Client from "bitcoin-core-ts";
 
-// import { setUpTest, StaticEnv } from "./util";
+const TIMEOUT = 900_000;
 
-// const TIMEOUT = 900_000;
+describe("Vault-Unstaking", () => {
+  it(
+    "should unstake for user",
+    async () => {
+      const txid =
+        "b1f4a6280dcb5e431398aeea6617bb3b3a289c368af78d6c95e82d6add03043f";
 
-// // txid=<txid> bun test unstaking-dry
-// // Eg:
-// // txid=10f5d2f7167428cfd983bfbaad566adce246f98d3a0ca8ab590844bcab9b2c81 bun test test/unstaking-dry.test.ts
+      if (!txid) {
+        throw new Error("txid is required");
+      }
 
-// describe("Vault-Unstaking", () => {
-//   it(
-//     "should unstake for user",
-//     async () => {
-//       const TestSuite = await setUpTest();
-//       //loop until the tx is confirmed
-//       const txid = process.env.txid;
+      const testSuite = await setUpTest();
 
-//       if (!txid) {
-//         throw new Error("txid is required");
-//       }
+      let tx = null;
 
-//       console.log("txid", txid);
+      const mockBtcClient = new Client({
+        network: "regtest",
+        host: "localhost",
+        port: 18332,
+        username: "user",
+        password: "password",
+        wallet: "staker",
+      });
 
-//       let tx = null;
+      while (true) {
+        try {
+          tx = await mockBtcClient.command("getrawtransaction", txid, true);
+          if (tx.confirmations > 0) {
+            break;
+          }
+          await sleep(5000);
+        } catch (e) {
+          console.log("error", e);
+        }
+      }
 
-//       while (true) {
-//         console.log(new Date().toISOString(), "waiting for tx to be confirmed");
-//         tx = await TestSuite.btcClient.command("getrawtransaction", txid, true);
-//         console.log("tx.confirmations", tx.confirmations);
-//         if (tx.confirmations > 0) {
-//           console.log("tx", tx);
-//           break;
-//         }
-//         await sleep(5000);
-//       }
+      let scriptPubkeyOfLocking = Buffer.from(
+        tx.vout[0].scriptPubKey.hex,
+        "hex"
+      );
+      if (!scriptPubkeyOfLocking) {
+        throw new Error("scriptPubkeyOfLocking is undefined");
+      }
 
-//       let scriptPubkeyOfLocking = Buffer.from(
-//         tx.vout[0].scriptPubKey.hex,
-//         "hex"
-//       );
-//       if (!scriptPubkeyOfLocking) {
-//         throw new Error("scriptPubkeyOfLocking is undefined");
-//       }
+      if (
+        bytesToHex(testSuite.stakerPubKey) !==
+        "022ae31ea8709aeda8194ba3e2f7e7e95e680e8b65135c8983c0a298d17bc5350a"
+      ) {
+        console.log("testSuite.stakerPubKey");
+        throw new Error("stakerPubKey is not correct");
+      }
 
-//       console.log("scriptPubkeyOfLocking", bytesToHex(scriptPubkeyOfLocking));
-//       console.log("txid", txid);
+      if (
+        bytesToHex(testSuite.protocolPubkey) !==
+        "021387aab21303782b17e760c670432559df3968e52cb82cc2d8f9be43a227d5dc"
+      ) {
+        throw new Error("protocolPubkey is not correct");
+      }
 
-//       const p2wpkhScript = bitcoin.payments.p2wpkh({
-//         pubkey: TestSuite.stakerPubKey,
-//       }).output;
+      const input = {
+        txid,
+        vout: 0,
+        value: BigInt(Math.floor(tx.vout[0].value * 1e8)),
+        script_pubkey: scriptPubkeyOfLocking,
+      };
 
-//       if (!p2wpkhScript) {
-//         throw new Error("p2wpkhScript is undefined");
-//       }
-//       console.log("p2wpkhScript", bytesToHex(p2wpkhScript));
+      const output = {
+        script: bitcoin.address.toOutputScript(
+          testSuite.stakerAddress,
+          testSuite.network
+        ),
+        value: input.value,
+      };
 
-//       // Build the unsigned psbt
-//       const psbtHex = buildUnsignedUnstakingUserProtocolPsbt(
-//         StaticEnv.TAG,
-//         StaticEnv.VERSION,
-//         {
-//           txid,
-//           vout: 0,
-//           value: StaticEnv.STAKING_AMOUNT, // 10_000
-//           script_pubkey: scriptPubkeyOfLocking,
-//         },
-//         {
-//           script: p2wpkhScript,
-//           value: StaticEnv.STAKING_AMOUNT - BigInt(1_000), // 9_000
-//         },
-//         TestSuite.stakerPubKey,
-//         TestSuite.protocolPubkey,
-//         TestSuite.custodialPubkeys,
-//         StaticEnv.CUSTODIAL_QUORUM,
-//         StaticEnv.HAVE_ONLY_CUSTODIAL
-//       );
+      const feeRate = 1;
+      const estimatedFee = getEstimatedFee(feeRate, 1, 1);
 
-//       const psbtStr = bytesToHex(psbtHex);
+      output.value = BigInt(Number(output.value) - estimatedFee);
 
-//       console.log("psbtStr", psbtStr);
+      console.log("Staking Amount", StaticEnv.STAKING_AMOUNT);
+      console.log("estimatedFee", estimatedFee);
+      console.log("output.value", output.value);
 
-//       const psbtFromHex = Psbt.fromBuffer(hexToBytes(psbtStr));
+      const params: TBuildUnsignedUnstakingUserProtocolPsbt = {
+        input,
+        output,
+        stakerPubkey: testSuite.stakerPubKey,
+        protocolPubkey: testSuite.protocolPubkey,
+        covenantPubkeys: testSuite.custodialPubkeys,
+        covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
+        haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
+        rbf: true,
+      };
 
-//       // User signs the psbt
-//       const stakerSignedPsbt = signPsbt(
-//         TestSuite.network,
-//         TestSuite.stakerWif,
-//         psbtFromHex,
-//         false
-//       );
+      // Build the unsigned psbt
+      const psbtHex =
+        testSuite.vaultUtils.buildUnsignedUnstakingUserProtocolPsbt(params);
 
-//       // Protocol signs the psbt
-//       const serviceSignedPsbt = signPsbt(
-//         TestSuite.network,
-//         TestSuite.protocolKeyPair.toWIF(),
-//         stakerSignedPsbt.signedPsbt,
-//         true
-//       );
+      const psbtFromHex = Psbt.fromBuffer(psbtHex);
 
-//       const hexTxfromPsbt = serviceSignedPsbt.signedPsbt
-//         .extractTransaction()
-//         .toHex();
+      console.log("===============");
+      console.log("unstaked psbt base64", psbtFromHex.toBase64());
+      console.log("===============");
 
-//       console.log("==== hexTxfromPsbt ====");
-//       console.log(hexTxfromPsbt);
+      // staker signs the psbt
+      const stakerSignedPsbt = testSuite.vaultUtils.signPsbt({
+        psbt: psbtFromHex,
+        wif: testSuite.stakerWif,
+        finalize: false,
+      });
 
-//       console.log("==== sendrawtransaction ====");
-//       // Broadcast the transaction
-//       const unstakedTxid = await sendrawtransaction(
-//         hexTxfromPsbt,
-//         TestSuite.btcClient
-//       );
-//       console.log("unstakedTxid", unstakedTxid);
-//     },
-//     TIMEOUT
-//   );
-// });
+      const psbtBase64 = stakerSignedPsbt.toBase64();
+      console.log("===============");
+      console.log("psbtBase64", psbtBase64);
+      console.log("===============");
+      console.log("userSignedPsbt", stakerSignedPsbt.toHex());
+
+      const serviceSignedPsbt = testSuite.vaultUtils.signPsbt({
+        psbt: stakerSignedPsbt,
+        wif: testSuite.protocolKeyPair.toWIF(),
+        finalize: true,
+      });
+
+      console.log("===============");
+      console.log("psbtServicesHex", serviceSignedPsbt.toHex());
+
+      const hexTxfromPsbt = serviceSignedPsbt.extractTransaction().toHex();
+
+      console.log("===============");
+      console.log("hexTxfromPsbt", hexTxfromPsbt);
+
+      const unstakedTxid = await sendrawtransaction(
+        hexTxfromPsbt,
+        mockBtcClient
+      );
+      console.log("unstakedTxid", unstakedTxid);
+    },
+    TIMEOUT
+  );
+});
