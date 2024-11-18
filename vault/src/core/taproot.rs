@@ -258,6 +258,40 @@ impl TaprootTree {
         })
     }
 
+    /// Creates a Taproot locking script with only covenants spending path.
+    ///
+    /// ```text
+    /// Root
+    /// |
+    /// 1
+    /// |
+    /// Only C: OP_CHECKSIG + OP_CHECKSIGADD + ... + OP_GREATERTHANOREQUAL
+    /// ```
+    pub fn new_with_only_covenants(
+        secp: &Secp256k1<All>,
+        covenant_pub_keys: &[XOnlyPublicKey],
+        covenant_quorum: u8,
+    ) -> Result<Self, CoreError> {
+        let mut builder = TaprootBuilder::new();
+
+        let only_covenants_branch =
+            <ScriptBuf as BuildOnlyCovenantsBranch>::build(covenant_pub_keys, covenant_quorum)?;
+
+        builder = builder.add_leaf(0, only_covenants_branch.clone())?;
+
+        let taproot_spend_info = builder
+            .finalize(secp, *NUMS_BIP_341)
+            .map_err(|_| CoreError::TaprootFinalizationFailed)?;
+
+        Ok(Self {
+            root: taproot_spend_info,
+            user_protocol_branch: ScriptBuf::default(),
+            covenants_protocol_branch: ScriptBuf::default(),
+            covenants_user_branch: ScriptBuf::default(),
+            only_covenants_branch: Some(only_covenants_branch),
+        })
+    }
+
     pub fn internal_key(&self) -> UntweakedPublicKey {
         self.root.internal_key()
     }

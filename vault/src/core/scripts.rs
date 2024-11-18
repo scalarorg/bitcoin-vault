@@ -22,6 +22,12 @@ pub struct LockingScriptParams<'a> {
 }
 
 #[derive(Debug)]
+pub struct LockingScriptWithOnlyCovenantsParams<'a> {
+    pub covenant_pub_keys: &'a [XOnlyPublicKey],
+    pub covenant_quorum: u8,
+}
+
+#[derive(Debug)]
 pub struct LockingScript(ScriptBuf);
 
 impl LockingScript {
@@ -33,6 +39,23 @@ impl LockingScript {
             params.covenant_pub_keys,
             params.covenant_quorum,
             params.have_only_covenants,
+        )?;
+
+        Ok(LockingScript(ScriptBuf::new_p2tr(
+            secp,
+            tree.internal_key(),
+            tree.merkle_root(),
+        )))
+    }
+
+    pub fn new_with_only_covenants(
+        secp: &Secp256k1<All>,
+        params: &LockingScriptWithOnlyCovenantsParams,
+    ) -> Result<Self, CoreError> {
+        let tree = TaprootTree::new_with_only_covenants(
+            secp,
+            params.covenant_pub_keys,
+            params.covenant_quorum,
         )?;
 
         Ok(LockingScript(ScriptBuf::new_p2tr(

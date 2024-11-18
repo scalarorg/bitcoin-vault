@@ -1,4 +1,4 @@
-use bitcoin::{hex::Case, secp256k1::All, NetworkKind, Psbt};
+use bitcoin::{secp256k1::All, NetworkKind, Psbt};
 use bitcoin_vault::{SignByKeyMap, Signing, UnstakingType, VaultManager};
 
 use crate::SUITE;

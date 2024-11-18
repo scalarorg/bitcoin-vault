@@ -32,6 +32,15 @@ pub struct BuildUnstakingParams {
     pub rbf: bool,
 }
 
+#[derive(Debug, Validate)]
+pub struct BuildUnstakingWithOnlyCovenantsParams {
+    pub input_utxo: PreviousStakingUTXO,
+    pub unstaking_output: TxOut,
+    pub covenant_pub_keys: Vec<PublicKey>,
+    pub covenant_quorum: u8,
+    pub rbf: bool,
+}
+
 impl Unstaking for VaultManager {
     type Error = CoreError;
 
@@ -90,6 +99,40 @@ impl Unstaking for VaultManager {
         )?;
 
         let input = self.prepare_psbt_input(&params.input_utxo, &tree.root, branch, &keys);
+
+        psbt.inputs = vec![input];
+
+        Ok(psbt)
+    }
+
+    fn build_with_only_covenants(
+        &self,
+        params: &BuildUnstakingWithOnlyCovenantsParams,
+    ) -> Result<Psbt, Self::Error> {
+        let covenants_x_only: Vec<XOnlyPublicKey> = params
+            .covenant_pub_keys
+            .iter()
+            .map(|pk| XOnlyPublicKey::from(*pk))
+            .collect();
+
+        let tree = TaprootTree::new_with_only_covenants(
+            self.secp(),
+            &covenants_x_only,
+            params.covenant_quorum,
+        )?;
+
+        let mut psbt = self.prepare_psbt(
+            &params.input_utxo.outpoint,
+            &params.unstaking_output,
+            params.rbf,
+        )?;
+
+        let input = self.prepare_psbt_input(
+            &params.input_utxo,
+            &tree.root,
+            &tree.only_covenants_branch.unwrap(),
+            &covenants_x_only,
+        );
 
         psbt.inputs = vec![input];
 

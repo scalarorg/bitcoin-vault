@@ -74,3 +74,6 @@ mod utxos;
 
 #[cfg(test)]
 mod e2e_rpc;
+
+#[cfg(test)]
+mod only_covenants;

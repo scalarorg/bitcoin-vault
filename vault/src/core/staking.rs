@@ -1,14 +1,16 @@
-use bitcoin::{Amount, PublicKey, TxOut};
+use bitcoin::{Amount, PublicKey, TxOut, XOnlyPublicKey};
 use validator::Validate;
 
 use super::{
-    manager, CoreError, DataScript, DataScriptParams, LockingScript, LockingScriptParams, Staking,
-    VaultManager, ADDRESS_SIZE, CHAIN_ID_SIZE,
+    manager, CoreError, DataScript, DataScriptParams, LockingScript, LockingScriptParams,
+    LockingScriptWithOnlyCovenantsParams, Staking, VaultManager, ADDRESS_SIZE, CHAIN_ID_SIZE,
 };
 
 pub type DestinationAddress = [u8; ADDRESS_SIZE];
 
 pub type DestinationChainId = [u8; CHAIN_ID_SIZE];
+
+// TODO: Add validate for params
 
 #[derive(Debug, Validate)]
 pub struct BuildStakingParams {
@@ -18,6 +20,16 @@ pub struct BuildStakingParams {
     pub covenant_quorum: u8,
     pub staking_amount: u64,
     pub have_only_covenants: bool,
+    pub destination_chain_id: DestinationChainId,
+    pub destination_contract_address: DestinationAddress,
+    pub destination_recipient_address: DestinationAddress,
+}
+
+#[derive(Debug, Validate)]
+pub struct BuildStakingWithOnlyCovenantsParams {
+    pub covenant_pub_keys: Vec<PublicKey>,
+    pub covenant_quorum: u8,
+    pub staking_amount: u64,
     pub destination_chain_id: DestinationChainId,
     pub destination_contract_address: DestinationAddress,
     pub destination_recipient_address: DestinationAddress,
@@ -85,6 +97,43 @@ impl Staking for VaultManager {
             version: self.version(),
             network_id: self.network_id(),
             have_only_covenants: params.have_only_covenants,
+            covenant_quorum: params.covenant_quorum,
+            destination_chain_id: &params.destination_chain_id,
+            destination_contract_address: &params.destination_contract_address,
+            destination_recipient_address: &params.destination_recipient_address,
+        })?;
+
+        Ok(StakingOutput::new(
+            params.staking_amount,
+            locking_script,
+            embedded_data_script,
+        ))
+    }
+
+    fn build_with_only_covenants(
+        &self,
+        params: &BuildStakingWithOnlyCovenantsParams,
+    ) -> Result<StakingOutput, Self::Error> {
+        let covenants_x_only: Vec<XOnlyPublicKey> = params
+            .covenant_pub_keys
+            .iter()
+            .map(|pk| XOnlyPublicKey::from(*pk))
+            .collect();
+
+        let locking_script = LockingScript::new_with_only_covenants(
+            self.secp(),
+            &LockingScriptWithOnlyCovenantsParams {
+                covenant_pub_keys: &covenants_x_only,
+                covenant_quorum: params.covenant_quorum,
+            },
+        )?;
+
+        let embedded_data_script = DataScript::new(&DataScriptParams {
+            tag: self.tag(),
+            service_tag: self.service_tag(),
+            version: self.version(),
+            network_id: self.network_id(),
+            have_only_covenants: true,
             covenant_quorum: params.covenant_quorum,
             destination_chain_id: &params.destination_chain_id,
             destination_contract_address: &params.destination_contract_address,

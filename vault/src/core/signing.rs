@@ -27,15 +27,15 @@ impl Signing for VaultManager {
             CoreError::SigningPSBTFailed(error_messages.join(", "))
         })?;
 
-        if finalize {
-            <Psbt as SignByKeyMap<All>>::finalize(psbt);
-            let tx = psbt
-                .clone()
-                .extract_tx()
-                .map_err(|_| CoreError::FailedToExtractTx)?;
-            return Ok(serialize(&tx));
+        if !finalize {
+            return Ok(psbt.serialize());
         }
 
-        Ok(psbt.serialize())
+        <Psbt as SignByKeyMap<All>>::finalize(psbt);
+        let tx = psbt
+            .clone()
+            .extract_tx()
+            .map_err(|_| CoreError::FailedToExtractTx)?;
+        return Ok(serialize(&tx));
     }
 }

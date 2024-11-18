@@ -215,7 +215,6 @@ finalize_and_broadcast() {
     fi
 }
 
-
 # Dont know how to use descriptors to handle dynamic scripts
 import2() {
     # WALLET_NAME=${1:-protocol}
@@ -230,6 +229,6 @@ import2() {
 
     # DESC_INFO=$(bitcoin-cli getdescriptorinfo "$DESCRIPTOR")
     # DESCRIPTOR_WITH_CHECKSUM=$(echo "$DESC_INFO" | jq -r '.descriptor')
-
+    echo "Not implemented"
 }
 $@

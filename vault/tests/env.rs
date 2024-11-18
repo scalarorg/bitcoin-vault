@@ -112,7 +112,7 @@ impl Env {
                 .unwrap_or_default(),
 
             staking_amount: env::var("STAKING_AMOUNT")
-                .unwrap_or("1911".to_string()) //777 in hex
+                .unwrap_or("9999".to_string()) //777 in hex
                 .parse()
                 .unwrap_or_default(),
 

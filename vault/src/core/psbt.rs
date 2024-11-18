@@ -106,16 +106,14 @@ impl<C> SignByKeyMap<C> for Psbt {
                 }
 
                 Ok(SigningAlgorithm::Schnorr) => {
-                    // match self.key_map_sign_schnorr(key_map, i, &mut cache, secp) {
-                    //     Ok(v) => {
-                    //         used.insert(i, SigningKeys::Schnorr(v));
-                    //     }
-                    //     Err(e) => {
-                    //         errors.insert(i, e);
-                    //     }
-                    // }
-
-                    panic!("schnorr not implemented");
+                    match self.key_map_sign_schnorr(key_map, i, &mut cache, secp) {
+                        Ok(v) => {
+                            used.insert(i, SigningKeys::Schnorr(v));
+                        }
+                        Err(e) => {
+                            errors.insert(i, e);
+                        }
+                    }
                 }
 
                 _ => {
@@ -210,11 +208,22 @@ pub trait Utils {
         script: &ScriptBuf,
         pubkeys: &[XOnlyPublicKey],
     ) -> Option<BTreeMap<XOnlyPublicKey, usize>>;
+    fn reset_taproot_input(&mut self, input_index: usize);
 }
 
 impl Utils for Psbt {
     /// Finalizes a taproot input by adding the signatures to the input.
     fn finalize_taproot_input(&mut self, input_index: usize) {
+        let input = &mut self.inputs[input_index];
+
+        if let Some(signature) = input.tap_key_sig {
+            let mut script_witness: Witness = Witness::new();
+            script_witness.push(signature.to_vec());
+            input.final_script_witness = Some(script_witness);
+            self.reset_taproot_input(input_index);
+            return;
+        }
+
         let result = self.find_tap_leaf_to_finalize(input_index);
 
         if result.is_none() {
@@ -249,17 +258,23 @@ impl Utils for Psbt {
         script_witness.push(control_block.serialize());
 
         self.inputs[input_index].final_script_witness = Some(script_witness);
-        self.inputs[input_index].partial_sigs = BTreeMap::new();
-        self.inputs[input_index].sighash_type = None;
-        self.inputs[input_index].redeem_script = None;
-        self.inputs[input_index].witness_script = None;
-        self.inputs[input_index].bip32_derivation = BTreeMap::new();
-        self.inputs[input_index].tap_script_sigs = BTreeMap::new();
-        self.inputs[input_index].tap_scripts = BTreeMap::new();
-        self.inputs[input_index].tap_key_sig = None;
-        self.inputs[input_index].tap_internal_key = None;
-        self.inputs[input_index].tap_merkle_root = None;
-        self.inputs[input_index].tap_key_origins = BTreeMap::new();
+
+        self.reset_taproot_input(input_index);
+    }
+
+    fn reset_taproot_input(&mut self, input_index: usize) {
+        let input = &mut self.inputs[input_index];
+        input.partial_sigs = BTreeMap::new();
+        input.sighash_type = None;
+        input.redeem_script = None;
+        input.witness_script = None;
+        input.bip32_derivation = BTreeMap::new();
+        input.tap_script_sigs = BTreeMap::new();
+        input.tap_scripts = BTreeMap::new();
+        input.tap_key_sig = None;
+        input.tap_internal_key = None;
+        input.tap_merkle_root = None;
+        input.tap_key_origins = BTreeMap::new();
     }
 
     fn find_tap_leaf_to_finalize(
@@ -280,12 +295,6 @@ impl Utils for Psbt {
             .into_iter()
             .find_map(|(control_block, (script, leaf_version))| {
                 let leaf_hash = TapLeafHash::from_script(script, *leaf_version);
-
-                // let sigs: Vec<_> = input
-                //     .tap_script_sigs
-                //     .iter()
-                //     .filter(|((_, hash), _)| *hash == leaf_hash)
-                //     .collect();
 
                 let sigs_map: BTreeMap<&XOnlyPublicKey, &taproot::Signature> = input
                     .tap_script_sigs
@@ -387,7 +396,6 @@ impl Utils for Psbt {
             // key path spend
             if let Some(internal_key) = input.tap_internal_key {
                 // BIP 371: The internal key does not have leaf hashes, so can be indicated with a hashes len of 0.
-
                 // Based on input.tap_internal_key.is_some() alone, it is not sufficient to determine whether it is a key path spend.
                 // According to BIP 371, we also need to consider the condition leaf_hashes.is_empty() for a more accurate determination.
                 if internal_key == xonly && leaf_hashes.is_empty() && input.tap_key_sig.is_none() {
@@ -405,6 +413,7 @@ impl Utils for Psbt {
                         signature,
                         sighash_type,
                     };
+
                     input.tap_key_sig = Some(signature);
 
                     used.push(internal_key);
@@ -435,6 +444,7 @@ impl Utils for Psbt {
                             signature,
                             sighash_type,
                         };
+
                         input.tap_script_sigs.insert((xonly, lh), signature);
                     }
 

@@ -1,11 +1,19 @@
 use bitcoin::{NetworkKind, Psbt, XOnlyPublicKey};
 
-use super::{BuildStakingParams, BuildUnstakingParams, CoreError, StakingOutput, UnstakingType};
+use super::{
+    BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
+    BuildUnstakingWithOnlyCovenantsParams, CoreError, StakingOutput, UnstakingType,
+};
 
 pub trait Staking {
     type Error;
 
     fn build(&self, params: &BuildStakingParams) -> Result<StakingOutput, Self::Error>;
+
+    fn build_with_only_covenants(
+        &self,
+        params: &BuildStakingWithOnlyCovenantsParams,
+    ) -> Result<StakingOutput, Self::Error>;
 }
 
 pub trait Unstaking {
@@ -15,6 +23,11 @@ pub trait Unstaking {
         &self,
         params: &BuildUnstakingParams,
         unstaking_type: UnstakingType,
+    ) -> Result<Psbt, Self::Error>;
+
+    fn build_with_only_covenants(
+        &self,
+        params: &BuildUnstakingWithOnlyCovenantsParams,
     ) -> Result<Psbt, Self::Error>;
 }
 
