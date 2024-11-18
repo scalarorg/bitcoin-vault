@@ -3,7 +3,7 @@ use bitcoin_vault::{SignByKeyMap, Signing, VaultManager};
 
 use crate::SUITE;
 
-// cargo test --package bitcoin-vault --test mod -- only_covenants::test_staking --exact --show-output
+// cargo test --package bitcoin-vault --test mod -- only_covenants::test_e2e --exact --show-output
 #[test]
 fn test_e2e() {
     let suite = SUITE.lock().unwrap();

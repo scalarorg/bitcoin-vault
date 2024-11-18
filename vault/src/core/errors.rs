@@ -43,4 +43,6 @@ pub enum CoreError {
     InvalidUnstakingType,
     #[error("Cannot convert op_return data to slice")]
     CannotConvertOpReturnDataToSlice,
+    #[error("Invalid taproot tree type")]
+    InvalidTaprootTreeType,
 }

@@ -9,7 +9,7 @@
 | Tag                    | 6 bytes  | Tag of the provider tx                                 | `0x5343414c4152`, b"SCALAR" |
 | Version                | 1 byte   | Version of the protocol                                | `0x01`                      |
 | Network                | 1 byte   | BTC Network Kind, `0` for mainnet, `1` for others      | `0x01`                      |
-| Flags                  | 1 byte   | [See #Flags](#flags)                                   | `0x00`                      |
+| Flags                  | 1 byte   | [See #Flags](#flags)                                    | `0x00`                      |
 | Service tag (optional) | 5 bytes  | For display purpose                                    | `0x6C69676874`, b"light"    |
 | Covenant Quorum        | 1 byte   | Number of quorum keys                                  | `0x01`                      |
 | Dest Chain             | 8 bytes  | Destination chain info, [See #Dest Chain](#dest-chain) | `0x01`                      |
@@ -27,16 +27,18 @@
 - It contains 8 bits.
 - Structure:
 
-  - bit 0-1: type of the taproot tree (can be extended in the next bits)
-    - `00`: one branch, only covenants
-    - `01`: one branch, only keys (not implemented yet, reserved for future)
+  - bit 7-6: type of the taproot tree (can be extended in the next bits)
+    - `00`: one branch, only keys (not implemented yet, reserved for future)
+    - `01`: one branch, only covenants
     - `10`: more than one branch, and dont have only-covenants feature
     - `11`: more than one branch, and have only-covenants feature
   - other bits: reserved for future features
 
 - Example:
-  - `0x01`: only one covenant branch, and not have only-covenants feature
-  - `0x00`: only
+  - `00000000`: one branch, only keys (not implemented yet, reserved for future)
+  - `01000000`: one branch, only covenants
+  - `10000000`: more than one branch, and dont have only-covenants feature
+  - `11000000`: more than one branch, and have only-covenants feature
 
 #### Dest Chain
 

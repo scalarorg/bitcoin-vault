@@ -130,15 +130,12 @@ impl<'a> TestSuite<'a> {
                 value: utxo.amount,
                 script_pubkey: utxo.script_pub_key.clone(),
             }),
+            tap_internal_key: Some(self.get_user_pubkey().inner.x_only_public_key().0),
             tap_key_origins: {
                 let mut map = BTreeMap::new();
-
                 map.insert(
                     self.get_user_pubkey().inner.x_only_public_key().0,
-                    (
-                        vec![utxo.script_pub_key.tapscript_leaf_hash()],
-                        ([0u8; 4].into(), DerivationPath::default()),
-                    ),
+                    (vec![], ([0u8; 4].into(), DerivationPath::default())),
                 );
                 map
             },

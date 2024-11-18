@@ -20,6 +20,8 @@ fn test_user_protocol_unstaking() {
     let suite = SUITE.lock().unwrap();
     let staking_tx = suite.prepare_staking_tx(None);
 
+    println!("staking_tx_id: {:?}", staking_tx.compute_txid());
+
     // prepare unstaking tx
     let mut unstaked_psbt =
         suite.build_unstaking_tx(&staking_tx, UnstakingType::UserProtocol, None);

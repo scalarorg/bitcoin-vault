@@ -2,13 +2,19 @@ use bitcoin::{Amount, PublicKey, TxOut, XOnlyPublicKey};
 use validator::Validate;
 
 use super::{
-    manager, CoreError, DataScript, DataScriptParams, LockingScript, LockingScriptParams,
-    LockingScriptWithOnlyCovenantsParams, Staking, VaultManager, ADDRESS_SIZE, CHAIN_ID_SIZE,
+    manager, CoreError, DataScript, DataScriptParams, DataScriptParamsWithOnlyCovenants,
+    LockingScript, LockingScriptParams, LockingScriptWithOnlyCovenantsParams, Staking,
+    VaultManager, DEST_CHAIN_SIZE, DEST_CONTRACT_ADDRESS_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
 };
 
-pub type DestinationAddress = [u8; ADDRESS_SIZE];
+/// Type alias for destination address
+pub type DestinationContractAddress = [u8; DEST_CONTRACT_ADDRESS_SIZE];
 
-pub type DestinationChainId = [u8; CHAIN_ID_SIZE];
+/// Type alias for destination recipient address
+pub type DestinationRecipientAddress = [u8; DEST_RECIPIENT_ADDRESS_SIZE];
+
+/// Type alias for destination chain
+pub type DestinationChain = [u8; DEST_CHAIN_SIZE];
 
 // TODO: Add validate for params
 
@@ -20,9 +26,9 @@ pub struct BuildStakingParams {
     pub covenant_quorum: u8,
     pub staking_amount: u64,
     pub have_only_covenants: bool,
-    pub destination_chain_id: DestinationChainId,
-    pub destination_contract_address: DestinationAddress,
-    pub destination_recipient_address: DestinationAddress,
+    pub destination_chain_id: DestinationChain,
+    pub destination_contract_address: DestinationContractAddress,
+    pub destination_recipient_address: DestinationRecipientAddress,
 }
 
 #[derive(Debug, Validate)]
@@ -30,9 +36,9 @@ pub struct BuildStakingWithOnlyCovenantsParams {
     pub covenant_pub_keys: Vec<PublicKey>,
     pub covenant_quorum: u8,
     pub staking_amount: u64,
-    pub destination_chain_id: DestinationChainId,
-    pub destination_contract_address: DestinationAddress,
-    pub destination_recipient_address: DestinationAddress,
+    pub destination_chain_id: DestinationChain,
+    pub destination_contract_address: DestinationContractAddress,
+    pub destination_recipient_address: DestinationRecipientAddress,
 }
 
 #[derive(Debug)]
@@ -128,17 +134,16 @@ impl Staking for VaultManager {
             },
         )?;
 
-        let embedded_data_script = DataScript::new(&DataScriptParams {
-            tag: self.tag(),
-            service_tag: self.service_tag(),
-            version: self.version(),
-            network_id: self.network_id(),
-            have_only_covenants: true,
-            covenant_quorum: params.covenant_quorum,
-            destination_chain_id: &params.destination_chain_id,
-            destination_contract_address: &params.destination_contract_address,
-            destination_recipient_address: &params.destination_recipient_address,
-        })?;
+        let embedded_data_script =
+            DataScript::new_with_only_covenants(&DataScriptParamsWithOnlyCovenants {
+                tag: self.tag(),
+                version: self.version(),
+                network_id: self.network_id(),
+                covenant_quorum: params.covenant_quorum,
+                destination_chain_id: &params.destination_chain_id,
+                destination_contract_address: &params.destination_contract_address,
+                destination_recipient_address: &params.destination_recipient_address,
+            })?;
 
         Ok(StakingOutput::new(
             params.staking_amount,
