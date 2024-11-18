@@ -4,8 +4,9 @@ use crate::errors::VaultABIError;
 use crate::{decoder::Decoder, encoder::Encoder};
 use bitcoin::{Amount, NetworkKind, OutPoint, TxOut, Txid};
 use bitcoin_vault::{
-    BuildStakingParams, BuildUnstakingParams, DestinationAddress, PreviousStakingUTXO, Signing,
-    Staking, Unstaking, UnstakingType, VaultManager,
+    BuildStakingParams, BuildUnstakingParams, DestinationContractAddress,
+    DestinationRecipientAddress, PreviousStakingUTXO, Signing, Staking, Unstaking, UnstakingType,
+    VaultManager,
 };
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {
@@ -42,13 +43,15 @@ impl VaultWasm {
         destination_smartcontract_address: &[u8],
         destination_recipient_address: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
-        let destination_contract_address: DestinationAddress = destination_smartcontract_address
-            .try_into()
-            .map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        let destination_contract_address: DestinationContractAddress =
+            destination_smartcontract_address
+                .try_into()
+                .map_err(|e| JsValue::from(format!("{:?}", e)))?;
         // console::debug_1(&"Wasm#parsed destination_contract_address".into());
-        let destination_recipient_address: DestinationAddress = destination_recipient_address
-            .try_into()
-            .map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        let destination_recipient_address: DestinationRecipientAddress =
+            destination_recipient_address
+                .try_into()
+                .map_err(|e| JsValue::from(format!("{:?}", e)))?;
         let params = BuildStakingParams {
             staking_amount,
             user_pub_key: Decoder::decode_33bytes_pubkey(staker_pubkey)?,
