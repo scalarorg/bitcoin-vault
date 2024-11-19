@@ -2,6 +2,8 @@ package evm
 
 import (
 	"encoding/binary"
+
+	"github.com/scalarorg/bitcoin-vault/go-utils/crypto"
 )
 
 /**
@@ -44,7 +46,7 @@ func CalculateStakingPayloadHash(
 	copy(payloadBytes[64:96], sourceTxHash[:])
 
 	// Calculate keccak256 hash
-	payloadHash := Keccak256(payloadBytes)
+	payloadHash := crypto.Keccak256(payloadBytes)
 
 	return payloadBytes, payloadHash, nil
 }
