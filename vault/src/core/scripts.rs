@@ -105,8 +105,8 @@ pub struct DataScript(ScriptBuf);
 pub enum TaprootTreeType {
     OneBranchOnlyKeys = 0b00000000,
     OneBranchOnlyCovenants = 0b01000000,
-    MoreThanOneBranchNoCovenants = 0b10000000,
-    MoreThanOneBranchWithCovenants = 0b11000000,
+    ManyBranchNoCovenants = 0b10000000,
+    ManyBranchWithCovenants = 0b11000000,
 }
 
 impl TryFrom<u8> for TaprootTreeType {
@@ -116,8 +116,8 @@ impl TryFrom<u8> for TaprootTreeType {
         match value {
             0b00000000 => Ok(Self::OneBranchOnlyKeys),
             0b01000000 => Ok(Self::OneBranchOnlyCovenants),
-            0b10000000 => Ok(Self::MoreThanOneBranchNoCovenants),
-            0b11000000 => Ok(Self::MoreThanOneBranchWithCovenants),
+            0b10000000 => Ok(Self::ManyBranchNoCovenants),
+            0b11000000 => Ok(Self::ManyBranchWithCovenants),
             _ => Err(CoreError::InvalidTaprootTreeType),
         }
     }
@@ -149,9 +149,9 @@ impl DataScript {
             };
 
         let flags = if !params.have_only_covenants {
-            TaprootTreeType::MoreThanOneBranchNoCovenants as u8
+            TaprootTreeType::ManyBranchNoCovenants as u8
         } else {
-            TaprootTreeType::MoreThanOneBranchWithCovenants as u8
+            TaprootTreeType::ManyBranchWithCovenants as u8
         };
 
         let mut data = Vec::<u8>::with_capacity(EMBEDDED_DATA_SCRIPT_SIZE);

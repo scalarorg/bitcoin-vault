@@ -83,12 +83,11 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
             TaprootTreeType::OneBranchOnlyCovenants | TaprootTreeType::OneBranchOnlyKeys => {
                 tree_type == TaprootTreeType::OneBranchOnlyCovenants
             }
-            TaprootTreeType::MoreThanOneBranchNoCovenants
-            | TaprootTreeType::MoreThanOneBranchWithCovenants => {
+            TaprootTreeType::ManyBranchNoCovenants | TaprootTreeType::ManyBranchWithCovenants => {
                 let service_tag_bytes = bytes[cursor..cursor + SERVICE_TAG_HASH_SIZE].to_vec();
                 service_tag = Some(service_tag_bytes);
                 cursor += SERVICE_TAG_HASH_SIZE;
-                tree_type == TaprootTreeType::MoreThanOneBranchWithCovenants
+                tree_type == TaprootTreeType::ManyBranchWithCovenants
             }
         };
 
