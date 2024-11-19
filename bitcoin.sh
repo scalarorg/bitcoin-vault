@@ -16,23 +16,29 @@ run() {
 }
 
 createwallet_descriptors() {
-    STAKE_WALLET_NAME=${1:-staker}
-    PROTOCOL_WALLET_NAME=${2:-protocol}
-    WALLET_PASSPHRASE=${3:-passphrase}
+    WALLET_NAME=${1:-staker}
+    WALLET_PASSPHRASE=${2:-passphrase}
 
     bitcoin-cli -named createwallet \
-        "wallet_name=${STAKE_WALLET_NAME}" \
-        "passphrase=${WALLET_PASSPHRASE}" \
-        "load_on_startup=true" \
-        "descriptors=true" # Use descriptors for Taproot and P2WPKH addresses
-
-    bitcoin-cli -named createwallet \
-        "wallet_name=${PROTOCOL_WALLET_NAME}" \
+        "wallet_name=${WALLET_NAME}" \
         "passphrase=${WALLET_PASSPHRASE}" \
         "load_on_startup=true" \
         "descriptors=true" # Use descriptors for Taproot and P2WPKH addresses
 
     echo "LISTING WALLETS"
+    bitcoin-cli listwallets
+}
+
+createwallet_legacy() {
+    WALLET_NAME=${1:-legacy}
+    WALLET_PASSPHRASE=${2:-passphrase}
+    bitcoin-cli -named createwallet \
+        "wallet_name=${WALLET_NAME}" \
+        "passphrase=${WALLET_PASSPHRASE}" \
+        "load_on_startup=true" \
+        "descriptors=false"
+
+    echo "WALLET CREATED: ${WALLET_NAME}"
     bitcoin-cli listwallets
 }
 
@@ -78,7 +84,7 @@ import_wallet_by_wif() {
         ADDRESS=$(p2tr ${WALLET_NAME} ${WIF})
 
     elif [ "$ADDRESS_TYPE" = "p2wpkh" ]; then
-        echo "Implementing p2wpkh"
+        ADDRESS=$(p2wpkh ${WALLET_NAME} ${WIF})
     else
         echo "Invalid address type"
         exit 1
@@ -105,6 +111,30 @@ p2tr() {
     echo $ADDRESS
 }
 
+p2wpkh() {
+    WALLET_NAME=${1:-legacy}
+    WIF=${2}
+
+    # Import the private key
+    bitcoin-cli -rpcwallet=${WALLET_NAME} importprivkey "${WIF}" "label" false
+    
+    # Get all addresses with the label
+    ADDRESSES=$(bitcoin-cli -rpcwallet=${WALLET_NAME} getaddressesbylabel "label")
+    
+    # Loop through addresses and find the bech32 one
+    for addr in $(echo $ADDRESSES | jq -r 'keys[]'); do
+        ADDR_INFO=$(bitcoin-cli -rpcwallet=${WALLET_NAME} getaddressinfo "$addr")
+        IS_WITNESS=$(echo $ADDR_INFO | jq -r '.iswitness')
+        WITNESS_VERSION=$(echo $ADDR_INFO | jq -r '.witness_version')
+        
+        # Check if it's a native segwit address (bech32)
+        if [ "$IS_WITNESS" = "true" ] && [ "$WITNESS_VERSION" = "0" ]; then
+            echo $addr
+            break
+        fi
+    done
+}
+
 list_descriptors() {
     bitcoin-cli listdescriptors
 }
@@ -117,16 +147,22 @@ entrypoint() {
         sleep 1
     done
 
-    createwallet_descriptors
+    createwallet_descriptors staker passphrase
+    createwallet_legacy legacy passphrase
 
     STAKER_WIF=cQ7kMt56n8GeKkshaiCt3Lh2ChuaD3tWdSrH37MwU93PA4qZs9JR
     PROTOCOL_WIF=cVpL6mBRYV3Dmkx87wfbtZ4R3FTD6g58VkTt1ERkqGTMzTcDVw5M
 
     import_wallet_by_wif staker $STAKER_WIF p2tr passphrase
-    fund_address staker $(cat $WORKDIR/staker-p2tr.txt)
-    list_unspent staker $(cat $WORKDIR/staker-p2tr.txt)
+    import_wallet_by_wif legacy $STAKER_WIF p2wpkh passphrase
 
-    import_wallet_by_wif protocol $PROTOCOL_WIF p2tr passphrase
+    fund_address staker $(cat $WORKDIR/staker-p2tr.txt)
+    fund_address legacy $(cat $WORKDIR/legacy-p2wpkh.txt)
+
+    list_unspent staker $(cat $WORKDIR/staker-p2tr.txt)
+    list_unspent legacy $(cat $WORKDIR/legacy-p2wpkh.txt)
+
+    # import_wallet_by_wif protocol $PROTOCOL_WIF p2tr passphrase
 
     ln -s /root/bitcoin.sh /usr/local/bin/bsh
 
