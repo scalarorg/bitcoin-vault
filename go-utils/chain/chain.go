@@ -39,11 +39,12 @@ func NewDestinationChainFromBytes(bytes []byte) *DestinationChain {
 	if !ValidateChainType(ChainType(bytes[0])) {
 		return nil
 	}
-
-	chainID := binary.BigEndian.Uint64(bytes[1:])
+	chainType := ChainType(bytes[0])
+	bytes[0] = 0
+	chainID := binary.BigEndian.Uint64(bytes)
 
 	return &DestinationChain{
-		ChainType: ChainType(bytes[0]),
+		ChainType: chainType,
 		ChainID:   chainID,
 	}
 }
