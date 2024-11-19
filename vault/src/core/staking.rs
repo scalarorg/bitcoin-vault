@@ -26,7 +26,7 @@ pub struct BuildStakingParams {
     pub covenant_quorum: u8,
     pub staking_amount: u64,
     pub have_only_covenants: bool,
-    pub destination_chain_id: DestinationChain,
+    pub destination_chain: DestinationChain,
     pub destination_contract_address: DestinationContractAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
 }
@@ -36,7 +36,7 @@ pub struct BuildStakingWithOnlyCovenantsParams {
     pub covenant_pub_keys: Vec<PublicKey>,
     pub covenant_quorum: u8,
     pub staking_amount: u64,
-    pub destination_chain_id: DestinationChain,
+    pub destination_chain: DestinationChain,
     pub destination_contract_address: DestinationContractAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
 }
@@ -104,7 +104,7 @@ impl Staking for VaultManager {
             network_id: self.network_id(),
             have_only_covenants: params.have_only_covenants,
             covenant_quorum: params.covenant_quorum,
-            destination_chain_id: &params.destination_chain_id,
+            destination_chain_id: &params.destination_chain,
             destination_contract_address: &params.destination_contract_address,
             destination_recipient_address: &params.destination_recipient_address,
         })?;
@@ -140,7 +140,7 @@ impl Staking for VaultManager {
                 version: self.version(),
                 network_id: self.network_id(),
                 covenant_quorum: params.covenant_quorum,
-                destination_chain_id: &params.destination_chain_id,
+                destination_chain_id: &params.destination_chain,
                 destination_contract_address: &params.destination_contract_address,
                 destination_recipient_address: &params.destination_recipient_address,
             })?;

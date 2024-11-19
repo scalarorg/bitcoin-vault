@@ -1,5 +1,6 @@
 use bitcoin::{key::Secp256k1, secp256k1::All, PublicKey, XOnlyPublicKey};
 
+#[derive(Debug)]
 pub struct VaultManager {
     secp: Secp256k1<All>,
     tag: Vec<u8>,

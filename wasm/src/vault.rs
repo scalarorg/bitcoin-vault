@@ -39,7 +39,7 @@ impl VaultWasm {
         custodial_pubkeys: &[u8],
         covenant_quorum: u8,
         have_only_covenants: bool,
-        destination_chain_id: u64,
+        destination_chain: u64,
         destination_smartcontract_address: &[u8],
         destination_recipient_address: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
@@ -59,7 +59,7 @@ impl VaultWasm {
             covenant_pub_keys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
             covenant_quorum,
             have_only_covenants,
-            destination_chain_id: destination_chain_id.to_be_bytes(),
+            destination_chain: destination_chain.to_be_bytes(),
             destination_contract_address,
             destination_recipient_address,
         };

@@ -2,6 +2,13 @@
 name = "bitcoin-vault"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/scalarorg/bitcoin-vault/"
+description = "Core logic for Scalar Vault"
+categories = ["bitcoin"]
+keywords = ["bitcoin", "vault", "staking"]
+readme = "../README.md"
+rust-version = "1.82.0"
+exclude = ["tests"]
 
 [lib]
 name = "bitcoin_vault"
