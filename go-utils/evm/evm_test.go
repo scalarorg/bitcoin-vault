@@ -1,4 +1,4 @@
-package goutils_test
+package evm_test
 
 import (
 	"encoding/hex"

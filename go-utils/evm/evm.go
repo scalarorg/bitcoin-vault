@@ -1,4 +1,4 @@
-package goutils
+package evm
 
 import (
 	"encoding/binary"
@@ -21,7 +21,7 @@ CalculateStakingPayloadHash hashes the staking payload
 - sourceTxHash: [32]byte (tx id of the bitcoin transaction in reverse bytes order)
 */
 func CalculateStakingPayloadHash(
-	sender [20]byte,
+	destRecipient [20]byte, //Address on the the destination chain
 	amount int64,
 	sourceTxHash [32]byte,
 ) ([]byte, []byte, error) {
@@ -32,8 +32,8 @@ func CalculateStakingPayloadHash(
 
 	payloadBytes := make([]byte, 96) // 3 * 32 bytes
 
-	// Encode address (left-pad sender to 32 bytes)
-	copy(payloadBytes[12:32], sender[:])
+	// Encode address (left-pad destRecipient to 32 bytes)
+	copy(payloadBytes[12:32], destRecipient[:])
 
 	// Encode amount (left-pad to 32 bytes)
 	amountBytes := make([]byte, 32)

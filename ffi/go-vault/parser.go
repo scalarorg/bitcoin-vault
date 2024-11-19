@@ -33,7 +33,7 @@ type VaultReturnTxOutput struct {
 	ServiceTag                  []byte `json:"service_tag"`
 	HaveOnlyCovenants           bool   `json:"have_only_covenants"`
 	CovenantQuorum              uint8  `json:"covenant_quorum"`
-	DestinationChainID          []byte `json:"destination_chain"`
+	DestinationChain            []byte `json:"destination_chain"`
 	DestinationContractAddress  []byte `json:"destination_contract_address"`
 	DestinationRecipientAddress []byte `json:"destination_recipient_address"`
 }

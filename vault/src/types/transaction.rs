@@ -1,11 +1,11 @@
-use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
-use serde::{Deserialize, Serialize};
-
 use crate::{
     DestinationChain, DestinationContractAddress, DestinationRecipientAddress, TaprootTreeType,
     COVENANT_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_CONTRACT_ADDRESS_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
     FLAGS_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE, VERSION_SIZE,
 };
+use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
+use log::debug;
+use serde::{Deserialize, Serialize};
 
 use super::error::ParserError;
 
@@ -35,7 +35,14 @@ pub struct VaultReturnTxOutput {
     pub have_only_covenants: bool,
     pub service_tag: Option<Vec<u8>>,
 }
-
+fn read_bytes(bytes: &[u8], cursor: &mut usize, len: usize) -> Result<Vec<u8>, ParserError> {
+    if bytes.len() < *cursor + len {
+        return Err(ParserError::InvalidEmbeddedData);
+    }
+    let data = bytes[*cursor..*cursor + len].to_vec();
+    *cursor += len;
+    Ok(data)
+}
 impl TryFrom<&TxOut> for VaultReturnTxOutput {
     type Error = ParserError;
     fn try_from(txo: &TxOut) -> Result<Self, Self::Error> {
@@ -56,26 +63,16 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         // Create a cursor to read through the push_bytes sequentially
         let bytes = push_bytes.as_bytes();
         let mut cursor = 0;
-
         // Read hash (tag)
-        let tag = bytes[cursor..cursor + TAG_HASH_SIZE].to_vec();
-        cursor += TAG_HASH_SIZE;
-
+        let tag = read_bytes(bytes, &mut cursor, TAG_HASH_SIZE)?;
         // Read version
-        let version = bytes[cursor];
-        cursor += VERSION_SIZE;
-
+        let version = read_bytes(bytes, &mut cursor, VERSION_SIZE)?[0];
         // Read network_id
-        let network_id = bytes[cursor];
-        cursor += NETWORK_ID_SIZE;
-
+        let network_id = read_bytes(bytes, &mut cursor, NETWORK_ID_SIZE)?[0];
         // Read flags
-        let flags = bytes[cursor];
-        cursor += FLAGS_SIZE;
+        let flags = read_bytes(bytes, &mut cursor, FLAGS_SIZE)?[0];
 
         let tree_type = TaprootTreeType::try_from(flags).map_err(|_| ParserError::InvalidScript)?;
-
-        println!("tree_type: {:?}", tree_type);
 
         let mut service_tag = None;
 
@@ -84,34 +81,40 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                 tree_type == TaprootTreeType::OneBranchOnlyCovenants
             }
             TaprootTreeType::ManyBranchNoCovenants | TaprootTreeType::ManyBranchWithCovenants => {
-                let service_tag_bytes = bytes[cursor..cursor + SERVICE_TAG_HASH_SIZE].to_vec();
+                // Read Service Tag
+                let service_tag_bytes = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
                 service_tag = Some(service_tag_bytes);
-                cursor += SERVICE_TAG_HASH_SIZE;
                 tree_type == TaprootTreeType::ManyBranchWithCovenants
             }
         };
 
         // Read covenant_quorum
-        let covenant_quorum = bytes[cursor];
-        cursor += COVENANT_QUORUM_SIZE;
+        let covenant_quorum = read_bytes(bytes, &mut cursor, COVENANT_QUORUM_SIZE)?[0];
 
         // Read destination_chain_id
-        let destination_chain = bytes[cursor..cursor + DEST_CHAIN_SIZE]
+        let destination_chain = read_bytes(bytes, &mut cursor, DEST_CHAIN_SIZE)?
             .try_into()
             .map_err(|_| ParserError::InvalidScript)?;
-        cursor += DEST_CHAIN_SIZE;
 
         // Read destination_contract_address
-        let destination_contract_address = bytes[cursor..cursor + DEST_CONTRACT_ADDRESS_SIZE]
-            .try_into()
-            .map_err(|_| ParserError::InvalidScript)?;
-        cursor += DEST_CONTRACT_ADDRESS_SIZE;
+        let destination_contract_address =
+            read_bytes(bytes, &mut cursor, DEST_CONTRACT_ADDRESS_SIZE)?
+                .try_into()
+                .map_err(|_| ParserError::InvalidScript)?;
 
         // Read destination_recipient_address
-        let destination_recipient_address = bytes[cursor..cursor + DEST_RECIPIENT_ADDRESS_SIZE]
-            .try_into()
-            .map_err(|_| ParserError::InvalidScript)?;
-
+        let destination_recipient_address =
+            read_bytes(bytes, &mut cursor, DEST_RECIPIENT_ADDRESS_SIZE)?
+                .try_into()
+                .map_err(|_| ParserError::InvalidScript)?;
+        //Check if no extra bytes left
+        if cursor != bytes.len() {
+            return Err(ParserError::InvalidScript);
+        }
+        debug!(
+            "Found candiate for Scalar VaultTx with tree_type: {:?}",
+            tree_type
+        );
         Ok(VaultReturnTxOutput {
             tag,
             service_tag,

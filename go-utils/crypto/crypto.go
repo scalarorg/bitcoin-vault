@@ -1,4 +1,4 @@
-package goutils
+package crypto
 
 import "golang.org/x/crypto/sha3"
 
