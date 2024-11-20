@@ -1,12 +1,15 @@
 use std::str::FromStr;
 
+use bitcoin::hex::DisplayHex;
 use bitcoin::Amount;
 use bitcoin::{
     address::NetworkChecked, key::Secp256k1, secp256k1::All, Address, NetworkKind, PrivateKey,
     PublicKey,
 };
 
-use bitcoincore_rpc::json::{ListUnspentQueryOptions, ListUnspentResultEntry};
+use bitcoincore_rpc::json::{
+    GetTransactionResult, ListUnspentQueryOptions, ListUnspentResultEntry,
+};
 
 use bitcoincore_rpc::{Auth, Client, RpcApi};
 
@@ -83,9 +86,38 @@ pub fn get_approvable_utxos(
 }
 
 pub fn get_fee(n_outputs: u64) -> u64 {
-    (148 + (34 * n_outputs) + 13) * get_fee_rate()
+    (148 + (34 * n_outputs) + 12) * get_fee_rate()
 }
 
 pub fn get_fee_rate() -> u64 {
-   2 
+    1
+}
+
+pub fn log_tx_result(result: &GetTransactionResult) {
+    println!("\n=== Transaction Info ===");
+    println!("TxID: {}", result.info.txid);
+    println!("Confirmations: {}", result.info.confirmations);
+    println!("Block Hash: {:?}", result.info.blockhash);
+    println!("Block Index: {:?}", result.info.blockindex);
+    println!("Block Time: {:?}", result.info.blocktime);
+    println!("Block Height: {:?}", result.info.blockheight);
+    println!("Time: {}", result.info.time);
+    println!("Time Received: {}", result.info.timereceived);
+    println!("BIP125 Replaceable: {:?}", result.info.bip125_replaceable);
+    println!("Wallet Conflicts: {:?}\n", result.info.wallet_conflicts);
+
+    println!("=== Transaction Details ===");
+    for detail in &result.details {
+        println!("Address: {:?}", detail.address);
+        println!("Category: {:?}", detail.category);
+        println!("Amount: {:?} BTC", detail.amount);
+        println!("Label: {:?}", detail.label);
+        println!("Vout: {}", detail.vout);
+        println!("Fee: {:?}", detail.fee);
+        println!("Abandoned: {:?}\n", detail.abandoned);
+    }
+
+    println!("=== Transaction Hex ===");
+    let hex = result.hex.to_lower_hex_string();
+    println!("{}\n", hex);
 }

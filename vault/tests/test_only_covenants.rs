@@ -1,7 +1,7 @@
 use bitcoin::{secp256k1::All, Psbt};
 use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, VaultManager};
 
-use crate::TestSuite;
+use crate::{log_tx_result, TestSuite};
 
 // cargo test --package bitcoin-vault --test mod -- only_covenants::test_e2e --exact --show-output
 #[test]
@@ -28,5 +28,5 @@ fn test_e2e() {
     //  send unstaking tx
     let result = suite.send_psbt_by_rpc(unstaked_psbt).unwrap();
 
-    println!("unstaked tx result: {:?}", result);
+    log_tx_result(&result);
 }

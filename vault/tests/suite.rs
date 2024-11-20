@@ -1,17 +1,17 @@
 use bitcoin::bip32::DerivationPath;
+use bitcoin::hex::DisplayHex;
 use bitcoin::psbt::Input;
 use bitcoin::{
     absolute, address::NetworkChecked, key::Secp256k1, transaction, Address, NetworkKind,
     PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
 };
-use bitcoin::{AddressType, OutPoint};
+use bitcoin::{AddressType, OutPoint, Txid};
 use bitcoin_vault::{
     BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
     BuildUnstakingWithOnlyCovenantsParams, PreviousStakingUTXO, Signing, Staking, TaprootTreeType,
     Unstaking, UnstakingType, VaultManager,
 };
 use bitcoincore_rpc::json::GetTransactionResult;
-use log::debug;
 
 use std::collections::BTreeMap;
 
@@ -152,7 +152,7 @@ impl<'staking> TestSuite<'staking> {
 
         let staking_tx: Transaction = bitcoin::consensus::deserialize(&staking_tx_hex).unwrap();
 
-        println!("staking tx_id: {:?}", staking_tx.compute_txid());
+        println!("\nSTAKING TXID: {:?}", staking_tx.compute_txid());
 
         staking_tx
     }
@@ -209,7 +209,7 @@ impl<'a> TestSuite<'a> {
     ) -> Psbt {
         let vout: usize = 0;
 
-        let fee = get_fee(1);
+        let fee = get_fee(3);
 
         <VaultManager as Unstaking>::build(
             &self.manager,
@@ -238,7 +238,7 @@ impl<'a> TestSuite<'a> {
 
     pub fn build_only_covenants_unstaking_tx(&self, staking_tx: &Transaction) -> Psbt {
         let vout: usize = 0;
-        let fee = get_fee(1);
+        let fee = get_fee(3);
 
         <VaultManager as Unstaking>::build_with_only_covenants(
             &self.manager,
@@ -268,6 +268,10 @@ impl<'a> TestSuite<'a> {
     pub fn send_psbt(rpc: &Client, psbt: Psbt) -> Option<GetTransactionResult> {
         let finalized_tx = psbt.extract_tx().unwrap();
 
+        let tx_hex = bitcoin::consensus::serialize(&finalized_tx);
+
+        println!("TX_HEX: {:?}", tx_hex.to_lower_hex_string());
+
         let txid = rpc.send_raw_transaction(&finalized_tx).unwrap();
 
         let tx_result = rpc.get_transaction(&txid, None).ok();
@@ -279,6 +283,14 @@ impl<'a> TestSuite<'a> {
         let tx = tx_result.unwrap();
 
         Some(tx)
+    }
+
+    pub fn get_tx_by_id(&self, txid: &Txid) -> Result<Transaction, ()> {
+        let result = self.rpc.get_transaction(txid, None).map_err(|_| ())?;
+
+        let tx = bitcoin::consensus::deserialize(&result.hex).map_err(|_| ())?;
+
+        Ok(tx)
     }
 }
 
@@ -319,6 +331,10 @@ impl<'getter> TestSuite<'getter> {
             .values()
             .map(|p| p.0.to_bytes())
             .collect()
+    }
+
+    pub fn n_quorum(&self) -> usize {
+        self.env.covenant_quorum as usize
     }
 
     pub fn user_address(&self) -> Address<NetworkChecked> {

@@ -15,8 +15,6 @@ use bitcoin::{
     Witness, XOnlyPublicKey,
 };
 
-const MOCK_SIGNATURE: &[u8] = &[0x00; 64];
-
 pub struct SigningKeyMap(BTreeMap<XOnlyPublicKey, PrivateKey>);
 
 impl SigningKeyMap {
@@ -233,6 +231,7 @@ impl Utils for Psbt {
         let (tap_script, control_block, _, sigs_map) = result.unwrap();
 
         let pubkeys = sigs_map.keys().map(|x| *x.to_owned()).collect::<Vec<_>>();
+
         let pubkey_position_map = self.calculate_pubkey_position_in_script(&tap_script, &pubkeys);
 
         if pubkey_position_map.is_none() {
@@ -250,7 +249,9 @@ impl Utils for Psbt {
         for pubkey in sorted_pubkeys {
             match sigs_map.get(&pubkey) {
                 Some(signature) => script_witness.push(signature.to_vec()),
-                None => script_witness.push(MOCK_SIGNATURE),
+                _ => {
+                    continue;
+                }
             }
         }
 
