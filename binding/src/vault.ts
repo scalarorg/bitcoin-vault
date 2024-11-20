@@ -1,4 +1,8 @@
-import { VaultWasm } from "@scalar-lab/bitcoin-wasm";
+import {
+  UnstakingInput,
+  UnstakingOutput,
+  VaultWasm,
+} from "@scalar-lab/bitcoin-wasm";
 import ECPairFactory from "ecpair";
 
 import * as bitcoinLib from "bitcoinjs-lib";
@@ -6,7 +10,9 @@ import * as ecc from "tiny-secp256k1";
 
 import {
   TBuildUnsignedStakingPsbt,
+  TBuildUnsignedStakingWithOnlyCovenantsPsbt,
   TBuildUnsignedUnstakingUserProtocolPsbt,
+  TBuildUnsignedUnstakingWithOnlyCovenantsPsbt,
   TNetwork,
 } from "./types";
 
@@ -91,8 +97,8 @@ export class VaultUtils {
       params.custodialPubkeys,
       params.covenantQuorum,
       params.haveOnlyCovenants,
-      params.destinationChainId,
-      params.destinationSmartContractAddress,
+      params.destinationChain.toBytes(),
+      params.destinationContractAddress,
       params.destinationRecipientAddress
     );
 
@@ -136,18 +142,113 @@ export class VaultUtils {
     if (!this.wasm) {
       throw new Error("VaultWasm instance not initialized");
     }
-    return this.wasm.build_user_protocol_spend(
+
+    const input = new UnstakingInput(
       params.input.script_pubkey,
       hexToBytes(params.input.txid),
       params.input.vout,
-      params.input.value,
+      params.input.value
+    );
+
+    const inputs = [input];
+
+    const output = new UnstakingOutput(
       params.output.script,
-      params.output.value,
+      params.output.value
+    );
+
+    return this.wasm.build_user_protocol_spend(
+      inputs,
+      output,
       params.stakerPubkey,
       params.protocolPubkey,
       params.covenantPubkeys,
       params.covenantQuorum,
       params.haveOnlyCovenants,
+      params.rbf
+    );
+  };
+
+  public buildStakingOutputWithOnlyCovenants = (
+    params: TBuildUnsignedStakingWithOnlyCovenantsPsbt
+  ) => {
+    if (!this.wasm) {
+      throw new Error("VaultWasm instance not initialized");
+    }
+
+    if (!this.network) {
+      throw new Error("Network not initialized");
+    }
+
+    const outputBuf = this.wasm.build_staking_output_with_only_covenants(
+      params.stakingAmount,
+      params.custodialPubkeys,
+      params.covenantQuorum,
+      params.destinationChain.toBytes(),
+      params.destinationContractAddress,
+      params.destinationRecipientAddress
+    );
+
+    const psbtOutputs = decodeStakingOutput(outputBuf);
+
+    const result = getStakingInputsAndFee({
+      availableUTXOs: params.availableUTXOs,
+      stakingAmount: Number(params.stakingAmount),
+      nOutputs: psbtOutputs.length,
+      feeRate: params.feeRate,
+    });
+
+    const { selectedUTXOs, fee } = result;
+
+    const inputByAddress = prepareExtraInputByAddress(
+      params.stakerAddress,
+      params.stakerPubkey,
+      this.network
+    );
+
+    const psbtResult = createStakingPsbt(
+      this.network,
+      inputByAddress,
+      selectedUTXOs,
+      psbtOutputs,
+      Number(params.stakingAmount),
+      fee,
+      params.stakerAddress,
+      params.rbf
+    );
+
+    return {
+      psbt: psbtResult.psbt,
+      fee: psbtResult.fee,
+    };
+  };
+
+  public buildUnsignedUnstakingWithOnlyCovenantsPsbt = (
+    params: TBuildUnsignedUnstakingWithOnlyCovenantsPsbt
+  ) => {
+    if (!this.wasm) {
+      throw new Error("VaultWasm instance not initialized");
+    }
+
+    const inputs = params.inputs.map((input) => {
+      return new UnstakingInput(
+        input.script_pubkey,
+        hexToBytes(input.txid),
+        input.vout,
+        input.value
+      );
+    });
+
+    const output = new UnstakingOutput(
+      params.output.script,
+      params.output.value
+    );
+
+    return this.wasm.build_unstaking_with_only_covenants(
+      inputs,
+      output,
+      params.covenantPubkeys,
+      params.covenantQuorum,
       params.rbf
     );
   };

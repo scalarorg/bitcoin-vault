@@ -33,9 +33,9 @@ pub struct BuildStakingParams {
 
 #[derive(Debug, Validate)]
 pub struct BuildStakingWithOnlyCovenantsParams {
+    pub staking_amount: u64,
     pub covenant_pub_keys: Vec<PublicKey>,
     pub covenant_quorum: u8,
-    pub staking_amount: u64,
     pub destination_chain: DestinationChain,
     pub destination_contract_address: DestinationContractAddress,
     pub destination_recipient_address: DestinationRecipientAddress,

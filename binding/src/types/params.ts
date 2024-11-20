@@ -1,5 +1,6 @@
 import { TxOutput } from "bitcoinjs-lib";
 import { UTXO } from "./bitcoin";
+import { DestinationChain } from "@/chain";
 
 export type TBuildUnsignedStakingPsbt = {
   stakingAmount: bigint;
@@ -9,8 +10,22 @@ export type TBuildUnsignedStakingPsbt = {
   custodialPubkeys: Uint8Array;
   covenantQuorum: number;
   haveOnlyCovenants: boolean;
-  destinationChainId: bigint;
-  destinationSmartContractAddress: Uint8Array;
+  destinationChain: DestinationChain;
+  destinationContractAddress: Uint8Array;
+  destinationRecipientAddress: Uint8Array;
+  availableUTXOs: UTXO[];
+  feeRate: number;
+  rbf?: boolean;
+};
+
+export type TBuildUnsignedStakingWithOnlyCovenantsPsbt = {
+  stakingAmount: bigint;
+  stakerPubkey: Uint8Array;
+  stakerAddress: string;
+  custodialPubkeys: Uint8Array;
+  covenantQuorum: number;
+  destinationChain: DestinationChain;
+  destinationContractAddress: Uint8Array;
   destinationRecipientAddress: Uint8Array;
   availableUTXOs: UTXO[];
   feeRate: number;
@@ -26,6 +41,17 @@ interface PreviousStakingUTXO {
 
 export type TBuildUnsignedUnstakingUserProtocolPsbt = {
   input: PreviousStakingUTXO;
+  output: TxOutput;
+  stakerPubkey: Uint8Array;
+  protocolPubkey: Uint8Array;
+  covenantPubkeys: Uint8Array;
+  covenantQuorum: number;
+  haveOnlyCovenants: boolean;
+  rbf: boolean;
+};
+
+export type TBuildUnsignedUnstakingWithOnlyCovenantsPsbt = {
+  inputs: PreviousStakingUTXO[];
   output: TxOutput;
   stakerPubkey: Uint8Array;
   protocolPubkey: Uint8Array;

@@ -22,7 +22,7 @@ pub enum UnstakingType {
 
 #[derive(Debug, Validate)]
 pub struct BuildUnstakingParams {
-    pub input_utxo: PreviousStakingUTXO,
+    pub inputs: Vec<PreviousStakingUTXO>,
     pub unstaking_output: TxOut,
     pub user_pub_key: PublicKey,
     pub protocol_pub_key: PublicKey,
@@ -34,7 +34,7 @@ pub struct BuildUnstakingParams {
 
 #[derive(Debug, Validate)]
 pub struct BuildUnstakingWithOnlyCovenantsParams {
-    pub input_utxo: PreviousStakingUTXO,
+    pub inputs: Vec<PreviousStakingUTXO>,
     pub unstaking_output: TxOut,
     pub covenant_pub_keys: Vec<PublicKey>,
     pub covenant_quorum: u8,
@@ -49,7 +49,7 @@ impl Unstaking for VaultManager {
         params: &BuildUnstakingParams,
         unstaking_type: UnstakingType,
     ) -> Result<Psbt, Self::Error> {
-        // TODO: validate more params
+        // Validate params
         if unstaking_type == UnstakingType::OnlyCovenants && !params.have_only_covenants {
             return Err(CoreError::InvalidUnstakingType);
         }
@@ -60,49 +60,46 @@ impl Unstaking for VaultManager {
             &params.covenant_pub_keys,
         );
 
-        let tree = TaprootTree::new(
-            self.secp(),
-            &x_only_keys.user,
-            &x_only_keys.protocol,
-            &x_only_keys.covenants,
-            params.covenant_quorum,
-            params.have_only_covenants,
-        )?;
-
-        let (branch, keys): (&ScriptBuf, Vec<XOnlyPublicKey>) = match unstaking_type {
-            UnstakingType::UserProtocol => {
-                let branch = &tree.user_protocol_branch;
-                let keys = vec![x_only_keys.user, x_only_keys.protocol];
-                (branch, keys)
-            }
-            UnstakingType::CovenantsProtocol => {
-                let branch = &tree.covenants_protocol_branch;
-                let mut keys = vec![x_only_keys.protocol];
-                keys.extend_from_slice(&x_only_keys.covenants);
-                (branch, keys)
-            }
-            UnstakingType::CovenantsUser => {
-                let branch = &tree.covenants_user_branch;
-                let mut keys = vec![x_only_keys.user];
-                keys.extend_from_slice(&x_only_keys.covenants);
-                (branch, keys)
-            }
-            UnstakingType::OnlyCovenants => {
-                (&tree.only_covenants_branch.unwrap(), x_only_keys.covenants)
-            }
-        };
-
-        let mut psbt = self.prepare_psbt(
-            &params.input_utxo.outpoint,
+        // Extract common PSBT building logic into a helper method
+        self.build_unstaking_psbt(
+            &params.inputs,
             &params.unstaking_output,
             params.rbf,
-        )?;
+            |secp| {
+                let tree = TaprootTree::new(
+                    secp,
+                    &x_only_keys.user,
+                    &x_only_keys.protocol,
+                    &x_only_keys.covenants,
+                    params.covenant_quorum,
+                    params.have_only_covenants,
+                )?;
 
-        let input = self.prepare_psbt_input(&params.input_utxo, &tree.root, branch, &keys);
+                let cloned_tree = tree.clone();
 
-        psbt.inputs = vec![input];
-
-        Ok(psbt)
+                let (branch, keys) = match unstaking_type {
+                    UnstakingType::UserProtocol => (
+                        &cloned_tree.user_protocol_branch,
+                        vec![x_only_keys.user, x_only_keys.protocol],
+                    ),
+                    UnstakingType::CovenantsProtocol => {
+                        let mut keys = vec![x_only_keys.protocol];
+                        keys.extend_from_slice(&x_only_keys.covenants);
+                        (&cloned_tree.covenants_protocol_branch, keys)
+                    }
+                    UnstakingType::CovenantsUser => {
+                        let mut keys = vec![x_only_keys.user];
+                        keys.extend_from_slice(&x_only_keys.covenants);
+                        (&cloned_tree.covenants_user_branch, keys)
+                    }
+                    UnstakingType::OnlyCovenants => (
+                        cloned_tree.only_covenants_branch.as_ref().unwrap(),
+                        x_only_keys.covenants,
+                    ),
+                };
+                Ok((tree, branch.clone(), keys))
+            },
+        )
     }
 
     fn build_with_only_covenants(
@@ -115,69 +112,97 @@ impl Unstaking for VaultManager {
             .map(|pk| XOnlyPublicKey::from(*pk))
             .collect();
 
-        let tree = TaprootTree::new_with_only_covenants(
-            self.secp(),
-            &covenants_x_only,
-            params.covenant_quorum,
-        )?;
-
-        let mut psbt = self.prepare_psbt(
-            &params.input_utxo.outpoint,
+        // Use the same helper method
+        self.build_unstaking_psbt(
+            &params.inputs,
             &params.unstaking_output,
             params.rbf,
-        )?;
+            |secp| {
+                let tree = TaprootTree::new_with_only_covenants(
+                    secp,
+                    &covenants_x_only,
+                    params.covenant_quorum,
+                )?;
 
-        let input = self.prepare_psbt_input(
-            &params.input_utxo,
-            &tree.root,
-            &tree.only_covenants_branch.unwrap(),
-            &covenants_x_only,
-        );
-
-        psbt.inputs = vec![input];
-
-        Ok(psbt)
+                Ok((
+                    tree.clone(),
+                    tree.only_covenants_branch.as_ref().unwrap().clone(),
+                    covenants_x_only.clone(),
+                ))
+            },
+        )
     }
 }
 
 impl VaultManager {
+    fn build_unstaking_psbt<F>(
+        &self,
+        inputs: &[PreviousStakingUTXO],
+        output: &TxOut,
+        rbf: bool,
+        build_tree: F,
+    ) -> Result<Psbt, CoreError>
+    where
+        F: FnOnce(
+            &bitcoin::secp256k1::Secp256k1<bitcoin::secp256k1::All>,
+        ) -> Result<(TaprootTree, ScriptBuf, Vec<XOnlyPublicKey>), CoreError>,
+    {
+        let (tree, branch, keys) = build_tree(self.secp())?;
+
+        let mut psbt = self.prepare_psbt(
+            &inputs
+                .iter()
+                .map(|input| input.outpoint)
+                .collect::<Vec<OutPoint>>(),
+            output,
+            rbf,
+        )?;
+
+        psbt.inputs = self.prepare_psbt_inputs(inputs, &tree.root, &branch, &keys);
+
+        Ok(psbt)
+    }
+
     fn prepare_psbt(
         &self,
-        outpoint: &OutPoint,
+        outpoints: &[OutPoint],
         output: &TxOut,
         rbf: bool,
     ) -> Result<Psbt, CoreError> {
         let unsigned_tx = Transaction {
             version: transaction::Version::TWO,
             lock_time: absolute::LockTime::ZERO,
-            input: vec![TxIn {
-                previous_output: *outpoint,
-                script_sig: ScriptBuf::default(),
-                sequence: match rbf {
-                    true => Sequence::ENABLE_RBF_NO_LOCKTIME,
-                    false => Sequence::MAX,
-                },
-                witness: Witness::default(),
-            }],
+            input: outpoints
+                .iter()
+                .map(|outpoint| TxIn {
+                    previous_output: *outpoint,
+                    script_sig: ScriptBuf::default(),
+                    sequence: match rbf {
+                        true => Sequence::ENABLE_RBF_NO_LOCKTIME,
+                        false => Sequence::MAX,
+                    },
+                    witness: Witness::default(),
+                })
+                .collect(),
             output: vec![output.clone()],
         };
 
         Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)
     }
 
-    fn prepare_psbt_input(
+    fn prepare_psbt_inputs(
         &self,
-        input_utxo: &PreviousStakingUTXO,
+        inputs: &[PreviousStakingUTXO],
         tree: &TaprootSpendInfo,
         branch: &ScriptBuf,
         keys: &[XOnlyPublicKey],
-    ) -> Input {
+    ) -> Vec<Input> {
         let tap_key_origins = self.create_tap_key_origins(branch, keys);
 
         let tap_scripts = self.create_tap_scripts(tree, branch);
 
         // 5. Create psbt input
-        self.create_psbt_input(input_utxo, tree, &tap_scripts, &tap_key_origins)
+        self.create_psbt_inputs(inputs, tree, &tap_scripts, &tap_key_origins)
     }
 
     fn create_tap_key_origins(
@@ -214,36 +239,41 @@ impl VaultManager {
         map
     }
 
-    fn create_psbt_input(
+    fn create_psbt_inputs(
         &self,
-        input_utxo: &PreviousStakingUTXO,
+        inputs: &[PreviousStakingUTXO],
         tree: &bitcoin::taproot::TaprootSpendInfo,
         tap_scripts: &BTreeMap<bitcoin::taproot::ControlBlock, (ScriptBuf, LeafVersion)>,
         tap_key_origins: &BTreeMap<
             XOnlyPublicKey,
             (Vec<TapLeafHash>, (Fingerprint, DerivationPath)),
         >,
-    ) -> Input {
-        Input {
-            // Add the UTXO being spent
-            witness_utxo: Some(TxOut {
-                value: input_utxo.amount_in_sats,
-                script_pubkey: input_utxo.script_pubkey.clone(),
-            }),
+    ) -> Vec<Input> {
+        inputs
+            .iter()
+            .map(|input| {
+                Input {
+                    // Add the UTXO being spent
+                    witness_utxo: Some(TxOut {
+                        value: input.amount_in_sats,
+                        script_pubkey: input.script_pubkey.clone(),
+                    }),
 
-            // Add Taproot-specific data
-            tap_internal_key: Some(tree.internal_key()),
-            tap_merkle_root: tree.merkle_root(),
+                    // Add Taproot-specific data
+                    tap_internal_key: Some(tree.internal_key()),
+                    tap_merkle_root: tree.merkle_root(),
 
-            // Add the script we're using to spend
-            tap_scripts: tap_scripts.clone(),
+                    // Add the script we're using to spend
+                    tap_scripts: tap_scripts.clone(),
 
-            tap_key_origins: tap_key_origins.clone(),
+                    tap_key_origins: tap_key_origins.clone(),
 
-            // Set default sighash type for Taproot
-            sighash_type: Some(PsbtSighashType::from(TapSighashType::Default)),
+                    // Set default sighash type for Taproot
+                    sighash_type: Some(PsbtSighashType::from(TapSighashType::Default)),
 
-            ..Default::default()
-        }
+                    ..Default::default()
+                }
+            })
+            .collect()
     }
 }

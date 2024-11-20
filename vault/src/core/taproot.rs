@@ -137,7 +137,7 @@ pub struct TaprootTreeParams {
     pub have_only_covenants: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TaprootTree {
     pub root: TaprootSpendInfo,
     pub user_protocol_branch: UserProtocolBranch,

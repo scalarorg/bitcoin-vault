@@ -36,6 +36,6 @@ impl Signing for VaultManager {
             .clone()
             .extract_tx()
             .map_err(|_| CoreError::FailedToExtractTx)?;
-        return Ok(serialize(&tx));
+        Ok(serialize(&tx))
     }
 }

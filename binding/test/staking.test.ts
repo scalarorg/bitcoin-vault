@@ -44,8 +44,8 @@ describe("Vault-Staking", async () => {
         custodialPubkeys: TestSuite.custodialPubkeys,
         covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
         haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
-        destinationChainId: StaticEnv.DEST_CHAIN_ID,
-        destinationSmartContractAddress: hexToBytes(
+        destinationChain: StaticEnv.DEST_CHAIN_ID,
+        destinationContractAddress: hexToBytes(
           StaticEnv.DEST_SMART_CONTRACT_ADDRESS
         ),
         destinationRecipientAddress: hexToBytes(StaticEnv.DEST_USER_ADDRESS),

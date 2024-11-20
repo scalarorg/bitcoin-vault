@@ -183,8 +183,8 @@ impl<'a> TestSuite<'a> {
         let network_id = get_network_id_from_str(&env.network);
 
         let manager = VaultManager::new(
-            "env.tag".as_bytes().to_vec(),
-            "env.service_tag".as_bytes().to_vec(),
+            env.tag.as_bytes().to_vec(),
+            env.service_tag.as_bytes().to_vec(),
             env.version,
             network_id as u8,
         );
@@ -243,7 +243,7 @@ impl<'a> TestSuite<'a> {
         <VaultManager as Unstaking>::build_with_only_covenants(
             &self.manager,
             &BuildUnstakingWithOnlyCovenantsParams {
-                input_utxo: PreviousStakingUTXO {
+                inputs: PreviousStakingUTXO {
                     outpoint: OutPoint::new(staking_tx.compute_txid(), vout as u32),
                     amount_in_sats: staking_tx.output[vout].value,
                     script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
