@@ -17,6 +17,9 @@ use bitcoin::{
 
 pub struct SigningKeyMap(BTreeMap<XOnlyPublicKey, PrivateKey>);
 
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
+pub struct AliasPushBytes(Vec<u8>);
+
 impl SigningKeyMap {
     fn inner(&self) -> &BTreeMap<XOnlyPublicKey, PrivateKey> {
         &self.0
@@ -130,24 +133,8 @@ impl<C> SignByKeyMap<C> for Psbt {
 
     fn finalize(&mut self) {
         for i in 0..self.inputs.len() {
-            let input = &mut self.inputs[i];
-            if !<Psbt as Utils>::is_taproot_input(input) {
-                let sigs = input.partial_sigs.values().collect::<Vec<_>>();
-                let pubkeys = input.partial_sigs.keys().collect::<Vec<_>>();
-                let mut script_witness: Witness = Witness::new();
-                for i in 0..sigs.len() {
-                    script_witness.push(sigs[i].to_vec());
-                    script_witness.push(pubkeys[i].to_bytes());
-                }
-                input.final_script_witness = Some(script_witness);
-                input.partial_sigs = BTreeMap::new();
-                input.sighash_type = None;
-                input.redeem_script = None;
-                input.witness_script = None;
-                input.bip32_derivation = BTreeMap::new();
-                input.tap_script_sigs = BTreeMap::new();
-                input.tap_scripts = BTreeMap::new();
-                input.tap_key_sig = None;
+            if !self.is_taproot_input(i) {
+                self.finalize_ecdsa_input(i);
                 continue;
             }
 
@@ -188,8 +175,9 @@ pub trait Utils {
     where
         C: Signing + Verification,
         T: Borrow<Transaction>;
-    fn is_taproot_input(input: &Input) -> bool;
+    fn is_taproot_input(&self, input_index: usize) -> bool;
     fn finalize_taproot_input(&mut self, input_index: usize);
+    fn finalize_ecdsa_input(&mut self, input_index: usize);
 
     fn find_tap_leaf_to_finalize(
         &self,
@@ -201,11 +189,25 @@ pub trait Utils {
         BTreeMap<&XOnlyPublicKey, &taproot::Signature>,
     )>;
 
-    fn calculate_pubkey_position_in_script(
+    // fn calculate_pubkey_position_in_script(
+    //     &self,
+    //     script: &ScriptBuf,
+    //     pubkeys: &[XOnlyPublicKey],
+    // ) -> Option<BTreeMap<XOnlyPublicKey, usize>>;
+
+    // fn calculate_x_only_pubkey_position_in_script(
+    //     &self,
+    //     script: &ScriptBuf,
+    // ) -> Option<BTreeMap<XOnlyPublicKey, usize>>;
+
+    fn calculate_push_bytes_positions(&self, script: &ScriptBuf)
+        -> BTreeMap<AliasPushBytes, usize>;
+    fn get_push_bytes_position(
         &self,
-        script: &ScriptBuf,
-        pubkeys: &[XOnlyPublicKey],
-    ) -> Option<BTreeMap<XOnlyPublicKey, usize>>;
+        push_bytes_positions: &BTreeMap<AliasPushBytes, usize>,
+        key: &XOnlyPublicKey,
+    ) -> Option<usize>;
+
     fn reset_taproot_input(&mut self, input_index: usize);
 }
 
@@ -230,29 +232,24 @@ impl Utils for Psbt {
 
         let (tap_script, control_block, _, sigs_map) = result.unwrap();
 
-        let pubkeys = sigs_map.keys().map(|x| *x.to_owned()).collect::<Vec<_>>();
+        let push_bytes_positions = self.calculate_push_bytes_positions(&tap_script);
 
-        let pubkey_position_map = self.calculate_pubkey_position_in_script(&tap_script, &pubkeys);
-
-        if pubkey_position_map.is_none() {
+        if push_bytes_positions.is_empty() {
             return;
         }
 
-        let mut entries: Vec<_> = pubkey_position_map.as_ref().unwrap().iter().collect();
-        entries.sort_by_key(|&(_, &value)| std::cmp::Reverse(value));
+        let mut raw_witness = vec![Vec::new(); push_bytes_positions.len()];
 
-        let sorted_pubkeys: Vec<XOnlyPublicKey> =
-            entries.into_iter().map(|(key, _)| *key).collect();
+        for (key, signature) in sigs_map.iter() {
+            let pos = self.get_push_bytes_position(&push_bytes_positions, key);
+            if let Some(pos) = pos {
+                raw_witness[pos] = signature.to_vec();
+            }
+        }
 
         let mut script_witness: Witness = Witness::new();
-
-        for pubkey in sorted_pubkeys {
-            match sigs_map.get(&pubkey) {
-                Some(signature) => script_witness.push(signature.to_vec()),
-                _ => {
-                    continue;
-                }
-            }
+        for witness in raw_witness {
+            script_witness.push(witness);
         }
 
         script_witness.push(tap_script.to_bytes());
@@ -260,6 +257,19 @@ impl Utils for Psbt {
 
         self.inputs[input_index].final_script_witness = Some(script_witness);
 
+        self.reset_taproot_input(input_index);
+    }
+
+    fn finalize_ecdsa_input(&mut self, input_index: usize) {
+        let input = &mut self.inputs[input_index];
+        let sigs = input.partial_sigs.values().collect::<Vec<_>>();
+        let pubkeys = input.partial_sigs.keys().collect::<Vec<_>>();
+        let mut script_witness: Witness = Witness::new();
+        for i in 0..sigs.len() {
+            script_witness.push(sigs[i].to_vec());
+            script_witness.push(pubkeys[i].to_bytes());
+        }
+        input.final_script_witness = Some(script_witness);
         self.reset_taproot_input(input_index);
     }
 
@@ -314,47 +324,50 @@ impl Utils for Psbt {
             })
     }
 
-    fn calculate_pubkey_position_in_script(
+    fn calculate_push_bytes_positions(
         &self,
         script: &ScriptBuf,
-        pubkeys: &[XOnlyPublicKey],
-    ) -> Option<BTreeMap<XOnlyPublicKey, usize>> {
-        let pubkey_collections: Vec<_> = pubkeys
-            .iter()
-            .map(|pk| {
-                let bytes = pk.serialize();
-                (pk, bytes, hash160::Hash::hash(&bytes))
-            })
-            .collect();
+    ) -> BTreeMap<AliasPushBytes, usize> {
+        let mut push_bytes: Vec<AliasPushBytes> = vec![];
 
-        let mut instruction_records = BTreeMap::new();
-        for (pos, instruction) in script.instructions().enumerate() {
-            if let Ok(instruction) = instruction {
-                if let Some(bytes) = instruction.push_bytes() {
-                    let bytes = bytes.as_bytes().to_vec();
-                    instruction_records.insert(bytes, pos);
-                }
+        for ins in script.instructions().flatten() {
+            if let Some(data_push) = ins.push_bytes() {
+                push_bytes.push(AliasPushBytes(data_push.as_bytes().to_vec()));
             }
         }
 
-        let mut positions: BTreeMap<XOnlyPublicKey, usize> = BTreeMap::new();
+        push_bytes.reverse();
 
-        for (pk, pubkey_bytes, pubkey_hash) in pubkey_collections {
-            if let Some(pos) = instruction_records.get(pubkey_hash.to_byte_array().as_slice()) {
-                positions.insert(*pk, *pos);
-            } else if let Some(pos) = instruction_records.get(pubkey_bytes.as_slice()) {
-                positions.insert(*pk, *pos);
-            }
+        let mut positions: BTreeMap<AliasPushBytes, usize> = BTreeMap::new();
+
+        for (pos, push_byte) in push_bytes.iter().enumerate() {
+            positions.insert(push_byte.clone(), pos);
         }
 
-        if positions.is_empty() {
-            None
-        } else {
-            Some(positions)
-        }
+        positions
     }
 
-    /// Attempts to create all signatures required by this PSBT's `tap_key_origins` field, adding
+    fn get_push_bytes_position(
+        &self,
+        push_bytes_positions: &BTreeMap<AliasPushBytes, usize>,
+        key: &XOnlyPublicKey,
+    ) -> Option<usize> {
+        let result = push_bytes_positions.get(&AliasPushBytes(key.serialize().to_vec()));
+        if result.is_some() {
+            return result.copied();
+        }
+
+        let pubkey_hash = hash160::Hash::hash(&key.serialize());
+        let result =
+            push_bytes_positions.get(&AliasPushBytes(pubkey_hash.to_byte_array().to_vec()));
+
+        if result.is_some() {
+            return result.copied();
+        }
+
+        None
+    }
+
     /// Attempts to create all signatures required by this PSBT's `tap_key_origins` field, adding
     /// them to `tap_key_sig` or `tap_script_sigs`.
     ///
@@ -603,7 +616,8 @@ impl Utils for Psbt {
         Ok(())
     }
 
-    fn is_taproot_input(input: &Input) -> bool {
+    fn is_taproot_input(&self, input_index: usize) -> bool {
+        let input = &self.inputs[input_index];
         input.tap_internal_key.is_some()
             || input.tap_merkle_root.is_some()
             || (!input.tap_scripts.is_empty())

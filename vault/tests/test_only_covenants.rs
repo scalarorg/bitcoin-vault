@@ -3,7 +3,7 @@ use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, VaultManager};
 
 use crate::{log_tx_result, TestSuite};
 
-// cargo test --package bitcoin-vault --test mod -- only_covenants::test_e2e --exact --show-output
+// cargo test --package bitcoin-vault --test mod -- test_only_covenants::test_e2e --exact --show-output
 #[test]
 fn test_e2e() {
     let suite = TestSuite::new();
@@ -11,11 +11,12 @@ fn test_e2e() {
 
     let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(&staking_tx);
 
-    // Sign with each covenant key in order
-    for privkey_bytes in suite.covenant_privkeys() {
+    let signing_privkeys = suite.get_random_covenant_privkeys();
+
+    for privkey in signing_privkeys {
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            privkey_bytes.as_slice(),
+            privkey.as_slice(),
             suite.network_id(),
             false,
         )

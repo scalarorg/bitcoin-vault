@@ -1,5 +1,6 @@
 use bitcoin::bip32::DerivationPath;
 use bitcoin::hex::DisplayHex;
+use bitcoin::key::rand;
 use bitcoin::psbt::Input;
 use bitcoin::{
     absolute, address::NetworkChecked, key::Secp256k1, transaction, Address, NetworkKind,
@@ -15,6 +16,7 @@ use bitcoincore_rpc::json::GetTransactionResult;
 
 use std::collections::BTreeMap;
 
+use bitcoin::secp256k1::rand::Rng;
 use bitcoincore_rpc::Client;
 use bitcoincore_rpc::RpcApi;
 
@@ -214,11 +216,11 @@ impl<'a> TestSuite<'a> {
         <VaultManager as Unstaking>::build(
             &self.manager,
             &BuildUnstakingParams {
-                input_utxo: PreviousStakingUTXO {
+                inputs: vec![PreviousStakingUTXO {
                     outpoint: OutPoint::new(staking_tx.compute_txid(), vout as u32),
                     amount_in_sats: staking_tx.output[vout].value,
                     script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
-                },
+                }],
 
                 unstaking_output: TxOut {
                     value: staking_tx.output[vout].value - bitcoin::Amount::from_sat(fee),
@@ -243,11 +245,11 @@ impl<'a> TestSuite<'a> {
         <VaultManager as Unstaking>::build_with_only_covenants(
             &self.manager,
             &BuildUnstakingWithOnlyCovenantsParams {
-                inputs: PreviousStakingUTXO {
+                inputs: vec![PreviousStakingUTXO {
                     outpoint: OutPoint::new(staking_tx.compute_txid(), vout as u32),
                     amount_in_sats: staking_tx.output[vout].value,
                     script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
-                },
+                }],
 
                 unstaking_output: TxOut {
                     value: staking_tx.output[vout].value - bitcoin::Amount::from_sat(fee),
@@ -274,11 +276,21 @@ impl<'a> TestSuite<'a> {
 
         let txid = rpc.send_raw_transaction(&finalized_tx).unwrap();
 
-        let tx_result = rpc.get_transaction(&txid, None).ok();
+        let mut retry_count = 0;
 
-        if tx_result.is_none() {
-            panic!("tx not found");
-        }
+        let tx_result: Option<GetTransactionResult> = loop {
+            let tx_result = rpc.get_transaction(&txid, None).ok();
+
+            if tx_result.is_none() {
+                retry_count += 1;
+            } else {
+                break tx_result;
+            }
+
+            if retry_count > 10 {
+                panic!("tx not found");
+            }
+        };
 
         let tx = tx_result.unwrap();
 
@@ -355,4 +367,30 @@ impl<'getter> TestSuite<'getter> {
     pub fn network_id(&self) -> NetworkKind {
         self.network_id
     }
+
+    pub fn get_random_covenant_privkeys(&self) -> Vec<Vec<u8>> {
+        let rng = rand::thread_rng();
+        rng.sample_iter(&rand::distributions::Uniform::new(
+            0,
+            self.covenant_privkeys().len(),
+        ))
+        .take(self.env.covenant_quorum as usize)
+        .map(|i| self.covenant_privkeys()[i].clone())
+        .collect()
+    }
+}
+
+#[test]
+fn test_send_tx() {
+    let suite = TestSuite::new();
+
+    let mock_tx = "02000000000101caf9348569401a90dd741816d021115bfbcfdecdb3263eaa5408e5e991f973460000000000fdffffff01da0200000000000022512095033d48b6029174ed3ba21390756c56e90c41eeeef41c172c81d1d09a167cda0840939c003ddcee24444c0606004e0c3414762c1a90ed0e9a412287583e6f4d9147c763aa1035500257d392c1581f7ca30bb51d45eaadcee8e903ccc259491d1ef30000400b8d316ffa0b05fead9893d55cef3ac4b42e1d156a9d1396536880a4dd30132ce26e69134d915d0b1ed8243da8e9cf70d59165f6862722c03eea6cd12208ff3940ce86b1545e93b7949cc3b7abaca64846487e8f9fd7b496537f5dee409b0ed4604f085b14148dfb5f7d8cacf8cfb141ba82bb6e0538d18ac8d7e7009427d58c6d4029d7ec238e73b488a781b380be8f9cd67ae1b3b9c3aeb279696d2b72eccf650ade088b987ca156e8a64bc2f2dd2ce810cf3ca0c0676748e18e2e07150764407bce202ae31ea8709aeda8194ba3e2f7e7e95e680e8b65135c8983c0a298d17bc5350aad2015da913b3e87b4932b1e1b87d9667c28e7250aa0ed60b3a31095f541e1641488ac20594e78c0a2968210d9c1550d4ad31b03d5e4b9659cf2f67842483bb3c2bb7811ba20b59e575cef873ea95273afd55956c84590507200d410e693e4b079a426cc6102ba20e2d226cfdaec93903c3f3b81a01a81b19137627cb26e621a0afb7bcd6efbcfffba20f0f3d9beaf7a3945bcaa147e041ae1d5ca029bde7e40d8251f0783d6ecbe8fb5ba53a261c050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac09c739c91af9ac0e06a9e0e463c7be2848d15c31b74938543337bcdd7145078018b212098a1c9f95fadf69babfe738c34897215e91707f1fdba99fa5474d93b1f00000000";
+
+    let tx: Transaction = bitcoin::consensus::deserialize(hex_to_vec(mock_tx).as_slice()).unwrap();
+
+    println!("tx: {:?}", tx);
+
+    let result = suite.rpc.send_raw_transaction(&tx).unwrap();
+
+    println!("result: {:?}", result);
 }
