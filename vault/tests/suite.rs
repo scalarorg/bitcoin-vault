@@ -6,7 +6,7 @@ use bitcoin::{
     absolute, address::NetworkChecked, key::Secp256k1, transaction, Address, NetworkKind,
     PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
 };
-use bitcoin::{AddressType, OutPoint, Txid};
+use bitcoin::{AddressType, OutPoint, Txid, XOnlyPublicKey};
 use bitcoin_vault::{
     BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
     BuildUnstakingWithOnlyCovenantsParams, PreviousStakingUTXO, Signing, Staking, TaprootTreeType,
@@ -31,7 +31,7 @@ pub struct TestSuite<'a> {
     protocol_pair: (PrivateKey, PublicKey),
     covenant_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)>,
     user_address: Address<NetworkChecked>,
-    manager: VaultManager,
+    pub manager: VaultManager,
     network_id: NetworkKind,
 }
 
@@ -336,6 +336,13 @@ impl<'getter> TestSuite<'getter> {
 
     pub fn covenant_pubkeys(&self) -> Vec<PublicKey> {
         self.covenant_pairs.values().map(|p| p.1).collect()
+    }
+
+    pub fn covenant_x_only_pubkeys(&self) -> Vec<XOnlyPublicKey> {
+        self.covenant_pubkeys()
+            .iter()
+            .map(|p| p.inner.x_only_public_key().0)
+            .collect::<Vec<_>>()
     }
 
     pub fn covenant_privkeys(&self) -> Vec<Vec<u8>> {

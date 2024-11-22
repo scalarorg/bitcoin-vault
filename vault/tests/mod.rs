@@ -10,3 +10,5 @@ pub use helper::*;
 mod test_e2e;
 
 mod test_only_covenants;
+
+mod test_scripts;

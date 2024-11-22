@@ -2,12 +2,12 @@ use std::convert::{TryFrom, TryInto};
 
 use crate::errors::VaultABIError;
 use crate::{decoder::Decoder, encoder::Encoder};
-use bitcoin::{Amount, NetworkKind, OutPoint, TxOut};
+use bitcoin::{Amount, NetworkKind, OutPoint, TxOut, XOnlyPublicKey};
 use bitcoin_vault::{
     BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
     BuildUnstakingWithOnlyCovenantsParams, DestinationChain, DestinationContractAddress,
-    DestinationRecipientAddress, PreviousStakingUTXO, Signing, Staking, Unstaking, UnstakingType,
-    VaultManager,
+    DestinationRecipientAddress, LockingScriptWithOnlyCovenantsParams, PreviousStakingUTXO,
+    Signing, Staking, Unstaking, UnstakingType, VaultManager,
 };
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {
@@ -378,5 +378,26 @@ impl VaultWasm {
             Ok(psbt) => Ok(psbt.serialize()),
             Err(_) => Ok(vec![]),
         }
+    }
+
+    #[wasm_bindgen]
+    pub fn only_covenants_locking_script(
+        &self,
+        covenant_pubkeys: &[u8],
+        covenant_quorum: u8,
+    ) -> Result<Vec<u8>, JsValue> {
+        let covenant_pub_keys = Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)?;
+        let covenant_x_only_pubkeys: Vec<XOnlyPublicKey> = covenant_pub_keys
+            .iter()
+            .map(|p| XOnlyPublicKey::from(*p))
+            .collect::<Vec<_>>();
+        let script = self
+            .manager
+            .only_covenants_locking_script(&LockingScriptWithOnlyCovenantsParams {
+                covenant_pub_keys: &covenant_x_only_pubkeys,
+                covenant_quorum,
+            })
+            .map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        Ok(script.into_script().to_bytes())
     }
 }

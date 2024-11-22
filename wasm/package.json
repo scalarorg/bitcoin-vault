@@ -1,6 +1,6 @@
 {
   "name": "@scalar-lab/bitcoin-wasm",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "browser": "dist/bitcoin-vault-web.js",
   "main": "dist/bitcoin-vault-node.js",
   "files": [

@@ -283,4 +283,17 @@ export class VaultUtils {
 
     return signedPsbt;
   }
+
+  public onlyCovenantsLockingScript = (params: {
+    covenantPubkeys: Uint8Array;
+    covenantQuorum: number;
+  }) => {
+    if (!this.wasm) {
+      throw new Error("VaultWasm instance not initialized");
+    }
+    return this.wasm.only_covenants_locking_script(
+      params.covenantPubkeys,
+      params.covenantQuorum
+    );
+  };
 }
