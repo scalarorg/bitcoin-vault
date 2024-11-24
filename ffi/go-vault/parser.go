@@ -1,7 +1,5 @@
 package vault
 
-// #cgo LDFLAGS: -L${SRCDIR}/lib/darwin -lbitcoin_vault_ffi
-// #cgo CFLAGS: -I${SRCDIR}/lib/darwin
 /*
 #include <stdint.h>
 #include <stdlib.h>

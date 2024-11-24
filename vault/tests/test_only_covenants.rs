@@ -1,5 +1,6 @@
 use bitcoin::{secp256k1::All, Psbt};
 use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, VaultManager};
+use bitcoincore_rpc::jsonrpc::base64;
 
 use crate::{log_tx_result, TestSuite};
 
@@ -10,6 +11,12 @@ fn test_e2e() {
     let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::OneBranchOnlyCovenants, None);
 
     let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(&staking_tx);
+
+    let psbt_base64 = base64::encode(unstaked_psbt.serialize());
+    println!("psbt_base64: {}", psbt_base64);
+
+    let psbt_hex = hex::encode(unstaked_psbt.serialize());
+    println!("psbt_hex: {}", psbt_hex);
 
     let signing_privkeys = suite.get_random_covenant_privkeys();
 
