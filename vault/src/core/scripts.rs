@@ -42,11 +42,7 @@ impl LockingScript {
             params.have_only_covenants,
         )?;
 
-        Ok(LockingScript(ScriptBuf::new_p2tr(
-            secp,
-            tree.internal_key(),
-            tree.merkle_root(),
-        )))
+        Ok(LockingScript(tree.into_script(secp)))
     }
 
     pub fn new_with_only_covenants(
@@ -59,11 +55,7 @@ impl LockingScript {
             params.covenant_quorum,
         )?;
 
-        Ok(LockingScript(ScriptBuf::new_p2tr(
-            secp,
-            tree.internal_key(),
-            tree.merkle_root(),
-        )))
+        Ok(LockingScript(tree.into_script(secp)))
     }
 
     pub fn into_script(self) -> ScriptBuf {
@@ -139,9 +131,10 @@ impl DataScript {
         let service_tag_bytes = params.service_tag.as_slice();
         let service_tag_hash: [u8; SERVICE_TAG_HASH_SIZE] =
             if params.service_tag.len() <= SERVICE_TAG_HASH_SIZE {
-                service_tag_bytes[0..SERVICE_TAG_HASH_SIZE]
-                    .try_into()
-                    .map_err(|_| CoreError::InvalidServiceTag)?
+                let mut tag = [0u8; SERVICE_TAG_HASH_SIZE];
+                let len = service_tag_bytes.len();
+                tag[SERVICE_TAG_HASH_SIZE - len..].copy_from_slice(service_tag_bytes);
+                tag
             } else {
                 Sha256dHash::hash(service_tag_bytes)[0..SERVICE_TAG_HASH_SIZE]
                     .try_into()

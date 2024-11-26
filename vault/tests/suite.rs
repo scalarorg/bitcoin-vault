@@ -6,11 +6,11 @@ use bitcoin::{
     absolute, address::NetworkChecked, key::Secp256k1, transaction, Address, NetworkKind,
     PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
 };
-use bitcoin::{AddressType, OutPoint, Txid, XOnlyPublicKey};
+use bitcoin::{AddressType, Amount, OutPoint, Txid, XOnlyPublicKey};
 use bitcoin_vault::{
     BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
     BuildUnstakingWithOnlyCovenantsParams, PreviousStakingUTXO, Signing, Staking, TaprootTreeType,
-    Unstaking, UnstakingType, VaultManager,
+    Unstaking, UnstakingOutput, UnstakingType, VaultManager,
 };
 use bitcoincore_rpc::json::GetTransactionResult;
 
@@ -90,26 +90,37 @@ impl<'staking> TestSuite<'staking> {
 
         let utxo = get_approvable_utxos(&self.rpc, &self.user_address, amount);
 
-        let fee = get_fee(outputs.len() as u64);
-
-        let change =
-            utxo.amount.to_sat() - outputs.iter().map(|o| o.value.to_sat()).sum::<u64>() - fee;
-
         let mut unsigned_tx = Transaction {
             version: transaction::Version::TWO,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn {
                 previous_output: OutPoint::new(utxo.txid, utxo.vout),
                 script_sig: ScriptBuf::default(),
-                sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+                sequence: Sequence::MAX,
                 witness: Witness::new(),
             }],
             output: outputs,
         };
 
-        if change > 0 {
+        let fee = self.manager.calculate_transaction_fee(
+            unsigned_tx.input.len() as u64,
+            unsigned_tx.output.len() as u64,
+            get_fee_rate(),
+        );
+
+        println!("fee: {:?}", fee);
+
+        let total_output_value = unsigned_tx
+            .output
+            .iter()
+            .map(|o| o.value.to_sat())
+            .sum::<u64>();
+
+        let change = utxo.amount - Amount::from_sat(total_output_value) - fee;
+
+        if change > Amount::ZERO {
             unsigned_tx.output.push(TxOut {
-                value: bitcoin::Amount::from_sat(change),
+                value: change,
                 script_pubkey: self.user_address().script_pubkey(),
             });
         }
@@ -211,26 +222,21 @@ impl<'a> TestSuite<'a> {
     ) -> Psbt {
         let vout: usize = 0;
 
-        let fee = get_fee(3);
-
         <VaultManager as Unstaking>::build(
             &self.manager,
             &BuildUnstakingParams {
-                inputs: vec![PreviousStakingUTXO {
+                input: PreviousStakingUTXO {
                     outpoint: OutPoint::new(staking_tx.compute_txid(), vout as u32),
                     amount_in_sats: staking_tx.output[vout].value,
                     script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
-                }],
-
-                unstaking_output: TxOut {
-                    value: staking_tx.output[vout].value - bitcoin::Amount::from_sat(fee),
-                    script_pubkey: self.user_address().script_pubkey(),
                 },
+                locking_script: self.user_address().script_pubkey(),
                 user_pub_key: self.user_pubkey(),
                 protocol_pub_key: self.protocol_pubkey(),
                 covenant_pub_keys: self.covenant_pubkeys(),
                 covenant_quorum: self.env.covenant_quorum,
                 have_only_covenants: have_only_covenants.unwrap_or(self.env.have_only_covenants),
+                fee_rate: get_fee_rate(),
                 rbf: true,
             },
             unstaking_type,
@@ -238,25 +244,30 @@ impl<'a> TestSuite<'a> {
         .unwrap()
     }
 
-    pub fn build_only_covenants_unstaking_tx(&self, staking_tx: &Transaction) -> Psbt {
+    pub fn build_only_covenants_unstaking_tx(
+        &self,
+        staking_txs: &[Transaction],
+        amount: Option<Amount>,
+    ) -> Psbt {
         let vout: usize = 0;
-        let fee = get_fee(3);
-
         <VaultManager as Unstaking>::build_with_only_covenants(
             &self.manager,
             &BuildUnstakingWithOnlyCovenantsParams {
-                inputs: vec![PreviousStakingUTXO {
-                    outpoint: OutPoint::new(staking_tx.compute_txid(), vout as u32),
-                    amount_in_sats: staking_tx.output[vout].value,
-                    script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
-                }],
-
-                unstaking_output: TxOut {
-                    value: staking_tx.output[vout].value - bitcoin::Amount::from_sat(fee),
-                    script_pubkey: self.user_address().script_pubkey(),
+                inputs: staking_txs
+                    .iter()
+                    .map(|t| PreviousStakingUTXO {
+                        outpoint: OutPoint::new(t.compute_txid(), vout as u32),
+                        amount_in_sats: t.output[vout].value,
+                        script_pubkey: t.output[vout].script_pubkey.clone(),
+                    })
+                    .collect(),
+                unstaking_output: UnstakingOutput {
+                    amount_in_sats: amount.unwrap_or(staking_txs[0].output[vout].value),
+                    locking_script: self.user_address().script_pubkey(),
                 },
                 covenant_pub_keys: self.covenant_pubkeys(),
                 covenant_quorum: self.env.covenant_quorum,
+                fee_rate: get_fee_rate(),
                 rbf: true,
             },
         )

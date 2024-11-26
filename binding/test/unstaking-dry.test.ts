@@ -105,6 +105,7 @@ describe("Vault-Unstaking", () => {
         covenantPubkeys: testSuite.custodialPubkeys,
         covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
         haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
+        feeRate: BigInt(feeRate),
         rbf: true,
       };
 

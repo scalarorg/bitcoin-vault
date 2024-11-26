@@ -47,6 +47,7 @@ export type TBuildUnsignedUnstakingUserProtocolPsbt = {
   covenantPubkeys: Uint8Array;
   covenantQuorum: number;
   haveOnlyCovenants: boolean;
+  feeRate: bigint;
   rbf: boolean;
 };
 
@@ -58,5 +59,6 @@ export type TBuildUnsignedUnstakingWithOnlyCovenantsPsbt = {
   covenantPubkeys: Uint8Array;
   covenantQuorum: number;
   haveOnlyCovenants: boolean;
+  feeRate: bigint;
   rbf: boolean;
 };

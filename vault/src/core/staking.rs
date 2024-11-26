@@ -158,6 +158,6 @@ impl VaultManager {
         &self,
         params: &LockingScriptWithOnlyCovenantsParams,
     ) -> Result<LockingScript, CoreError> {
-        Ok(LockingScript::new_with_only_covenants(self.secp(), params)?)
+        LockingScript::new_with_only_covenants(self.secp(), params)
     }
 }

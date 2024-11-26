@@ -52,7 +52,7 @@ fn test_user_protocol_unstaking() {
 fn test_covenants_user_unstaking() {
     let suite = TestSuite::new();
 
-    let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::ManyBranchNoCovenants, None);
+    let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::ManyBranchNoCovenants, None);
 
     let mut unstaked_psbt =
         suite.build_unstaking_tx(&staking_tx, UnstakingType::CovenantsUser, None);
@@ -92,7 +92,7 @@ fn test_covenants_user_unstaking() {
 #[test]
 fn test_covenants_protocol_unstaking() {
     let suite = TestSuite::new();
-    let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::ManyBranchNoCovenants, None);
+    let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::ManyBranchNoCovenants, None);
     let mut unstaked_psbt =
         suite.build_unstaking_tx(&staking_tx, UnstakingType::CovenantsProtocol, None);
 

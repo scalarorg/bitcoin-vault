@@ -2,6 +2,8 @@ import Client from "bitcoin-core-ts";
 import * as bitcoin from "bitcoinjs-lib";
 import { z } from "zod";
 import {
+  ChainType,
+  DestinationChain,
   getAddressUtxos,
   getMempoolClient,
   hexToBytes,
@@ -165,7 +167,10 @@ export const setupStakingTx = async () => {
     custodialPubkeys: TestSuite.custodialPubkeys,
     covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
     haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
-    destinationChain: StaticEnv.DEST_CHAIN_ID,
+    destinationChain: new DestinationChain(
+      ChainType.EVM,
+      BigInt(StaticEnv.DEST_CHAIN_ID)
+    ),
     destinationContractAddress: hexToBytes(
       StaticEnv.DEST_SMART_CONTRACT_ADDRESS
     ),

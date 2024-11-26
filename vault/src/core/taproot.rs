@@ -300,3 +300,9 @@ impl TaprootTree {
         self.root.merkle_root()
     }
 }
+
+impl TaprootTree {
+    pub fn into_script(self, secp: &Secp256k1<All>) -> ScriptBuf {
+        ScriptBuf::new_p2tr(secp, self.internal_key(), self.merkle_root())
+    }
+}

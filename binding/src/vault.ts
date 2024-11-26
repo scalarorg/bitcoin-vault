@@ -150,21 +150,15 @@ export class VaultUtils {
       params.input.value
     );
 
-    const inputs = [input];
-
-    const output = new UnstakingOutput(
-      params.output.script,
-      params.output.value
-    );
-
     return this.wasm.build_user_protocol_spend(
-      inputs,
-      output,
+      input,
+      params.output.script,
       params.stakerPubkey,
       params.protocolPubkey,
       params.covenantPubkeys,
       params.covenantQuorum,
       params.haveOnlyCovenants,
+      params.feeRate,
       params.rbf
     );
   };
@@ -249,6 +243,7 @@ export class VaultUtils {
       output,
       params.covenantPubkeys,
       params.covenantQuorum,
+      params.feeRate,
       params.rbf
     );
   };

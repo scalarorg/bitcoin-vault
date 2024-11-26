@@ -45,4 +45,6 @@ pub enum CoreError {
     CannotConvertOpReturnDataToSlice,
     #[error("Invalid taproot tree type")]
     InvalidTaprootTreeType,
+    #[error("Insufficient funds")]
+    InsufficientFunds,
 }

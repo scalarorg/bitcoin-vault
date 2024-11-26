@@ -1,5 +1,6 @@
 mod constants;
 mod errors;
+mod fee;
 mod manager;
 mod psbt;
 mod scripts;
