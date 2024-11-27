@@ -218,7 +218,6 @@ mod tests {
             let tx: Transaction = bitcoin::consensus::deserialize(&tx_bytes).unwrap();
             // Now you can test VaultReturnTxOutput conversion
             let vault_return = VaultReturnTxOutput::try_from(&tx.output[1]).unwrap();
-            println!("vault_return: {:?}", vault_return);
         }
     }
 }

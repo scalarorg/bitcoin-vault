@@ -1,7 +1,7 @@
 import { getAddressUtxos, sendrawtransaction } from "../src/client";
 
 import { describe, it } from "bun:test";
-import { bytesToHex, hexToBytes } from "../src";
+import { bytesToHex, ChainType, DestinationChain, hexToBytes } from "../src";
 import { logToJSON, setUpTest, StaticEnv } from "./util";
 
 //Start local regtest bitcoin node before running the test
@@ -44,7 +44,10 @@ describe("Vault-Staking", async () => {
         custodialPubkeys: TestSuite.custodialPubkeys,
         covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
         haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
-        destinationChain: StaticEnv.DEST_CHAIN_ID,
+        destinationChain: new DestinationChain(
+          ChainType.EVM,
+          StaticEnv.DEST_CHAIN_ID
+        ),
         destinationContractAddress: hexToBytes(
           StaticEnv.DEST_SMART_CONTRACT_ADDRESS
         ),

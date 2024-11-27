@@ -13,9 +13,6 @@ impl VaultManager {
         num_outputs: u64,
         fee_rate: u64,
     ) -> Amount {
-        println!("num_inputs: {}", num_inputs);
-        println!("num_outputs: {}", num_outputs);
-        println!("fee_rate: {}", fee_rate);
         bitcoin::Amount::from_sat(VaultManager::get_fee(num_inputs, num_outputs, fee_rate))
     }
 }

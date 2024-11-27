@@ -132,12 +132,6 @@ impl Unstaking for VaultManager {
             .map(|input| input.amount_in_sats)
             .sum::<Amount>();
 
-        println!("sum_of_inputs: {}", sum_of_inputs);
-        println!(
-            "params.unstaking_output.amount_in_sats: {}",
-            params.unstaking_output.amount_in_sats
-        );
-
         let change = sum_of_inputs - params.unstaking_output.amount_in_sats;
         if change > Amount::ZERO {
             tx_builder.add_output(change, only_covenants_script);
@@ -184,7 +178,6 @@ impl VaultManager {
 
         let tap_scripts = self.create_tap_scripts(tree, branch);
 
-        // 5. Create psbt input
         self.create_psbt_inputs(inputs, tree, &tap_scripts, &tap_key_origins)
     }
 

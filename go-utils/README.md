@@ -16,8 +16,9 @@ Then, import the package in your Go code:
 import "github.com/scalarorg/bitcoin-vault/go-utils"
 ```
 
-
 ## Modules
 
 - [EVM](./evm.go)
-    - Payload Hash logic
+  - Payload Hash logic
+- [CHAIN](./chain.go)
+  - Chain utilities
