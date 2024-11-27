@@ -2,7 +2,10 @@ use bitcoin::{secp256k1::All, Amount, Psbt};
 use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, VaultManager};
 use bitcoincore_rpc::jsonrpc::base64;
 
-use crate::{log_tx_result, TestSuite};
+mod common;
+
+use crate::common::log_tx_result;
+use crate::common::TestSuite;
 
 // cargo test --package bitcoin-vault --test mod -- test_only_covenants::test_staking --exact
 #[test]

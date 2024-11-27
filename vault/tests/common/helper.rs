@@ -85,9 +85,9 @@ pub fn get_approvable_utxos(
     utxos[0].clone()
 }
 
-pub fn get_fee(n_outputs: u64) -> u64 {
-    (148 + (34 * n_outputs) + 12) * get_fee_rate()
-}
+// pub fn get_fee(n_outputs: u64) -> u64 {
+//     (148 + (34 * n_outputs) + 12) * get_fee_rate()
+// }
 
 pub fn get_fee_rate() -> u64 {
     1

@@ -1,7 +1,10 @@
 use bitcoin::{secp256k1::All, Psbt};
 use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, UnstakingType, VaultManager};
 
-use crate::{log_tx_result, suite::*};
+mod common;
+
+use crate::common::log_tx_result;
+use crate::common::TestSuite;
 
 // cargo test --package bitcoin-vault --test mod -- test_e2e::test_staking --exact --show-output
 #[test]

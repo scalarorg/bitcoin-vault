@@ -1,7 +1,7 @@
-use bitcoin::hex::DisplayHex;
 use bitcoin_vault::LockingScriptWithOnlyCovenantsParams;
 
-use crate::TestSuite;
+mod common;
+use crate::common::TestSuite;
 
 // cargo test --package bitcoin-vault --test mod -- test_scripts::test_only_covenants_locking_script --exact --show-output
 #[test]
@@ -15,8 +15,5 @@ fn test_only_covenants_locking_script() {
         })
         .unwrap();
 
-    println!(
-        "script: {:?}",
-        script.into_script().to_bytes().to_lower_hex_string()
-    );
+    println!("script: {:?}", script.into_script().to_bytes());
 }
