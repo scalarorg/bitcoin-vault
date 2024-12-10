@@ -25,3 +25,4 @@ Cargo
 /target
 node_modules
 .bitcoin
+.DS_Store

@@ -12,7 +12,7 @@ run() {
         -u root \
         -w /root/.bitcoin \
         --entrypoint /bin/sh \
-        lncm/bitcoind:v25.0 /root/bitcoin.sh entrypoint
+        lncm/bitcoind:v26.1 /root/bitcoin.sh entrypoint
 }
 
 createwallet_descriptors() {
