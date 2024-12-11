@@ -198,3 +198,35 @@ pub unsafe extern "C" fn aggregate_tap_script_sigs(
     std::mem::forget(output); // Prevent deallocation
     buffer
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn finalize_psbt_and_extract_tx(
+    psbt_bytes: *const u8,
+    psbt_len: usize,
+) -> ByteBuffer {
+    if psbt_bytes.is_null() {
+        return create_null_buffer();
+    }
+
+    let psbt_slice = slice::from_raw_parts(psbt_bytes, psbt_len);
+
+    let mut psbt = match Psbt::deserialize(psbt_slice) {
+        Ok(psbt) => psbt,
+        Err(_) => return create_null_buffer(),
+    };
+
+    let tx_hex = match VaultManager::finalize_psbt_and_extract_tx(&mut psbt) {
+        Ok(tx_hex) => tx_hex,
+        Err(_) => return create_null_buffer(),
+    };
+
+    // Allocate and copy the result
+    let mut output = Vec::with_capacity(tx_hex.len());
+    output.extend_from_slice(&tx_hex);
+    let buffer = ByteBuffer {
+        data: output.as_mut_ptr(),
+        len: output.len(),
+    };
+    std::mem::forget(output); // Prevent deallocation
+    buffer
+}

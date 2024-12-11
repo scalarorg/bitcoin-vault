@@ -3,7 +3,6 @@ package vault
 /*
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 typedef struct {
     uint8_t key_x_only[32];

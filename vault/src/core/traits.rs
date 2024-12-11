@@ -35,6 +35,8 @@ pub trait Unstaking {
 pub trait Signing {
     type PsbtHex;
 
+    type TxHex;
+
     fn sign_psbt_by_single_key(
         psbt: &mut Psbt,
         privkey: &[u8],
@@ -52,6 +54,8 @@ pub trait Signing {
         psbt: &mut Psbt,
         tap_script_sigs: &[TapScriptSig],
     ) -> Result<Self::PsbtHex, CoreError>;
+
+    fn finalize_psbt_and_extract_tx(psbt: &mut Psbt) -> Result<Self::TxHex, CoreError>;
 }
 
 pub trait BuildUserProtocolBranch {

@@ -92,6 +92,8 @@ impl TapScriptSig {
 impl Signing for VaultManager {
     type PsbtHex = Vec<u8>;
 
+    type TxHex = Vec<u8>;
+
     fn sign_psbt_by_single_key(
         psbt: &mut Psbt,
         privkey: &[u8],
@@ -152,5 +154,14 @@ impl Signing for VaultManager {
         }
 
         Ok(psbt.serialize())
+    }
+
+    fn finalize_psbt_and_extract_tx(psbt: &mut Psbt) -> Result<Self::TxHex, CoreError> {
+        <Psbt as SignByKeyMap<All>>::finalize(psbt);
+        let tx = psbt
+            .clone()
+            .extract_tx()
+            .map_err(|_| CoreError::FailedToExtractTx)?;
+        Ok(serialize(&tx))
     }
 }

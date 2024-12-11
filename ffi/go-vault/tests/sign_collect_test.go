@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/hex"
+	"log"
 	"testing"
 
 	"github.com/scalarorg/bitcoin-vault/ffi/go-vault"
@@ -96,4 +97,11 @@ func TestSignPsbtAndCollectSigs(t *testing.T) {
 	}
 
 	t.Logf("AggregateTapScriptSigs passed")
+
+	tx, err := vault.FinalizePsbtAndExtractTx(psbtBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	t.Logf("Tx: %x", tx)
 }
