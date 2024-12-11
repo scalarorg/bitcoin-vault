@@ -1,6 +1,6 @@
 use bitcoin::Psbt;
-use bitcoin_vault::Signing;
-use bitcoin_vault::VaultManager;
+use bitcoin_vault::TapScriptSigSerialized;
+use bitcoin_vault::{Signing, TapScriptSig, VaultManager};
 use std::slice;
 
 use crate::create_null_buffer;
@@ -98,6 +98,7 @@ pub unsafe extern "C" fn sign_psbt_and_collect_sigs(
 
     // Convert raw pointers to slices
     let psbt_slice = slice::from_raw_parts(psbt_bytes, psbt_len);
+
     let privkey_slice = slice::from_raw_parts(privkey_bytes, privkey_len);
 
     // Parse PSBT
@@ -140,4 +141,60 @@ pub unsafe extern "C" fn sign_psbt_and_collect_sigs(
     std::mem::forget(boxed_slice);
 
     TapScriptSigFFIArray { data, len }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn aggregate_tap_script_sigs(
+    psbt_bytes: *const u8,
+    psbt_len: usize,
+    tap_script_sigs: *const TapScriptSigFFI,
+    tap_script_sigs_len: usize,
+) -> ByteBuffer {
+    // Safety checks for null pointers
+    if psbt_bytes.is_null() || tap_script_sigs.is_null() {
+        return create_null_buffer();
+    }
+
+    // Convert raw pointers to slices
+    let psbt_slice = slice::from_raw_parts(psbt_bytes, psbt_len);
+    let tap_script_sigs_slice = slice::from_raw_parts(tap_script_sigs, tap_script_sigs_len);
+
+    // Parse PSBT
+    let mut psbt = match Psbt::deserialize(psbt_slice) {
+        Ok(psbt) => psbt,
+        Err(_) => return create_null_buffer(),
+    };
+
+    // Convert FFI TapScriptSigs to internal TapScriptSig format
+    let tap_script_sigs: Vec<TapScriptSig> = tap_script_sigs_slice
+        .iter()
+        .map(|ffi_sig| {
+            TapScriptSig::from_serialized(TapScriptSigSerialized {
+                key: ffi_sig.key_x_only,
+                leaf_hash: ffi_sig.leaf_hash,
+                signature: ffi_sig.signature,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap_or_default();
+
+    // Aggregate signatures
+    if let Err(_) = VaultManager::aggregate_tap_script_sigs(&mut psbt, &tap_script_sigs) {
+        return create_null_buffer();
+    }
+
+    let psbt_hex = match VaultManager::aggregate_tap_script_sigs(&mut psbt, &tap_script_sigs) {
+        Ok(psbt_hex) => psbt_hex,
+        Err(_) => return create_null_buffer(),
+    };
+
+    // Allocate and copy the result
+    let mut output = Vec::with_capacity(psbt_hex.len());
+    output.extend_from_slice(&psbt_hex);
+    let buffer = ByteBuffer {
+        data: output.as_mut_ptr(),
+        len: output.len(),
+    };
+    std::mem::forget(output); // Prevent deallocation
+    buffer
 }

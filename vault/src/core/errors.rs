@@ -53,4 +53,8 @@ pub enum CoreError {
     InvalidSignatureSize,
     #[error("Failed to encode leaf hash")]
     FailedToEncodeLeafHash,
+    #[error("Invalid public key")]
+    InvalidPublicKey,
+    #[error("Invalid leaf hash")]
+    InvalidLeafHash,
 }

@@ -244,6 +244,11 @@ mod test_only_covenants {
             final_psbt.inputs[1].tap_script_sigs
         );
 
+        let psbt_bytes = final_psbt.serialize();
+        let psbt_hex = hex::encode(psbt_bytes.clone());
+        println!("psbt_hex: {}", psbt_hex);
+        println!("psbt_bytes: {:?}", psbt_bytes);
+
         // Finalize and send
         <Psbt as SignByKeyMap<All>>::finalize(&mut final_psbt);
         let result = suite.send_psbt_by_rpc(final_psbt).unwrap();

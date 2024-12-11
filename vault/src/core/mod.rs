@@ -16,6 +16,7 @@ pub use errors::*;
 pub use manager::*;
 pub use psbt::*;
 pub use scripts::*;
+pub use signing::*;
 pub use staking::*;
 pub use taproot::*;
 pub use traits::*;

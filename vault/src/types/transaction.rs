@@ -14,6 +14,7 @@ pub struct VaultLockTxOutput {
     pub amount: Amount,
     pub script_pubkey: ScriptBuf,
 }
+
 impl From<&TxOut> for VaultLockTxOutput {
     fn from(txo: &TxOut) -> Self {
         Self {

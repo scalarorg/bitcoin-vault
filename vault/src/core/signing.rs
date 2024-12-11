@@ -1,10 +1,11 @@
 use super::SignByKeyMap;
 use bitcoin::{
-    consensus::serialize, key::Secp256k1, secp256k1::All, taproot, NetworkKind, Psbt, TapLeafHash,
-    XOnlyPublicKey,
+    consensus::{serialize, Encodable},
+    hashes::Hash,
+    key::Secp256k1,
+    secp256k1::All,
+    taproot, NetworkKind, Psbt, TapLeafHash, XOnlyPublicKey,
 };
-
-use bitcoin::consensus::Encodable;
 
 use lazy_static::lazy_static;
 
@@ -72,6 +73,20 @@ impl TapScriptSig {
             signature,
         })
     }
+
+    pub fn from_serialized(serialized: TapScriptSigSerialized) -> Result<Self, CoreError> {
+        let key =
+            XOnlyPublicKey::from_slice(&serialized.key).map_err(|_| CoreError::InvalidPublicKey)?;
+        let leaf_hash = TapLeafHash::from_slice(&serialized.leaf_hash)
+            .map_err(|_| CoreError::InvalidLeafHash)?;
+        let sig = taproot::Signature::from_slice(&serialized.signature)
+            .map_err(|_| CoreError::InvalidSignatureSize)?;
+
+        Ok(Self {
+            key_and_leaf_hash: (key, leaf_hash),
+            sig,
+        })
+    }
 }
 
 impl Signing for VaultManager {
@@ -125,7 +140,7 @@ impl Signing for VaultManager {
     fn aggregate_tap_script_sigs(
         psbt: &mut Psbt,
         tap_script_sigs: &[TapScriptSig],
-    ) -> Result<(), CoreError> {
+    ) -> Result<Self::PsbtHex, CoreError> {
         if psbt.inputs.len() != tap_script_sigs.len() {
             return Err(CoreError::MismatchBetweenNumberOfInputsAndTapScriptSigs);
         }
@@ -136,6 +151,6 @@ impl Signing for VaultManager {
                 .insert(*tap_script_sig.key_and_leaf_hash(), *tap_script_sig.sig());
         }
 
-        Ok(())
+        Ok(psbt.serialize())
     }
 }

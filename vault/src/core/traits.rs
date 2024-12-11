@@ -51,7 +51,7 @@ pub trait Signing {
     fn aggregate_tap_script_sigs(
         psbt: &mut Psbt,
         tap_script_sigs: &[TapScriptSig],
-    ) -> Result<(), CoreError>;
+    ) -> Result<Self::PsbtHex, CoreError>;
 }
 
 pub trait BuildUserProtocolBranch {
