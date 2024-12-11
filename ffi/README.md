@@ -43,3 +43,13 @@ For Linux environments, you can run tests in Docker:
 ```bash
 make test-docker
 ```
+
+## How to add new functions
+
+1. Add the module to the `src/lib.rs` file
+2. Add the type to the `src/types.rs` file
+3. Add the memory management functions to the `src/memory.rs` file
+4. Add the function to the `src/ffi.rs` file
+5. Add the ffi function to `go-vault`
+6. Build the library and copy the files to the `go-vault` directory
+7. Add tests to the `go-vault` directory

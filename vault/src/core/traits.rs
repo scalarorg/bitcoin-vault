@@ -1,8 +1,9 @@
 use bitcoin::{NetworkKind, Psbt, XOnlyPublicKey};
 
 use super::{
-    BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
-    BuildUnstakingWithOnlyCovenantsParams, CoreError, StakingOutput, UnstakingType,
+    signing::TapScriptSig, BuildStakingParams, BuildStakingWithOnlyCovenantsParams,
+    BuildUnstakingParams, BuildUnstakingWithOnlyCovenantsParams, CoreError, StakingOutput,
+    UnstakingType,
 };
 
 pub trait Staking {
@@ -40,6 +41,17 @@ pub trait Signing {
         network_kind: NetworkKind,
         finalize: bool,
     ) -> Result<Self::PsbtHex, CoreError>;
+
+    fn sign_psbt_and_collect_tap_script_sigs(
+        psbt: &mut Psbt,
+        privkey: &[u8],
+        network_kind: NetworkKind,
+    ) -> Result<Vec<TapScriptSig>, CoreError>;
+
+    fn aggregate_tap_script_sigs(
+        psbt: &mut Psbt,
+        tap_script_sigs: &[TapScriptSig],
+    ) -> Result<(), CoreError>;
 }
 
 pub trait BuildUserProtocolBranch {

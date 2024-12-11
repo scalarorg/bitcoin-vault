@@ -47,4 +47,10 @@ pub enum CoreError {
     InvalidTaprootTreeType,
     #[error("Insufficient funds")]
     InsufficientFunds,
+    #[error("Mismatch between number of inputs and tap script sigs")]
+    MismatchBetweenNumberOfInputsAndTapScriptSigs,
+    #[error("Invalid signature size, just support Sighash Default")]
+    InvalidSignatureSize,
+    #[error("Failed to encode leaf hash")]
+    FailedToEncodeLeafHash,
 }

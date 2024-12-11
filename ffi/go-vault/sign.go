@@ -23,7 +23,6 @@ void free_byte_buffer(ByteBuffer buffer);
 */
 import "C"
 import (
-	"fmt"
 	"unsafe"
 )
 
@@ -54,7 +53,7 @@ func SignPsbtBySingleKey(psbt []byte, privkey []byte, network NetworkKind, final
 	defer C.free_byte_buffer(result)
 
 	if result.data == nil || result.len == 0 {
-		return nil, fmt.Errorf("failed to sign PSBT: result is nil or empty")
+		return nil, ErrFailedToSign
 	}
 
 	return C.GoBytes(unsafe.Pointer(result.data), C.int(result.len)), nil
