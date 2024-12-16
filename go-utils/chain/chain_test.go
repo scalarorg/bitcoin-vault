@@ -78,7 +78,7 @@ func TestDestinationChain_Bytes_And_FromBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dc := &DestinationChain{
+			dc := &ChainInfo{
 				ChainType: tt.chainType,
 				ChainID:   tt.chainID,
 			}
@@ -95,7 +95,7 @@ func TestDestinationChain_Bytes_And_FromBytes(t *testing.T) {
 			t.Log("Test NewDestinationChainFromBytes()")
 
 			// Test NewDestinationChainFromBytes()
-			newDC := NewDestinationChainFromBytes(bytes)
+			newDC := NewChainInfoFromBytes(bytes)
 			if tt.shouldBeNil {
 				assert.Nil(t, newDC)
 			} else {
@@ -111,11 +111,11 @@ func TestDestinationChain_Bytes_And_FromBytes(t *testing.T) {
 
 	// Test with invalid length
 	invalidBytes := make([]byte, 7)
-	assert.Nil(t, NewDestinationChainFromBytes(invalidBytes))
+	assert.Nil(t, NewChainInfoFromBytes(invalidBytes))
 }
 
 func TestDestinationChain_JSON(t *testing.T) {
-	dc := &DestinationChain{
+	dc := &ChainInfo{
 		ChainType: ChainTypeBitcoin,
 		ChainID:   1,
 	}
@@ -127,7 +127,7 @@ func TestDestinationChain_JSON(t *testing.T) {
 	assert.NotNil(t, jsonBytes)
 
 	// Test UnmarshalJSON
-	var newDC DestinationChain
+	var newDC ChainInfo
 	err = json.Unmarshal(jsonBytes, &newDC)
 	assert.NoError(t, err)
 	assert.Equal(t, dc.ChainType, newDC.ChainType)

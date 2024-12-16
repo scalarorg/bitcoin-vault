@@ -28,14 +28,14 @@ func (ct ChainType) String() string {
 	}
 }
 
-type DestinationChain struct {
+type ChainInfo struct {
 	ChainType ChainType `json:"chain_type"`
 	ChainID   uint64    `json:"chain_id"`
 }
 
-type DestinationChainBytes = [8]byte
+type ChainInfoBytes = [8]byte
 
-func NewDestinationChainFromBytes(bytes []byte) *DestinationChain {
+func NewChainInfoFromBytes(bytes []byte) *ChainInfo {
 	if len(bytes) != 8 {
 		return nil
 	}
@@ -47,17 +47,17 @@ func NewDestinationChainFromBytes(bytes []byte) *DestinationChain {
 	bytes[0] = 0
 	chainID := binary.BigEndian.Uint64(bytes)
 
-	return &DestinationChain{
+	return &ChainInfo{
 		ChainType: chainType,
 		ChainID:   chainID,
 	}
 }
 
-func (dc *DestinationChain) ToBytes() DestinationChainBytes {
-	return DestinationChainBytes(dc.Bytes())
+func (dc *ChainInfo) ToBytes() ChainInfoBytes {
+	return ChainInfoBytes(dc.Bytes())
 }
 
-func (dc *DestinationChain) Bytes() []byte {
+func (dc *ChainInfo) Bytes() []byte {
 	chainIDBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(chainIDBytes, dc.ChainID)
 
