@@ -2,6 +2,7 @@ package chain
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 type ChainType uint8
@@ -68,6 +69,23 @@ func (dc *ChainInfo) Bytes() []byte {
 	copy(bytes[1:], chainIDBytes[1:])
 
 	return bytes
+}
+
+func (ChainInfo) Size() int {
+	return 8
+}
+
+func (c ChainInfo) MarshalTo(data []byte) (int, error) {
+	copy(data, c.Bytes())
+	return c.Size(), nil
+}
+
+func (c *ChainInfo) Unmarshal(data []byte) error {
+	if len(data) != c.Size() {
+		return fmt.Errorf("invalid data length")
+	}
+	copy(c.Bytes(), data)
+	return nil
 }
 
 func ValidateChainType(chainType ChainType) bool {
