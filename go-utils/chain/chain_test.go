@@ -173,3 +173,17 @@ func TestValidateChainType(t *testing.T) {
 		})
 	}
 }
+
+func TestChainInfoBytes_String(t *testing.T) {
+	chainInfo := &ChainInfo{
+		ChainType: ChainTypeBitcoin,
+		ChainID:   1,
+	}
+	assert.Equal(t, "Bitcoin|1", chainInfo.ToBytes().String())
+
+	evmChainInfo := &ChainInfo{
+		ChainType: ChainTypeEVM,
+		ChainID:   11155111,
+	}
+	assert.Equal(t, "EVM|11155111", evmChainInfo.ToBytes().String())
+}

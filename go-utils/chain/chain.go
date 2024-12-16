@@ -57,9 +57,21 @@ func (c ChainInfoBytes) Bytes() []byte {
 	return c[:]
 }
 
+func (c ChainInfoBytes) ChainType() ChainType {
+	return ChainType(c[0])
+}
+
+func (c ChainInfoBytes) ChainID() uint64 {
+	chainInfoBytes := make([]byte, 8)
+	copy(chainInfoBytes, c.Bytes())
+	chainInfoBytes[0] = 0
+	return binary.BigEndian.Uint64(chainInfoBytes)
+}
+
+const SEPARATOR = "|"
+
 func (c ChainInfoBytes) String() string {
-	bytes := c.Bytes()
-	return fmt.Sprintf("ChainType: %d, ChainID: %d", bytes[0], binary.BigEndian.Uint64(bytes[1:]))
+	return fmt.Sprintf("%s%s%d", c.ChainType(), SEPARATOR, c.ChainID())
 }
 
 func NewChainInfoFromBytes(bytes []byte) *ChainInfo {
