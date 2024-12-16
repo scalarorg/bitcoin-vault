@@ -34,7 +34,33 @@ type ChainInfo struct {
 	ChainID   uint64    `json:"chain_id"`
 }
 
-type ChainInfoBytes = [8]byte
+type ChainInfoBytes [8]byte
+
+func (ChainInfoBytes) Size() int {
+	return 8
+}
+
+func (c ChainInfoBytes) MarshalTo(data []byte) (int, error) {
+	copy(data, c.Bytes())
+	return c.Size(), nil
+}
+
+func (c *ChainInfoBytes) Unmarshal(data []byte) error {
+	if len(data) != c.Size() {
+		return fmt.Errorf("invalid data length")
+	}
+	copy(c.Bytes(), data)
+	return nil
+}
+
+func (c ChainInfoBytes) Bytes() []byte {
+	return c[:]
+}
+
+func (c ChainInfoBytes) String() string {
+	bytes := c.Bytes()
+	return fmt.Sprintf("ChainType: %d, ChainID: %d", bytes[0], binary.BigEndian.Uint64(bytes[1:]))
+}
 
 func NewChainInfoFromBytes(bytes []byte) *ChainInfo {
 	if len(bytes) != 8 {
