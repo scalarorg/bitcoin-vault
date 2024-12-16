@@ -2,6 +2,7 @@ package chain
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,27 +17,22 @@ func TestChainType_String(t *testing.T) {
 		{
 			name:      "Bitcoin chain type",
 			chainType: ChainTypeBitcoin,
-			want:      "Bitcoin",
+			want:      "bitcoin",
 		},
 		{
 			name:      "EVM chain type",
 			chainType: ChainTypeEVM,
-			want:      "EVM",
+			want:      "evm",
 		},
 		{
 			name:      "Solana chain type",
 			chainType: ChainTypeSolana,
-			want:      "Solana",
+			want:      "solana",
 		},
 		{
 			name:      "Cosmos chain type",
 			chainType: ChainTypeCosmos,
-			want:      "Cosmos",
-		},
-		{
-			name:      "Unknown chain type",
-			chainType: ChainType(99),
-			want:      "Unknown",
+			want:      "cosmos",
 		},
 	}
 
@@ -179,11 +175,20 @@ func TestChainInfoBytes_String(t *testing.T) {
 		ChainType: ChainTypeBitcoin,
 		ChainID:   1,
 	}
-	assert.Equal(t, "Bitcoin|1", chainInfo.ToBytes().String())
+	assert.Equal(t, "bitcoin|1", chainInfo.ToBytes().String())
 
 	evmChainInfo := &ChainInfo{
 		ChainType: ChainTypeEVM,
 		ChainID:   11155111,
 	}
-	assert.Equal(t, "EVM|11155111", evmChainInfo.ToBytes().String())
+	assert.Equal(t, "evm|11155111", evmChainInfo.ToBytes().String())
+}
+
+func TestChainInfoBytes_FromString(t *testing.T) {
+	chainInfoBytes := ChainInfoBytes{}
+	err := chainInfoBytes.FromString("bitcoin|2")
+	assert.NoError(t, err)
+	fmt.Printf("chainInfoBytes: %x\n", chainInfoBytes.Bytes())
+	assert.Equal(t, ChainTypeBitcoin, chainInfoBytes.ChainType())
+	assert.Equal(t, uint64(2), chainInfoBytes.ChainID())
 }

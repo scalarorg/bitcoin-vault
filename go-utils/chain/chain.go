@@ -3,6 +3,8 @@ package chain
 import (
 	"encoding/binary"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 type ChainType uint8
@@ -14,19 +16,38 @@ const (
 	ChainTypeCosmos                   // 0x03
 )
 
+const (
+	ChainTypeBitcoinStr = "bitcoin"
+	ChainTypeEVMStr     = "evm"
+	ChainTypeSolanaStr  = "solana"
+	ChainTypeCosmosStr  = "cosmos"
+)
+
+var ChainTypeString = map[ChainType]string{
+	ChainTypeBitcoin: ChainTypeBitcoinStr,
+	ChainTypeEVM:     ChainTypeEVMStr,
+	ChainTypeSolana:  ChainTypeSolanaStr,
+	ChainTypeCosmos:  ChainTypeCosmosStr,
+}
+
+var ChainTypeFromString = map[string]ChainType{
+	ChainTypeBitcoinStr: ChainTypeBitcoin,
+	ChainTypeEVMStr:     ChainTypeEVM,
+	ChainTypeSolanaStr:  ChainTypeSolana,
+	ChainTypeCosmosStr:  ChainTypeCosmos,
+}
+
 func (ct ChainType) String() string {
-	switch ct {
-	case ChainTypeBitcoin:
-		return "Bitcoin"
-	case ChainTypeEVM:
-		return "EVM"
-	case ChainTypeSolana:
-		return "Solana"
-	case ChainTypeCosmos:
-		return "Cosmos"
-	default:
-		return "Unknown"
+	return ChainTypeString[ct]
+}
+
+func (ct *ChainType) FromString(s string) error {
+	chainType, ok := ChainTypeFromString[s]
+	if !ok {
+		return fmt.Errorf("invalid chain type")
 	}
+	*ct = chainType
+	return nil
 }
 
 type ChainInfo struct {
@@ -72,6 +93,31 @@ const SEPARATOR = "|"
 
 func (c ChainInfoBytes) String() string {
 	return fmt.Sprintf("%s%s%d", c.ChainType(), SEPARATOR, c.ChainID())
+}
+
+func (c *ChainInfoBytes) FromString(s string) error {
+	parts := strings.Split(s, SEPARATOR)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid format")
+	}
+
+	var chainType ChainType
+	err := chainType.FromString(parts[0])
+	if err != nil {
+		return fmt.Errorf("invalid chain type")
+	}
+
+	chainID, err := strconv.ParseUint(parts[1], 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid chain id")
+	}
+
+	c[0] = byte(chainType)
+
+	chainIDBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(chainIDBytes, chainID)
+	copy(c[1:], chainIDBytes[1:])
+	return nil
 }
 
 func NewChainInfoFromBytes(bytes []byte) *ChainInfo {
