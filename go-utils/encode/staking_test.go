@@ -1,10 +1,10 @@
-package evm_test
+package encode_test
 
 import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/scalarorg/bitcoin-vault/go-utils/evm"
+	"github.com/scalarorg/bitcoin-vault/go-utils/encode"
 )
 
 func TestCalculateStakingPayloadHash(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCalculateStakingPayloadHash(t *testing.T) {
 	var sourceTx [32]byte
 	copy(sourceTx[:], sourceTxHash)
 
-	payloadBytes, payloadHash, _ := evm.CalculateStakingPayloadHash(sender, amount, sourceTx)
+	payloadBytes, payloadHash, _ := encode.CalculateStakingPayloadHash(sender, amount, sourceTx)
 
 	t.Logf("Payload bytes: %x", payloadBytes)
 	t.Logf("Payload hash: %x", payloadHash)

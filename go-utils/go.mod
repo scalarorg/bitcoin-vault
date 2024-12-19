@@ -3,6 +3,7 @@ module github.com/scalarorg/bitcoin-vault/go-utils
 go 1.23
 
 require (
+	github.com/gogo/protobuf v1.3.2
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.22.0
 )
