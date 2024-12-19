@@ -1,6 +1,6 @@
 {
   "name": "@scalar-lab/bitcoin-vault",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "license": "MIT",
   "type": "module",
   "module": "dist/index.js",
@@ -30,13 +30,13 @@
     "bitcoinjs-lib": "^7.0.0-rc.0",
     "ecpair": "^3.0.0-rc.0",
     "tiny-secp256k1": "^2.2.3",
+    "viem": "^2.21.55",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bun": "^1.1.12",
     "barrelsby": "^2.8.1",
     "dts-bundle-generator": "^9.5.1",
-    "ethers": "^6.13.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   },

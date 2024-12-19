@@ -3,4 +3,5 @@
  */
 
 export * from './bitcoin';
+export * from './fee';
 export * from './params';
