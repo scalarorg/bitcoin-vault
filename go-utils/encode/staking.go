@@ -30,7 +30,7 @@ func CalculateStakingPayloadHash(
 	// 2. uint256: left-pad to 32 bytes
 	// 3. bytes32: already 32 bytes
 
-	encodedPayload, err := stakingPayload.Pack(destRecipient, amount, sourceTxHash)
+	encodedPayload, err := executePayload.Pack(destRecipient, amount, sourceTxHash)
 	if err != nil {
 		return nil, nil, err
 	}

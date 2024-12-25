@@ -1,44 +1,103 @@
 package encode_test
 
 import (
+	"bytes"
 	"encoding/hex"
-	"fmt"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/scalarorg/bitcoin-vault/go-utils/encode"
 	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-/*
-CalculateUnstakingPayloadHash hashes the unstaking payload
-It applies the dynamic abi encoding rules
+var (
+	lockingScript, _ = hex.DecodeString("1234567890123456789012345678901234567890123456789012345678901234567890")
+	amount           = uint64(7)
+	feeOpts          = types.FastestFee.Bytes()
 
-- locking_script: [20]byte (address)
+	expectedEncodedMetadata, _ = hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000231234567890123456789012345678901234567890123456789012345678901234567890000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010400000000000000000000000000000000000000000000000000000000000000")
 
-- amount: int64 (amount in satoshis)
+	senderAddress         = common.HexToAddress("0x1234567890123456789012345678901234567890")
+	sourceContractAddress = common.HexToAddress("0x9876543210987654321098765432109876543210")
+	symbol                = "BTC"
 
-- fee_opts: types.BTCFeeOpts (fee options)
-*/
+	expectedPayload, _ = hex.DecodeString("00000000000000000000000012345678901234567890123456789012345678900000000000000000000000009876543210987654321098765432109876543210000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000003425443000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000231234567890123456789012345678901234567890123456789012345678901234567890000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010400000000000000000000000000000000000000000000000000000000000000")
+)
+
 func TestCalculateUnstakingPayloadHash(
 	t *testing.T,
 ) {
-	lockingScript, _ := hex.DecodeString("1234567890123456789012345678901234567890123456789012345678901234567890")
-	amount := uint64(7)
-	feeOpts := types.FastestFee
-
-	payload, hash, err := encode.CalculateUnstakingPayloadHash(lockingScript, amount, feeOpts)
+	payload, hash, err := encode.CalculateTransferRemoteMetadataPayloadHash(amount, lockingScript, feeOpts[:])
 	if err != nil {
 		t.Fatalf("Error calculating unstaking payload hash: %v", err)
 	}
 
-	payloadString := hex.EncodeToString(payload)
-
-	fmt.Println("payloadString: ", payloadString)
-
-	if payloadString != "000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000070400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002312345678901234567890123456789012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000" {
+	if !bytes.Equal(payload, expectedEncodedMetadata) {
 		t.Fatalf("Payload does not match expected value")
 	}
 
 	t.Logf("Payload: %x", payload)
 	t.Logf("Hash: %x", hash)
+
+	payload, hash, err = encode.CalculateTransferRemotePayloadHash(senderAddress, sourceContractAddress, symbol, expectedEncodedMetadata)
+	if err != nil {
+		t.Fatalf("Error calculating unstaking payload hash: %v", err)
+	}
+
+	if !bytes.Equal(payload, expectedPayload) {
+		t.Logf("Payload: %x", payload)
+		t.Fatal("Failed to encode payload")
+	}
+
+	t.Logf("Payload: %x", payload)
+	t.Logf("Hash: %x", hash)
+}
+
+func TestDecodeTransferRemotePayload(t *testing.T) {
+	sender, contract, symbol, metadata, err := encode.DecodeTransferRemotePayload(expectedPayload)
+	if err != nil {
+		t.Fatalf("Error decoding transfer remote payload: %v", err)
+	}
+
+	t.Logf("Sender Address: %x", sender)
+	t.Logf("Source Contract Address: %x", contract)
+	t.Logf("Symbol: %s", symbol)
+	t.Logf("Metadata: %x", metadata)
+
+	if !bytes.Equal(metadata, expectedEncodedMetadata) {
+		t.Fatalf("Metadata does not match expected value")
+	}
+
+	if sender != senderAddress {
+		t.Fatalf("Sender address does not match expected value")
+	}
+
+	if contract != sourceContractAddress {
+		t.Fatalf("Source contract address does not match expected value")
+	}
+
+	if symbol != "BTC" {
+		t.Fatalf("Symbol does not match expected value")
+	}
+
+	amount, recipientChainIdentifier, metadata, err := encode.DecodeTransferRemoteMetadataPayload(expectedEncodedMetadata)
+	if err != nil {
+		t.Fatalf("Error decoding transfer remote metadata payload: %v", err)
+	}
+
+	t.Logf("Amount: %d", amount)
+	t.Logf("Recipient Chain Identifier: %x", recipientChainIdentifier)
+	t.Logf("Metadata: %x", metadata)
+
+	if amount != 7 {
+		t.Fatalf("Amount does not match expected value")
+	}
+
+	if !bytes.Equal(recipientChainIdentifier, lockingScript) {
+		t.Fatalf("Recipient chain identifier does not match expected value")
+	}
+
+	if !bytes.Equal(metadata, feeOpts[:]) {
+		t.Fatalf("Metadata does not match expected value")
+	}
 }
