@@ -11,7 +11,7 @@ func TestParseVaultEmbeddedData(t *testing.T) {
 	// Example script pubkey hex
 	scriptHex := "6a3f5343414c41520001806c6967687403a736aa00000000001f98c06d8734d5a9ff0b53e3294626e62e4d232c130c4810d57140e1e62967cbf742caeae91b6ece"
 
-	scriptHexWithOnlyCovenants := "6a3a5343414c415200014003a736aa00000000001f98c06d8734d5a9ff0b53e3294626e62e4d232c130c4810d57140e1e62967cbf742caeae91b6ece"
+	scriptHexWithOnlyCovenants := "6a3a5343414c4152000140030100000000aa36a77b58e797655aa9569aa0bdf3aa842d176b44eb3324a1db57fa3ecafcbad91d6ef068439aceeae090"
 
 	scriptHexes := []string{scriptHex, scriptHexWithOnlyCovenants}
 
@@ -32,7 +32,14 @@ func TestParseVaultEmbeddedData(t *testing.T) {
 		}
 		// Add more assertions as needed
 
-		t.Logf("%+v", output)
+		t.Logf("Tag: %x", output.Tag)
+		t.Logf("Version: %d", output.Version)
+		t.Logf("Flags: %+v", output.Flags)
+		t.Logf("HaveOnlyCovenants: %+v", output.HaveOnlyCovenants)
+		t.Logf("Covenants Quorum: %+v", output.CovenantQuorum)
+		t.Logf("Destination: %+x", output.DestinationChain)
+		t.Logf("Destination Contract Address: %+x", output.DestinationContractAddress)
+		t.Logf("Destination Recipient: %+x", output.DestinationRecipientAddress)
 	}
 }
 

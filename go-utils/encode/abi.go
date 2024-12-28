@@ -9,8 +9,10 @@ var (
 	uint64Type, _  = abi.NewType("uint64", "uint64", nil)
 	stringType, _  = abi.NewType("string", "string", nil)
 	addressType, _ = abi.NewType("address", "address", nil)
+	uint256Type, _ = abi.NewType("uint256", "uint256", nil)
 
-	executePayload = abi.Arguments{{Type: bytes20Type}, {Type: uint64Type}, {Type: bytes32Type}}
+	// amount, sourceTxHash, recipientChainIdentifier
+	executePayload = abi.Arguments{{Type: uint64Type}, {Type: bytes32Type}, {Type: bytesType}}
 
 	transferRemoteMetadata = abi.Arguments{{Type: uint64Type}, {Type: bytesType}, {Type: bytesType}}
 
