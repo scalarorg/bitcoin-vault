@@ -387,13 +387,23 @@ impl<'getter> TestSuite<'getter> {
     }
 
     pub fn get_random_covenant_privkeys(&self) -> Vec<Vec<u8>> {
+        let covenant_pubkeys = self.covenant_pubkeys();
+        let covenant_privkeys = self.covenant_privkeys();
+        for (i, pubkey) in covenant_pubkeys.iter().enumerate() {
+            println!(
+                "pubkey: {:?}, privkey: {:?}",
+                pubkey.to_string(),
+                covenant_privkeys[i].to_lower_hex_string()
+            );
+        }
+
         let rng = rand::thread_rng();
         rng.sample_iter(&rand::distributions::Uniform::new(
             0,
-            self.covenant_privkeys().len(),
+            covenant_privkeys.len(),
         ))
         .take(self.env.covenant_quorum as usize)
-        .map(|i| self.covenant_privkeys()[i].clone())
+        .map(|i| covenant_privkeys[i].clone())
         .collect()
     }
 }

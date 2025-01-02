@@ -32,4 +32,16 @@ func TestDecodeSourcePayload(t *testing.T) {
 	t.Logf("recipientChainIdentifier: %x", recipientChainIdentifier)
 }
 
+func TestDecodeSourcePayload2(t *testing.T) {
+	payload, _ := hex.DecodeString("00000000000000000000000000000000000000000000000000000000000003e87377cba336cff6e0d3947872246c99fd8095053f18dab29aa7c6c0623d17c0520000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000001424a1db57fa3ecafcbad91d6ef068439aceeae090000000000000000000000000")
+	amount, sourceTx, recipientChainIdentifier, err := encode.DecodeDestPayload(payload)
+	if err != nil {
+		t.Fatalf("failed to decode source payload: %v", err)
+	}
+	t.Logf("amount: %v", amount)
+	t.Logf("sourceTx: %x", sourceTx)
+	t.Logf("recipientChainIdentifier: %x", recipientChainIdentifier)
+}
+
+
 

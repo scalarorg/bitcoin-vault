@@ -8,7 +8,7 @@ mod test_only_covenants {
     use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, VaultManager};
     use bitcoincore_rpc::jsonrpc::base64;
 
-    use crate::common::helper::log_tx_result;
+    use crate::common::helper::{key_from_wif, log_tx_result};
     use crate::common::TestSuite;
 
     // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_staking --exact --show-output
@@ -254,5 +254,80 @@ mod test_only_covenants {
         let result = suite.send_psbt_by_rpc(final_psbt).unwrap();
         log_tx_result(&result);
         println!("🚀 ==== DONE ==== 🚀");
+    }
+
+    // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_sign_wrong_pubkey --exact --show-output
+    #[test]
+    fn test_sign_wrong_pubkey() {
+        let suite = TestSuite::new();
+        let staking_tx =
+            suite.prepare_staking_tx(100000, TaprootTreeType::OneBranchOnlyCovenants, None);
+
+        let staking_tx2 =
+            suite.prepare_staking_tx(100000, TaprootTreeType::OneBranchOnlyCovenants, None);
+
+        let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(
+            &[staking_tx, staking_tx2],
+            Some(Amount::from_sat(7000)),
+        );
+
+        let psbt_base64 = base64::encode(unstaked_psbt.serialize());
+        println!("psbt_base64: {}", psbt_base64);
+
+        let psbt_hex = hex::encode(unstaked_psbt.serialize());
+        println!("psbt_hex: {}", psbt_hex);
+
+        let mut signing_privkeys = suite.get_random_covenant_privkeys();
+
+        let wif = "cNGbmJbymnzaFUPZ8XSLvQQxHEEcTkh1ojBMMpvg5vFX5V1afcmR";
+
+        let wrong_key = key_from_wif(wif, suite.manager.secp());
+
+        println!("before signing_privkeys: {:?}", signing_privkeys);
+
+        signing_privkeys[0] = wrong_key.0.to_bytes();
+
+        println!("after signing_privkeys: {:?}", signing_privkeys);
+
+        for privkey in signing_privkeys {
+            <VaultManager as Signing>::sign_psbt_by_single_key(
+                &mut unstaked_psbt,
+                privkey.as_slice(),
+                suite.network_id(),
+                false,
+            )
+            .unwrap();
+
+            println!(
+                "unstaked_psbt[0]: {:?}\n",
+                unstaked_psbt.inputs[0].tap_script_sigs
+            );
+            println!(
+                "unstaked_psbt[1]: {:?} \n",
+                unstaked_psbt.inputs[1].tap_script_sigs
+            );
+        }
+
+        println!(
+            "length of tap_script_sigs[0]: {:?}",
+            unstaked_psbt.inputs[0].tap_script_sigs.len()
+        );
+        println!(
+            "length of tap_script_sigs[1]: {:?}",
+            unstaked_psbt.inputs[1].tap_script_sigs.len()
+        );
+        // Finalize the PSBT
+        <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+
+        let psbt_base64 = base64::encode(unstaked_psbt.serialize());
+        println!("psbt_base64: {}", psbt_base64);
+
+        let psbt_hex = hex::encode(unstaked_psbt.serialize());
+        println!("psbt_hex: {}", psbt_hex);
+
+        //  send unstaking tx
+        // let result = suite.send_psbt_by_rpc(unstaked_psbt).unwrap();
+
+        // log_tx_result(&result);
     }
 }
