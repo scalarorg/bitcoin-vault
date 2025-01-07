@@ -16,6 +16,7 @@ use bitcoincore_rpc::json::GetTransactionResult;
 
 use std::collections::BTreeMap;
 
+use bitcoin::secp256k1::rand::prelude::SliceRandom;
 use bitcoin::secp256k1::rand::Rng;
 use bitcoincore_rpc::Client;
 use bitcoincore_rpc::RpcApi;
@@ -26,7 +27,7 @@ use crate::common::helper::*;
 #[derive(Debug)]
 pub struct TestSuite<'a> {
     rpc: Client,
-    env: &'a Env,
+    pub env: &'a Env,
     user_pair: (PrivateKey, PublicKey),
     protocol_pair: (PrivateKey, PublicKey),
     covenant_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)>,
@@ -261,10 +262,37 @@ impl<'a> TestSuite<'a> {
                         script_pubkey: t.output[vout].script_pubkey.clone(),
                     })
                     .collect(),
-                unstaking_output: UnstakingOutput {
+                unstaking_outputs: vec![UnstakingOutput {
                     amount_in_sats: amount.unwrap_or(staking_txs[0].output[vout].value),
                     locking_script: self.user_address().script_pubkey(),
-                },
+                }],
+                covenant_pub_keys: self.covenant_pubkeys(),
+                covenant_quorum: self.env.covenant_quorum,
+                fee_rate: get_fee_rate(),
+                rbf: true,
+            },
+        )
+        .unwrap()
+    }
+
+    pub fn build_batch_only_covenants_unstaking_tx(
+        &self,
+        staking_txs: &[Transaction],
+        unstaking_outputs: Vec<UnstakingOutput>,
+    ) -> Psbt {
+        let vout: usize = 0;
+        <VaultManager as Unstaking>::build_with_only_covenants(
+            &self.manager,
+            &BuildUnstakingWithOnlyCovenantsParams {
+                inputs: staking_txs
+                    .iter()
+                    .map(|t| PreviousStakingUTXO {
+                        outpoint: OutPoint::new(t.compute_txid(), vout as u32),
+                        amount_in_sats: t.output[vout].value,
+                        script_pubkey: t.output[vout].script_pubkey.clone(),
+                    })
+                    .collect(),
+                unstaking_outputs,
                 covenant_pub_keys: self.covenant_pubkeys(),
                 covenant_quorum: self.env.covenant_quorum,
                 fee_rate: get_fee_rate(),
@@ -387,23 +415,18 @@ impl<'getter> TestSuite<'getter> {
     }
 
     pub fn get_random_covenant_privkeys(&self) -> Vec<Vec<u8>> {
-        let covenant_pubkeys = self.covenant_pubkeys();
         let covenant_privkeys = self.covenant_privkeys();
-        for (i, pubkey) in covenant_pubkeys.iter().enumerate() {
-            println!(
-                "pubkey: {:?}, privkey: {:?}",
-                pubkey.to_string(),
-                covenant_privkeys[i].to_lower_hex_string()
-            );
-        }
+        let mut indices: Vec<usize> = (0..covenant_privkeys.len()).collect();
 
-        let rng = rand::thread_rng();
-        rng.sample_iter(&rand::distributions::Uniform::new(
-            0,
-            covenant_privkeys.len(),
-        ))
-        .take(self.env.covenant_quorum as usize)
-        .map(|i| covenant_privkeys[i].clone())
-        .collect()
+        // Shuffle the indices to ensure randomness
+        let mut rng = rand::thread_rng();
+        indices.shuffle(&mut rng);
+
+        // Take the first `n` unique indices
+        indices
+            .into_iter()
+            .take(self.env.covenant_quorum as usize)
+            .map(|i| covenant_privkeys[i].clone())
+            .collect()
     }
 }

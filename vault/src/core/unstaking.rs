@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use super::{manager, CoreError, TaprootTree, Unstaking, UnstakingOutput, VaultManager, XOnlyKeys};
+use super::{
+    manager, CoreError, DataScript, DataScriptParamsWithOnlyCovenantsUnstaking, TaprootTree,
+    Unstaking, UnstakingOutput, VaultManager, XOnlyKeys,
+};
 
 use super::PreviousStakingUTXO;
 use bitcoin::bip32::{DerivationPath, Fingerprint};
@@ -38,7 +41,7 @@ pub struct BuildUnstakingParams {
 #[derive(Debug, Validate)]
 pub struct BuildUnstakingWithOnlyCovenantsParams {
     pub inputs: Vec<PreviousStakingUTXO>,
-    pub unstaking_output: UnstakingOutput,
+    pub unstaking_outputs: Vec<UnstakingOutput>,
     pub covenant_pub_keys: Vec<PublicKey>,
     pub covenant_quorum: u8,
     pub rbf: bool,
@@ -122,8 +125,27 @@ impl Unstaking for VaultManager {
             tx_builder.add_input(input.outpoint);
         }
 
-        // Add main output
-        tx_builder.add_output(Amount::ZERO, params.unstaking_output.locking_script.clone());
+        let unstaking_script = DataScript::new_unstaking_with_only_covenants(
+            &DataScriptParamsWithOnlyCovenantsUnstaking {
+                tag: self.tag(),
+                version: self.version(),
+                network_id: self.network_id(),
+            },
+        )?;
+
+        let indexed_output = UnstakingOutput {
+            amount_in_sats: Amount::ZERO,
+            locking_script: unstaking_script.into_script(),
+        };
+
+        tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
+
+        // Add all outputs
+        let mut total_output_value = Amount::ZERO;
+        for output in &params.unstaking_outputs {
+            tx_builder.add_output(output.amount_in_sats, output.locking_script.clone());
+            total_output_value += output.amount_in_sats;
+        }
 
         // Calculate and add change if needed
         let sum_of_inputs = params
@@ -132,7 +154,7 @@ impl Unstaking for VaultManager {
             .map(|input| input.amount_in_sats)
             .sum::<Amount>();
 
-        let change = sum_of_inputs - params.unstaking_output.amount_in_sats;
+        let change = sum_of_inputs - total_output_value;
         if change > Amount::ZERO {
             tx_builder.add_output(change, only_covenants_script);
         }
@@ -146,11 +168,7 @@ impl Unstaking for VaultManager {
             params.fee_rate,
         );
 
-        unsigned_tx.output[0].value = params.unstaking_output.amount_in_sats - fee;
-
-        if unsigned_tx.output[0].value < Amount::ZERO {
-            return Err(CoreError::InsufficientFunds);
-        }
+        self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;
 
         let (branch, keys) = (
             tree.only_covenants_branch.as_ref().unwrap(),

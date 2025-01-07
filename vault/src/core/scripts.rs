@@ -10,7 +10,7 @@ use bitcoin::{
 use super::{
     CoreError, DestinationChain, DestinationContractAddress, DestinationRecipientAddress,
     TaprootTree, EMBEDDED_DATA_SCRIPT_SIZE, ONLY_COVENANTS_EMBEDDED_DATA_SCRIPT_SIZE,
-    SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
+    ONLY_COVENANTS_UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
 };
 
 #[derive(Debug)]
@@ -85,6 +85,12 @@ pub struct DataScriptParamsWithOnlyCovenants<'a> {
     pub destination_recipient_address: &'a DestinationRecipientAddress,
 }
 
+pub struct DataScriptParamsWithOnlyCovenantsUnstaking<'a> {
+    pub tag: &'a Vec<u8>,
+    pub version: u8,
+    pub network_id: u8,
+}
+
 #[derive(Debug)]
 pub struct DataScript(ScriptBuf);
 
@@ -115,32 +121,26 @@ impl TryFrom<u8> for TaprootTreeType {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum UnstakingTaprootTreeType {
+    OneBranchOnlyCovenants = 0b01000001,
+}
+
+impl TryFrom<u8> for UnstakingTaprootTreeType {
+    type Error = CoreError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0b01000001 => Ok(Self::OneBranchOnlyCovenants),
+            _ => Err(CoreError::InvalidTaprootTreeType),
+        }
+    }
+}
+
 impl DataScript {
     pub fn new(params: &DataScriptParams) -> Result<Self, CoreError> {
-        let tag_bytes = params.tag.as_slice();
-        let tag_hash: [u8; TAG_HASH_SIZE] = if params.tag.len() <= TAG_HASH_SIZE {
-            tag_bytes[0..TAG_HASH_SIZE]
-                .try_into()
-                .map_err(|_| CoreError::InvalidTag)?
-        } else {
-            Sha256dHash::hash(tag_bytes)[0..TAG_HASH_SIZE]
-                .try_into()
-                .map_err(|_| CoreError::InvalidTag)?
-        };
-
-        let service_tag_bytes = params.service_tag.as_slice();
-        let service_tag_hash: [u8; SERVICE_TAG_HASH_SIZE] =
-            if params.service_tag.len() <= SERVICE_TAG_HASH_SIZE {
-                let mut tag = [0u8; SERVICE_TAG_HASH_SIZE];
-                let len = service_tag_bytes.len();
-                tag[SERVICE_TAG_HASH_SIZE - len..].copy_from_slice(service_tag_bytes);
-                tag
-            } else {
-                Sha256dHash::hash(service_tag_bytes)[0..SERVICE_TAG_HASH_SIZE]
-                    .try_into()
-                    .map_err(|_| CoreError::InvalidServiceTag)?
-            };
-
+        let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
+        let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
         let flags = if !params.have_only_covenants {
             TaprootTreeType::ManyBranchNoCovenants as u8
         } else {
@@ -174,17 +174,7 @@ impl DataScript {
     pub fn new_with_only_covenants(
         params: &DataScriptParamsWithOnlyCovenants,
     ) -> Result<Self, CoreError> {
-        let tag_bytes = params.tag.as_slice();
-        let tag_hash: [u8; TAG_HASH_SIZE] = if params.tag.len() <= TAG_HASH_SIZE {
-            tag_bytes[0..TAG_HASH_SIZE]
-                .try_into()
-                .map_err(|_| CoreError::InvalidTag)?
-        } else {
-            Sha256dHash::hash(tag_bytes)[0..TAG_HASH_SIZE]
-                .try_into()
-                .map_err(|_| CoreError::InvalidTag)?
-        };
-
+        let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
         let flags = TaprootTreeType::OneBranchOnlyCovenants as u8;
 
         let mut data = Vec::<u8>::with_capacity(ONLY_COVENANTS_EMBEDDED_DATA_SCRIPT_SIZE);
@@ -208,6 +198,59 @@ impl DataScript {
             .into_script();
 
         Ok(DataScript(embedded_data_script))
+    }
+
+    pub fn new_unstaking_with_only_covenants(
+        params: &DataScriptParamsWithOnlyCovenantsUnstaking,
+    ) -> Result<Self, CoreError> {
+        let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
+
+        let flags = UnstakingTaprootTreeType::OneBranchOnlyCovenants as u8;
+
+        let mut data = Vec::<u8>::with_capacity(ONLY_COVENANTS_UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE);
+        data.extend_from_slice(&tag_hash);
+        data.push(params.version);
+        data.push(params.network_id);
+        data.push(flags);
+
+        let data_slice: &[u8; ONLY_COVENANTS_UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE] = data
+            .as_slice()
+            .try_into()
+            .map_err(|_| CoreError::CannotConvertOpReturnDataToSlice)?;
+
+        let embedded_data_script = script::Builder::new()
+            .push_opcode(OP_RETURN)
+            .push_slice(data_slice)
+            .into_script();
+
+        Ok(DataScript(embedded_data_script))
+    }
+
+    fn compute_tag_hash(tag: &[u8]) -> Result<[u8; TAG_HASH_SIZE], CoreError> {
+        if tag.len() <= TAG_HASH_SIZE {
+            tag[0..TAG_HASH_SIZE]
+                .try_into()
+                .map_err(|_| CoreError::InvalidTag)
+        } else {
+            Sha256dHash::hash(tag)[0..TAG_HASH_SIZE]
+                .try_into()
+                .map_err(|_| CoreError::InvalidTag)
+        }
+    }
+
+    fn compute_service_tag_hash(
+        service_tag: &[u8],
+    ) -> Result<[u8; SERVICE_TAG_HASH_SIZE], CoreError> {
+        if service_tag.len() <= SERVICE_TAG_HASH_SIZE {
+            let mut tag = [0u8; SERVICE_TAG_HASH_SIZE];
+            let len = service_tag.len();
+            tag[SERVICE_TAG_HASH_SIZE - len..].copy_from_slice(service_tag);
+            Ok(tag)
+        } else {
+            Sha256dHash::hash(service_tag)[0..SERVICE_TAG_HASH_SIZE]
+                .try_into()
+                .map_err(|_| CoreError::InvalidServiceTag)
+        }
     }
 
     pub fn into_script(self) -> ScriptBuf {

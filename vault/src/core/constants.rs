@@ -46,8 +46,18 @@ pub const EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
 pub const OP_RETURN_SCRIPT_SIZE: usize = EMBEDDED_DATA_SCRIPT_SIZE + 1;
 
 /// Total size of the embbeded data script for only-covenants
-pub const ONLY_COVENANTS_EMBEDDED_DATA_SCRIPT_SIZE: usize =
-    EMBEDDED_DATA_SCRIPT_SIZE - SERVICE_TAG_HASH_SIZE;
+pub const ONLY_COVENANTS_EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
+    + VERSION_SIZE
+    + NETWORK_ID_SIZE
+    + FLAGS_SIZE
+    + COVENANT_QUORUM_SIZE
+    + DEST_CHAIN_SIZE
+    + DEST_CONTRACT_ADDRESS_SIZE
+    + DEST_RECIPIENT_ADDRESS_SIZE;
+
+/// Total size of the embbeded data script for only-covenants unstaking
+pub const ONLY_COVENANTS_UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE: usize =
+    TAG_HASH_SIZE + VERSION_SIZE + NETWORK_ID_SIZE + FLAGS_SIZE;
 
 /// Total size of the OP_RETURN script for only-covenants
 pub const ONLY_COVENANTS_OP_RETURN_SCRIPT_SIZE: usize =

@@ -5,10 +5,10 @@ mod common;
 mod test_only_covenants {
     use bitcoin::hex::DisplayHex;
     use bitcoin::{secp256k1::All, Amount, Psbt};
-    use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, VaultManager};
+    use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, UnstakingOutput, VaultManager};
     use bitcoincore_rpc::jsonrpc::base64;
 
-    use crate::common::helper::{key_from_wif, log_tx_result};
+    use crate::common::helper::{get_adress, key_from_wif, log_tx_result};
     use crate::common::TestSuite;
 
     // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_staking --exact --show-output
@@ -168,9 +168,25 @@ mod test_only_covenants {
             })
             .collect();
 
+        let another_address = "tb1p5hpkty3ykt92qx6m0rastprnreqx6dqexagg8mgp3hgz53p9lk3qd2c4f2";
+        let another_address = get_adress(&suite.env.network, another_address);
+
+        println!("script_pubkey: {:?}", another_address.script_pubkey());
+
         // Create the original unsigned PSBT
-        let original_psbt =
-            suite.build_only_covenants_unstaking_tx(&staking_txs, Some(Amount::from_sat(7000)));
+        let original_psbt: Psbt = suite.build_batch_only_covenants_unstaking_tx(
+            &staking_txs,
+            vec![
+                UnstakingOutput {
+                    amount_in_sats: Amount::from_sat(7000),
+                    locking_script: suite.user_address().script_pubkey(),
+                },
+                UnstakingOutput {
+                    amount_in_sats: Amount::from_sat(4000),
+                    locking_script: another_address.script_pubkey(),
+                },
+            ],
+        );
 
         // Get signing keys
         let signing_privkeys = suite.get_random_covenant_privkeys();
@@ -181,10 +197,7 @@ mod test_only_covenants {
 
         println!("\n🔐 ==== START SIGNING ==== 🔐");
 
-        println!("psbt_hex: {:?}", hex::encode(original_psbt.serialize()));
-
-        let signing_privkeys = signing_privkeys[0].clone();
-        let signing_privkeys = [signing_privkeys];
+        println!("psbt_hex: {:?}\n", hex::encode(original_psbt.serialize()));
 
         // Spawn a thread for each signing key
         for (_, privkey) in signing_privkeys.iter().enumerate() {
@@ -204,13 +217,6 @@ mod test_only_covenants {
                     )
                     .unwrap();
 
-                for sig in input_tap_script_sigs.iter() {
-                    let sed = sig.serialize().unwrap();
-                    println!("key: {:?}", sed.key.to_lower_hex_string());
-                    println!("leaf_hash: {:?}", sed.leaf_hash.to_lower_hex_string());
-                    println!("signature: {:?}", sed.signature.to_lower_hex_string());
-                }
-
                 tx.send(input_tap_script_sigs).unwrap();
             });
             handles.push(handle);
@@ -222,9 +228,8 @@ mod test_only_covenants {
         }
         drop(tx);
 
-        println!("🔐 ==== START AGGREGATING ==== 🔐");
+        println!("\n🔐 ==== START AGGREGATING ==== 🔐");
 
-        // Aggregate signatures into final PSBT
         // Aggregate signatures into final PSBT
         let mut final_psbt: Psbt = original_psbt.clone();
         while let Ok(input_tap_script_sigs) = rx.recv() {
@@ -247,8 +252,7 @@ mod test_only_covenants {
 
         let psbt_bytes = final_psbt.serialize();
         let psbt_hex = hex::encode(psbt_bytes.clone());
-        println!("psbt_hex: {}", psbt_hex);
-        println!("psbt_bytes: {:?}", psbt_bytes);
+        println!("\npsbt_hex: {}", psbt_hex);
 
         // Finalize and send
         <Psbt as SignByKeyMap<All>>::finalize(&mut final_psbt);

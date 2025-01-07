@@ -1,7 +1,8 @@
 use crate::{
     DestinationChain, DestinationContractAddress, DestinationRecipientAddress, TaprootTreeType,
-    COVENANT_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_CONTRACT_ADDRESS_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
-    FLAGS_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE, VERSION_SIZE,
+    UnstakingTaprootTreeType, COVENANT_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_CONTRACT_ADDRESS_SIZE,
+    DEST_RECIPIENT_ADDRESS_SIZE, FLAGS_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
+    VERSION_SIZE,
 };
 use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
 use log::debug;
@@ -23,19 +24,34 @@ impl From<&TxOut> for VaultLockTxOutput {
         }
     }
 }
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+pub enum VaultReturnTxOutputType {
+    Unstaking,
+    Staking,
+}
+
+impl Default for VaultReturnTxOutputType {
+    fn default() -> Self {
+        Self::Unstaking
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct VaultReturnTxOutput {
     pub tag: Vec<u8>,
     pub version: u8,
     pub network_id: u8,
-    pub covenant_quorum: u8,
     pub flags: u8,
+    pub transaction_type: VaultReturnTxOutputType,
+    pub covenant_quorum: u8,
     pub destination_chain: DestinationChain,
     pub destination_contract_address: DestinationContractAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
     pub have_only_covenants: bool,
     pub service_tag: Option<Vec<u8>>,
 }
+
 fn read_bytes(bytes: &[u8], cursor: &mut usize, len: usize) -> Result<Vec<u8>, ParserError> {
     if bytes.len() < *cursor + len {
         return Err(ParserError::InvalidEmbeddedData);
@@ -73,61 +89,80 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         // Read flags
         let flags = read_bytes(bytes, &mut cursor, FLAGS_SIZE)?[0];
 
-        let tree_type = TaprootTreeType::try_from(flags).map_err(|_| ParserError::InvalidScript)?;
-
-        let mut service_tag = None;
-
-        let have_only_covenants = match tree_type {
-            TaprootTreeType::OneBranchOnlyCovenants | TaprootTreeType::OneBranchOnlyKeys => {
-                tree_type == TaprootTreeType::OneBranchOnlyCovenants
+        match UnstakingTaprootTreeType::try_from(flags) {
+            Ok(UnstakingTaprootTreeType::OneBranchOnlyCovenants) => {
+                return Ok(VaultReturnTxOutput {
+                    tag,
+                    version,
+                    network_id,
+                    flags,
+                    transaction_type: VaultReturnTxOutputType::Unstaking,
+                    ..Default::default()
+                });
             }
-            TaprootTreeType::ManyBranchNoCovenants | TaprootTreeType::ManyBranchWithCovenants => {
-                // Read Service Tag
-                let service_tag_bytes = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
-                service_tag = Some(service_tag_bytes);
-                tree_type == TaprootTreeType::ManyBranchWithCovenants
+            Err(_) => {
+                let tree_type =
+                    TaprootTreeType::try_from(flags).map_err(|_| ParserError::InvalidScript)?;
+
+                let mut service_tag = None;
+
+                let have_only_covenants = match tree_type {
+                    TaprootTreeType::OneBranchOnlyCovenants
+                    | TaprootTreeType::OneBranchOnlyKeys => {
+                        tree_type == TaprootTreeType::OneBranchOnlyCovenants
+                    }
+                    TaprootTreeType::ManyBranchNoCovenants
+                    | TaprootTreeType::ManyBranchWithCovenants => {
+                        // Read Service Tag
+                        let service_tag_bytes =
+                            read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
+                        service_tag = Some(service_tag_bytes);
+                        tree_type == TaprootTreeType::ManyBranchWithCovenants
+                    }
+                };
+
+                // Read covenant_quorum
+                let covenant_quorum = read_bytes(bytes, &mut cursor, COVENANT_QUORUM_SIZE)?[0];
+
+                // Read destination_chain_id
+                let destination_chain = read_bytes(bytes, &mut cursor, DEST_CHAIN_SIZE)?
+                    .try_into()
+                    .map_err(|_| ParserError::InvalidScript)?;
+
+                // Read destination_contract_address
+                let destination_contract_address =
+                    read_bytes(bytes, &mut cursor, DEST_CONTRACT_ADDRESS_SIZE)?
+                        .try_into()
+                        .map_err(|_| ParserError::InvalidScript)?;
+
+                // Read destination_recipient_address
+                let destination_recipient_address =
+                    read_bytes(bytes, &mut cursor, DEST_RECIPIENT_ADDRESS_SIZE)?
+                        .try_into()
+                        .map_err(|_| ParserError::InvalidScript)?;
+                //Check if no extra bytes left
+                if cursor != bytes.len() {
+                    return Err(ParserError::InvalidScript);
+                }
+                debug!(
+                    "Found candiate for Scalar VaultTx with tree_type: {:?}",
+                    tree_type
+                );
+                Ok(VaultReturnTxOutput {
+                    tag,
+                    service_tag,
+                    version,
+                    network_id,
+                    flags,
+                    transaction_type: VaultReturnTxOutputType::Staking,
+                    have_only_covenants,
+                    covenant_quorum,
+                    destination_chain,
+                    destination_contract_address,
+                    destination_recipient_address,
+                })
             }
-        };
-
-        // Read covenant_quorum
-        let covenant_quorum = read_bytes(bytes, &mut cursor, COVENANT_QUORUM_SIZE)?[0];
-
-        // Read destination_chain_id
-        let destination_chain = read_bytes(bytes, &mut cursor, DEST_CHAIN_SIZE)?
-            .try_into()
-            .map_err(|_| ParserError::InvalidScript)?;
-
-        // Read destination_contract_address
-        let destination_contract_address =
-            read_bytes(bytes, &mut cursor, DEST_CONTRACT_ADDRESS_SIZE)?
-                .try_into()
-                .map_err(|_| ParserError::InvalidScript)?;
-
-        // Read destination_recipient_address
-        let destination_recipient_address =
-            read_bytes(bytes, &mut cursor, DEST_RECIPIENT_ADDRESS_SIZE)?
-                .try_into()
-                .map_err(|_| ParserError::InvalidScript)?;
-        //Check if no extra bytes left
-        if cursor != bytes.len() {
-            return Err(ParserError::InvalidScript);
         }
-        debug!(
-            "Found candiate for Scalar VaultTx with tree_type: {:?}",
-            tree_type
-        );
-        Ok(VaultReturnTxOutput {
-            tag,
-            service_tag,
-            version,
-            network_id,
-            flags,
-            have_only_covenants,
-            covenant_quorum,
-            destination_chain,
-            destination_contract_address,
-            destination_recipient_address,
-        })
     }
 }
 

@@ -376,36 +376,6 @@ impl VaultWasm {
     }
 
     #[wasm_bindgen]
-    pub fn build_unstaking_with_only_covenants(
-        &self,
-        inputs: Vec<UnstakingInput>,
-        output: UnstakingOutput,
-        covenant_pubkeys: &[u8],
-        covenant_quorum: u8,
-        fee_rate: u64,
-        rbf: bool,
-    ) -> Result<Vec<u8>, JsValue> {
-        let covenant_pub_keys = Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)?;
-
-        let params = BuildUnstakingWithOnlyCovenantsParams {
-            inputs: inputs
-                .into_iter()
-                .map(|input| input.try_into())
-                .collect::<Result<Vec<PreviousStakingUTXO>, VaultABIError>>()?,
-            unstaking_output: output.try_into()?,
-            covenant_pub_keys,
-            covenant_quorum,
-            fee_rate,
-            rbf,
-        };
-
-        Self::handle_serialize_result(
-            <VaultManager as Unstaking>::build_with_only_covenants(&self.manager, &params),
-            |psbt| psbt.serialize(),
-        )
-    }
-
-    #[wasm_bindgen]
     pub fn only_covenants_locking_script(
         &self,
         covenant_pubkeys: &[u8],
