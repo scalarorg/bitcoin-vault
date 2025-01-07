@@ -226,8 +226,9 @@ mod test_only_covenants {
 
         // Aggregate signatures into final PSBT
         // Aggregate signatures into final PSBT
-        let mut final_psbt = original_psbt.clone();
+        let mut final_psbt: Psbt = original_psbt.clone();
         while let Ok(input_tap_script_sigs) = rx.recv() {
+            println!("recv input_tap_script_sigs: {:?}", input_tap_script_sigs);
             <VaultManager as Signing>::aggregate_tap_script_sigs(
                 &mut final_psbt,
                 &input_tap_script_sigs,
