@@ -27,11 +27,12 @@ impl VaultManager {
 
         for output in unsigned_tx.output.iter_mut() {
             let sats = output.value.to_sat();
+            if sats == 0 {
+                continue;
+            }
 
             let proportion = sats as f64 / total_output_value_in_sats as f64;
-
             let fee_share = (fee_in_sats as f64 * proportion).ceil() as u64; // Round up to the nearest integer
-
             let fee_share_in_sat = Amount::from_sat(fee_share);
 
             if let Some(new_value) = output.value.checked_sub(fee_share_in_sat) {

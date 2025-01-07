@@ -48,7 +48,7 @@ impl VaultManager {
         self.network_id
     }
 
-    pub fn convert_to_x_only_keys(
+    pub fn convert_all_to_x_only_keys(
         user_pub_key: &PublicKey,
         protocol_pub_key: &PublicKey,
         covenant_pub_keys: &[PublicKey],

@@ -80,7 +80,7 @@ impl Staking for VaultManager {
 
     fn build(&self, params: &BuildStakingParams) -> Result<StakingOutput, Self::Error> {
         // TODO: 0.validate params by use validator create
-        let x_only_keys = manager::VaultManager::convert_to_x_only_keys(
+        let x_only_keys = manager::VaultManager::convert_all_to_x_only_keys(
             &params.user_pub_key,
             &params.protocol_pub_key,
             &params.covenant_pub_keys,

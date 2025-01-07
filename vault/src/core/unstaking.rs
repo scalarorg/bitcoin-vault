@@ -61,7 +61,7 @@ impl Unstaking for VaultManager {
             return Err(CoreError::InvalidUnstakingType);
         }
 
-        let x_only_keys = manager::VaultManager::convert_to_x_only_keys(
+        let x_only_keys = manager::VaultManager::convert_all_to_x_only_keys(
             &params.user_pub_key,
             &params.protocol_pub_key,
             &params.covenant_pub_keys,
@@ -104,11 +104,7 @@ impl Unstaking for VaultManager {
         &self,
         params: &BuildUnstakingWithOnlyCovenantsParams,
     ) -> Result<Psbt, Self::Error> {
-        let covenants_x_only: Vec<XOnlyPublicKey> = params
-            .covenant_pub_keys
-            .iter()
-            .map(|pk| XOnlyPublicKey::from(*pk))
-            .collect();
+        let covenants_x_only = self.convert_to_x_only_keys(&params.covenant_pub_keys);
 
         let tree = TaprootTree::new_with_only_covenants(
             self.secp(),
@@ -120,48 +116,22 @@ impl Unstaking for VaultManager {
 
         let mut tx_builder = UnstakingTransactionBuilder::new(params.rbf);
 
-        // Add all inputs
-        for input in &params.inputs {
-            tx_builder.add_input(input.outpoint);
-        }
+        self.add_inputs_to_builder(&mut tx_builder, &params.inputs);
 
-        let unstaking_script = DataScript::new_unstaking_with_only_covenants(
-            &DataScriptParamsWithOnlyCovenantsUnstaking {
-                tag: self.tag(),
-                version: self.version(),
-                network_id: self.network_id(),
-            },
-        )?;
-
-        let indexed_output = UnstakingOutput {
-            amount_in_sats: Amount::ZERO,
-            locking_script: unstaking_script.into_script(),
-        };
-
+        let indexed_output = self.create_indexed_output()?;
         tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
 
-        // Add all outputs
-        let mut total_output_value = Amount::ZERO;
-        for output in &params.unstaking_outputs {
-            tx_builder.add_output(output.amount_in_sats, output.locking_script.clone());
-            total_output_value += output.amount_in_sats;
-        }
+        let total_output_value =
+            self.add_outputs_to_builder(&mut tx_builder, &params.unstaking_outputs);
 
-        // Calculate and add change if needed
-        let sum_of_inputs = params
-            .inputs
-            .iter()
-            .map(|input| input.amount_in_sats)
-            .sum::<Amount>();
+        let change = self.calculate_change(&params.inputs, total_output_value);
 
-        let change = sum_of_inputs - total_output_value;
         if change > Amount::ZERO {
-            tx_builder.add_output(change, only_covenants_script);
+            self.add_change_output_placeholder(&mut tx_builder, &only_covenants_script);
         }
 
         let mut unsigned_tx = tx_builder.build();
 
-        // Calculate and apply fee
         let fee = self.calculate_transaction_fee(
             unsigned_tx.input.len() as u64,
             unsigned_tx.output.len() as u64,
@@ -174,6 +144,10 @@ impl Unstaking for VaultManager {
             tree.only_covenants_branch.as_ref().unwrap(),
             covenants_x_only,
         );
+
+        if change > Amount::ZERO {
+            self.replace_change_output(&mut unsigned_tx, change, &only_covenants_script);
+        }
 
         let mut psbt =
             Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
@@ -269,6 +243,83 @@ impl VaultManager {
                 }
             })
             .collect()
+    }
+
+    fn convert_to_x_only_keys(&self, pub_keys: &[PublicKey]) -> Vec<XOnlyPublicKey> {
+        pub_keys
+            .iter()
+            .map(|pk| XOnlyPublicKey::from(*pk))
+            .collect()
+    }
+
+    fn add_inputs_to_builder(
+        &self,
+        tx_builder: &mut UnstakingTransactionBuilder,
+        inputs: &[PreviousStakingUTXO],
+    ) {
+        for input in inputs {
+            tx_builder.add_input(input.outpoint);
+        }
+    }
+
+    fn create_indexed_output(&self) -> Result<UnstakingOutput, CoreError> {
+        let unstaking_script = DataScript::new_unstaking_with_only_covenants(
+            &DataScriptParamsWithOnlyCovenantsUnstaking {
+                tag: self.tag(),
+                version: self.version(),
+                network_id: self.network_id(),
+            },
+        )?;
+        Ok(UnstakingOutput {
+            amount_in_sats: Amount::ZERO,
+            locking_script: unstaking_script.into_script(),
+        })
+    }
+
+    fn add_outputs_to_builder(
+        &self,
+        tx_builder: &mut UnstakingTransactionBuilder,
+        outputs: &[UnstakingOutput],
+    ) -> Amount {
+        let mut total_output_value = Amount::ZERO;
+        for output in outputs {
+            tx_builder.add_output(output.amount_in_sats, output.locking_script.clone());
+            total_output_value += output.amount_in_sats;
+        }
+        total_output_value
+    }
+
+    fn calculate_change(
+        &self,
+        inputs: &[PreviousStakingUTXO],
+        total_output_value: Amount,
+    ) -> Amount {
+        inputs
+            .iter()
+            .map(|input| input.amount_in_sats)
+            .sum::<Amount>()
+            - total_output_value
+    }
+
+    fn add_change_output_placeholder(
+        &self,
+        tx_builder: &mut UnstakingTransactionBuilder,
+        script: &ScriptBuf,
+    ) {
+        tx_builder.add_output(Amount::ZERO, script.clone());
+    }
+
+    fn replace_change_output(
+        &self,
+        unsigned_tx: &mut Transaction,
+        change: Amount,
+        script: &ScriptBuf,
+    ) {
+        unsigned_tx.output.pop();
+        unsigned_tx.output.push(TxOut {
+            value: change,
+            script_pubkey: script.clone(),
+        });
     }
 }
 
