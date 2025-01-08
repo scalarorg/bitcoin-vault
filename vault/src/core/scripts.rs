@@ -239,10 +239,10 @@ impl DataScript {
     }
 
     fn compute_tag_hash(tag: &[u8]) -> Result<[u8; TAG_HASH_SIZE], CoreError> {
+        let mut new_hash = [0u8; TAG_HASH_SIZE];
         if tag.len() <= TAG_HASH_SIZE {
-            tag[0..TAG_HASH_SIZE]
-                .try_into()
-                .map_err(|_| CoreError::InvalidTag)
+            new_hash[TAG_HASH_SIZE - tag.len()..].copy_from_slice(tag);
+            Ok(new_hash)
         } else {
             Sha256dHash::hash(tag)[0..TAG_HASH_SIZE]
                 .try_into()

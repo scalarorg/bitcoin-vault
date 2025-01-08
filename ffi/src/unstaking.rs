@@ -5,12 +5,21 @@ use bitcoin_vault::{
     BuildUnstakingWithOnlyCovenantsParams, PreviousStakingUTXO, UnstakingOutput, VaultManager,
 };
 
+use bitcoin_vault::Unstaking;
+
 use crate::{
     create_null_buffer, ByteBuffer, PreviousStakingUTXOFFI, PublicKeyFFI, UnstakingOutputFFI,
 };
 
 #[no_mangle]
 pub unsafe extern "C" fn build_with_only_covenants(
+    tag: *const u8,
+    tag_len: usize,
+    service_tag: *const u8,
+    service_tag_len: usize,
+    version: u8,
+    network_kind: u8,
+
     inputs_ptr: *const PreviousStakingUTXOFFI,
     inputs_len: usize,
     outputs_ptr: *const UnstakingOutputFFI,
@@ -27,6 +36,9 @@ pub unsafe extern "C" fn build_with_only_covenants(
     }
 
     // Convert raw pointers to slices
+    let tag = slice::from_raw_parts(tag, tag_len);
+    let service_tag = slice::from_raw_parts(service_tag, service_tag_len);
+
     let inputs = slice::from_raw_parts(inputs_ptr, inputs_len);
     let outputs = slice::from_raw_parts(outputs_ptr, outputs_len);
     let covenant_pub_keys = slice::from_raw_parts(covenant_pub_keys_ptr, covenant_pub_keys_len);
@@ -54,7 +66,8 @@ pub unsafe extern "C" fn build_with_only_covenants(
     };
 
     // Create a VaultManager instance
-    let vault_manager = VaultManager::new(); // Assuming a constructor exists
+    let vault_manager =
+        VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_kind); // Assuming a constructor exists
 
     // Call the build_with_only_covenants function
     match vault_manager.build_with_only_covenants(&params) {
