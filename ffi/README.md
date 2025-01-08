@@ -13,6 +13,7 @@ ffi/
 
 - Parse vault embedded data from Bitcoin script pubkeys
 - Sign PSBTs (Partially Signed Bitcoin Transactions) with single keys
+- Build unstaking transactions
 - Cross-platform support (Linux, macOS)
 
 ## Go Bindings
