@@ -20,7 +20,6 @@ pub enum UnstakingType {
     UserProtocol,
     CovenantsProtocol,
     CovenantsUser,
-    OnlyCovenants,
 }
 
 /// Because the unstaking tx is formed from a previous staking tx, 1 - 1 mapping is used.
@@ -33,7 +32,6 @@ pub struct BuildUnstakingParams {
     pub protocol_pub_key: PublicKey,
     pub covenant_pub_keys: Vec<PublicKey>,
     pub covenant_quorum: u8,
-    pub have_only_covenants: bool,
     pub rbf: bool,
     pub fee_rate: u64,
 }
@@ -56,11 +54,6 @@ impl Unstaking for VaultManager {
         params: &BuildUnstakingParams,
         unstaking_type: UnstakingType,
     ) -> Result<Psbt, Self::Error> {
-        // Validate params
-        if unstaking_type == UnstakingType::OnlyCovenants && !params.have_only_covenants {
-            return Err(CoreError::InvalidUnstakingType);
-        }
-
         let x_only_keys = manager::VaultManager::convert_all_to_x_only_keys(
             &params.user_pub_key,
             &params.protocol_pub_key,
@@ -73,7 +66,6 @@ impl Unstaking for VaultManager {
             &x_only_keys.protocol,
             &x_only_keys.covenants,
             params.covenant_quorum,
-            params.have_only_covenants,
         )?;
 
         let (branch, keys) =
@@ -268,6 +260,7 @@ impl VaultManager {
                 tag: self.tag(),
                 version: self.version(),
                 network_id: self.network_id(),
+                service_tag: self.service_tag(),
             },
         )?;
         Ok(UnstakingOutput {
@@ -392,10 +385,6 @@ impl UnstakingKeys {
                 keys.extend_from_slice(&x_only_keys.covenants);
                 (&tree.covenants_user_branch, keys)
             }
-            UnstakingType::OnlyCovenants => (
-                tree.only_covenants_branch.as_ref().unwrap(),
-                x_only_keys.covenants.clone(),
-            ),
         }
     }
 }

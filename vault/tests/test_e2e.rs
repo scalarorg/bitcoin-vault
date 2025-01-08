@@ -17,8 +17,7 @@ mod test_e2e {
     #[test]
     fn test_staking() {
         let suite = TestSuite::new();
-        let staking_tx =
-            suite.prepare_staking_tx(1000, TaprootTreeType::ManyBranchNoCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::MultiBranch);
         println!("tx_id: {:?}", staking_tx.compute_txid());
     }
 
@@ -29,8 +28,7 @@ mod test_e2e {
     fn test_user_protocol_unstaking() {
         // prepare staking tx
         let suite = TestSuite::new();
-        let staking_tx =
-            suite.prepare_staking_tx(1000, TaprootTreeType::ManyBranchNoCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::MultiBranch);
 
         // prepare unstaking tx
         let mut unstaked_psbt =
@@ -64,8 +62,7 @@ mod test_e2e {
     fn test_covenants_user_unstaking() {
         let suite = TestSuite::new();
 
-        let staking_tx =
-            suite.prepare_staking_tx(10000, TaprootTreeType::ManyBranchNoCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::MultiBranch);
 
         let mut unstaked_psbt =
             suite.build_unstaking_tx(&staking_tx, UnstakingType::CovenantsUser, None);
@@ -105,8 +102,7 @@ mod test_e2e {
     #[test]
     fn test_covenants_protocol_unstaking() {
         let suite = TestSuite::new();
-        let staking_tx =
-            suite.prepare_staking_tx(10000, TaprootTreeType::ManyBranchNoCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::MultiBranch);
         let mut unstaked_psbt =
             suite.build_unstaking_tx(&staking_tx, UnstakingType::CovenantsProtocol, None);
 

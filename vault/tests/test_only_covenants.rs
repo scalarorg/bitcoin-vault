@@ -15,8 +15,7 @@ mod test_only_covenants {
     #[test]
     fn test_staking() {
         let suite = TestSuite::new();
-        let staking_tx =
-            suite.prepare_staking_tx(1000, TaprootTreeType::OneBranchOnlyCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::CovenantOnly);
         println!("tx_id: {:?}", staking_tx.compute_txid());
     }
 
@@ -24,8 +23,7 @@ mod test_only_covenants {
     #[test]
     fn test_e2e() {
         let suite = TestSuite::new();
-        let staking_tx =
-            suite.prepare_staking_tx(10000, TaprootTreeType::OneBranchOnlyCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::CovenantOnly);
 
         let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(&[staking_tx], None);
 
@@ -60,8 +58,7 @@ mod test_only_covenants {
     #[test]
     fn test_partial_unstaking() {
         let suite = TestSuite::new();
-        let staking_tx =
-            suite.prepare_staking_tx(100000, TaprootTreeType::OneBranchOnlyCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
 
         let mut unstaked_psbt =
             suite.build_only_covenants_unstaking_tx(&[staking_tx], Some(Amount::from_sat(8000)));
@@ -104,11 +101,9 @@ mod test_only_covenants {
     #[test]
     fn test_partial_unstaking_multiple_utxos() {
         let suite = TestSuite::new();
-        let staking_tx =
-            suite.prepare_staking_tx(100000, TaprootTreeType::OneBranchOnlyCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
 
-        let staking_tx2 =
-            suite.prepare_staking_tx(100000, TaprootTreeType::OneBranchOnlyCovenants, None);
+        let staking_tx2 = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
 
         let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(
             &[staking_tx, staking_tx2],
@@ -163,9 +158,7 @@ mod test_only_covenants {
 
         // Create multiple staking transactions (inputs)
         let staking_txs: Vec<_> = (0..2)
-            .map(|_| {
-                suite.prepare_staking_tx(100000, TaprootTreeType::OneBranchOnlyCovenants, None)
-            })
+            .map(|_| suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly))
             .collect();
 
         let another_address = "tb1p5hpkty3ykt92qx6m0rastprnreqx6dqexagg8mgp3hgz53p9lk3qd2c4f2";
@@ -265,11 +258,9 @@ mod test_only_covenants {
     #[test]
     fn test_sign_wrong_pubkey() {
         let suite = TestSuite::new();
-        let staking_tx =
-            suite.prepare_staking_tx(100000, TaprootTreeType::OneBranchOnlyCovenants, None);
+        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
 
-        let staking_tx2 =
-            suite.prepare_staking_tx(100000, TaprootTreeType::OneBranchOnlyCovenants, None);
+        let staking_tx2 = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
 
         let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(
             &[staking_tx, staking_tx2],

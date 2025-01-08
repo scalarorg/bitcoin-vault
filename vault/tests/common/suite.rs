@@ -41,34 +41,31 @@ impl<'staking> TestSuite<'staking> {
         &self,
         amount: u64,
         taproot_tree_type: TaprootTreeType,
-        have_only_covenants: Option<bool>,
     ) -> Transaction {
         let destination_chain = self.hex_to_destination(&self.env.destination_chain);
-        let destination_contract_address =
+        let destination_token_address =
             self.hex_to_destination(&self.env.destination_contract_address);
         let destination_recipient_address =
             self.hex_to_destination(&self.env.destination_recipient_address);
 
         let outputs: Vec<TxOut> = match taproot_tree_type {
-            TaprootTreeType::OneBranchOnlyCovenants => {
-                <VaultManager as Staking>::build_with_only_covenants(
-                    &self.manager,
-                    &BuildStakingWithOnlyCovenantsParams {
-                        covenant_pub_keys: self.covenant_pubkeys(),
-                        covenant_quorum: self.env.covenant_quorum,
-                        staking_amount: amount,
-                        destination_chain,
-                        destination_contract_address,
-                        destination_recipient_address,
-                    },
-                )
-                .unwrap()
-                .into_tx_outs()
-            }
-            TaprootTreeType::OneBranchOnlyKeys => {
+            TaprootTreeType::OnlyKeys => {
                 panic!("not implemented");
             }
-            _ => <VaultManager as Staking>::build(
+            TaprootTreeType::CovenantOnly => <VaultManager as Staking>::build_with_only_covenants(
+                &self.manager,
+                &BuildStakingWithOnlyCovenantsParams {
+                    covenant_pub_keys: self.covenant_pubkeys(),
+                    covenant_quorum: self.env.covenant_quorum,
+                    staking_amount: amount,
+                    destination_chain,
+                    destination_token_address,
+                    destination_recipient_address,
+                },
+            )
+            .unwrap()
+            .into_tx_outs(),
+            TaprootTreeType::MultiBranch => <VaultManager as Staking>::build(
                 &self.manager,
                 &BuildStakingParams {
                     user_pub_key: self.user_pubkey(),
@@ -76,10 +73,8 @@ impl<'staking> TestSuite<'staking> {
                     covenant_pub_keys: self.covenant_pubkeys(),
                     covenant_quorum: self.env.covenant_quorum,
                     staking_amount: amount,
-                    have_only_covenants: have_only_covenants
-                        .unwrap_or(self.env.have_only_covenants),
                     destination_chain: self.hex_to_destination(&self.env.destination_chain),
-                    destination_contract_address: self
+                    destination_token_address: self
                         .hex_to_destination(&self.env.destination_contract_address),
                     destination_recipient_address: self
                         .hex_to_destination(&self.env.destination_recipient_address),
@@ -236,7 +231,6 @@ impl<'a> TestSuite<'a> {
                 protocol_pub_key: self.protocol_pubkey(),
                 covenant_pub_keys: self.covenant_pubkeys(),
                 covenant_quorum: self.env.covenant_quorum,
-                have_only_covenants: have_only_covenants.unwrap_or(self.env.have_only_covenants),
                 fee_rate: get_fee_rate(),
                 rbf: true,
             },

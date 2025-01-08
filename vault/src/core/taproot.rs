@@ -134,7 +134,6 @@ pub struct TaprootTreeParams {
     pub protocol_pub_key: XOnlyPublicKey,
     pub covenant_pub_keys: Vec<XOnlyPublicKey>,
     pub covenant_quorum: u8,
-    pub have_only_covenants: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -204,7 +203,6 @@ impl TaprootTree {
         protocol_pub_key: &XOnlyPublicKey,
         covenant_pub_keys: &[XOnlyPublicKey],
         covenant_quorum: u8,
-        have_only_covenants: bool,
     ) -> Result<Self, CoreError> {
         let mut builder = TaprootBuilder::new();
 
@@ -224,24 +222,24 @@ impl TaprootTree {
         builder = builder.add_leaf(2, covenants_protocol_branch.clone())?;
         builder = builder.add_leaf(2, covenants_user_branch.clone())?;
 
-        if have_only_covenants {
-            builder = builder.add_leaf(2, user_protocol_branch.clone())?;
-            let only_covenants_branch =
-                <ScriptBuf as BuildOnlyCovenantsBranch>::build(covenant_pub_keys, covenant_quorum)?;
-            builder = builder.add_leaf(2, only_covenants_branch.clone())?;
+        // if have_only_covenants {
+        //     builder = builder.add_leaf(2, user_protocol_branch.clone())?;
+        //     let only_covenants_branch =
+        //         <ScriptBuf as BuildOnlyCovenantsBranch>::build(covenant_pub_keys, covenant_quorum)?;
+        //     builder = builder.add_leaf(2, only_covenants_branch.clone())?;
 
-            let taproot_spend_info = builder
-                .finalize(secp, *NUMS_BIP_341)
-                .map_err(|_| CoreError::TaprootFinalizationFailed)?;
+        //     let taproot_spend_info = builder
+        //         .finalize(secp, *NUMS_BIP_341)
+        //         .map_err(|_| CoreError::TaprootFinalizationFailed)?;
 
-            return Ok(Self {
-                root: taproot_spend_info,
-                user_protocol_branch,
-                covenants_protocol_branch,
-                covenants_user_branch,
-                only_covenants_branch: Some(only_covenants_branch),
-            });
-        }
+        //     return Ok(Self {
+        //         root: taproot_spend_info,
+        //         user_protocol_branch,
+        //         covenants_protocol_branch,
+        //         covenants_user_branch,
+        //         only_covenants_branch: Some(only_covenants_branch),
+        //     });
+        // }
 
         builder = builder.add_leaf(1, user_protocol_branch.clone())?;
 

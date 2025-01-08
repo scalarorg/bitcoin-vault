@@ -1,7 +1,7 @@
 use crate::{
-    DestinationChain, DestinationContractAddress, DestinationRecipientAddress, TaprootTreeType,
-    UnstakingTaprootTreeType, COVENANT_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_CONTRACT_ADDRESS_SIZE,
-    DEST_RECIPIENT_ADDRESS_SIZE, FLAGS_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
+    DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, TaprootTreeType,
+    UnstakingTaprootTreeType, COVENANT_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
+    DEST_TOKEN_ADDRESS_SIZE, FLAGS_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
     VERSION_SIZE,
 };
 use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
@@ -39,17 +39,16 @@ impl Default for VaultReturnTxOutputType {
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct VaultReturnTxOutput {
-    pub tag: Vec<u8>,
+    pub tag: [u8; TAG_HASH_SIZE],
     pub version: u8,
     pub network_id: u8,
     pub flags: u8,
+    pub service_tag: [u8; SERVICE_TAG_HASH_SIZE],
     pub transaction_type: VaultReturnTxOutputType,
     pub covenant_quorum: u8,
     pub destination_chain: DestinationChain,
-    pub destination_contract_address: DestinationContractAddress,
+    pub destination_token_address: DestinationTokenAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
-    pub have_only_covenants: bool,
-    pub service_tag: Option<Vec<u8>>,
 }
 
 fn read_bytes(bytes: &[u8], cursor: &mut usize, len: usize) -> Result<Vec<u8>, ParserError> {
@@ -90,12 +89,14 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         let flags = read_bytes(bytes, &mut cursor, FLAGS_SIZE)?[0];
 
         match UnstakingTaprootTreeType::try_from(flags) {
-            Ok(UnstakingTaprootTreeType::OneBranchOnlyCovenants) => {
+            Ok(UnstakingTaprootTreeType::CovenantOnly) => {
+                let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
                 return Ok(VaultReturnTxOutput {
-                    tag,
+                    tag: tag.try_into().unwrap(),
                     version,
                     network_id,
                     flags,
+                    service_tag: service_tag.try_into().unwrap(),
                     transaction_type: VaultReturnTxOutputType::Unstaking,
                     ..Default::default()
                 });
@@ -104,22 +105,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                 let tree_type =
                     TaprootTreeType::try_from(flags).map_err(|_| ParserError::InvalidScript)?;
 
-                let mut service_tag = None;
-
-                let have_only_covenants = match tree_type {
-                    TaprootTreeType::OneBranchOnlyCovenants
-                    | TaprootTreeType::OneBranchOnlyKeys => {
-                        tree_type == TaprootTreeType::OneBranchOnlyCovenants
-                    }
-                    TaprootTreeType::ManyBranchNoCovenants
-                    | TaprootTreeType::ManyBranchWithCovenants => {
-                        // Read Service Tag
-                        let service_tag_bytes =
-                            read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
-                        service_tag = Some(service_tag_bytes);
-                        tree_type == TaprootTreeType::ManyBranchWithCovenants
-                    }
-                };
+                let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
 
                 // Read covenant_quorum
                 let covenant_quorum = read_bytes(bytes, &mut cursor, COVENANT_QUORUM_SIZE)?[0];
@@ -130,8 +116,8 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     .map_err(|_| ParserError::InvalidScript)?;
 
                 // Read destination_contract_address
-                let destination_contract_address =
-                    read_bytes(bytes, &mut cursor, DEST_CONTRACT_ADDRESS_SIZE)?
+                let destination_token_address =
+                    read_bytes(bytes, &mut cursor, DEST_TOKEN_ADDRESS_SIZE)?
                         .try_into()
                         .map_err(|_| ParserError::InvalidScript)?;
 
@@ -149,16 +135,15 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     tree_type
                 );
                 Ok(VaultReturnTxOutput {
-                    tag,
-                    service_tag,
+                    tag: tag.try_into().unwrap(),
+                    service_tag: service_tag.try_into().unwrap(),
                     version,
                     network_id,
                     flags,
                     transaction_type: VaultReturnTxOutputType::Staking,
-                    have_only_covenants,
                     covenant_quorum,
                     destination_chain,
-                    destination_contract_address,
+                    destination_token_address,
                     destination_recipient_address,
                 })
             }

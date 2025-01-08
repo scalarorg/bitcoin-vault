@@ -5,10 +5,9 @@ use crate::{decoder::Decoder, encoder::Encoder};
 use bitcoin::{Amount, NetworkKind, OutPoint, PublicKey, XOnlyPublicKey};
 use bitcoin_vault::{
     BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
-    BuildUnstakingWithOnlyCovenantsParams, DestinationChain, DestinationContractAddress,
-    DestinationRecipientAddress, LockingScriptWithOnlyCovenantsParams, PreviousStakingUTXO,
-    Signing, Staking, Unstaking, UnstakingOutput as VaultUnstakingOutput, UnstakingType,
-    VaultManager,
+    BuildUnstakingWithOnlyCovenantsParams, DestinationChain, DestinationRecipientAddress,
+    DestinationTokenAddress, LockingScriptWithOnlyCovenantsParams, PreviousStakingUTXO, Signing,
+    Staking, Unstaking, UnstakingOutput as VaultUnstakingOutput, UnstakingType, VaultManager,
 };
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {
@@ -120,7 +119,7 @@ impl VaultWasm {
     ) -> Result<
         (
             DestinationChain,
-            DestinationContractAddress,
+            DestinationTokenAddress,
             DestinationRecipientAddress,
         ),
         JsValue,
@@ -163,15 +162,14 @@ impl VaultWasm {
         //encoded 33 bytes pubkey list, length of each pubkey is 32 bytes
         custodial_pubkeys: &[u8],
         covenant_quorum: u8,
-        have_only_covenants: bool,
         destination_chain: &[u8],
-        destination_smartcontract_address: &[u8],
+        destination_token_address: &[u8],
         destination_recipient_address: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
-        let (destination_chain, destination_contract_address, destination_recipient_address) = self
+        let (destination_chain, destination_token_address, destination_recipient_address) = self
             .parse_destination_params(
                 destination_chain,
-                destination_smartcontract_address,
+                destination_token_address,
                 destination_recipient_address,
             )?;
 
@@ -184,9 +182,8 @@ impl VaultWasm {
             protocol_pub_key,
             covenant_pub_keys,
             covenant_quorum,
-            have_only_covenants,
             destination_chain,
-            destination_contract_address,
+            destination_token_address,
             destination_recipient_address,
         };
 
@@ -205,7 +202,6 @@ impl VaultWasm {
         protocol_pubkey: &[u8],
         covenant_pubkeys: &[u8],
         covenant_quorum: u8,
-        have_only_covenants: bool,
         fee_rate: u64,
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
@@ -216,7 +212,6 @@ impl VaultWasm {
             protocol_pubkey,
             covenant_pubkeys,
             covenant_quorum,
-            have_only_covenants,
             fee_rate,
             rbf,
             UnstakingType::UserProtocol,
@@ -232,7 +227,6 @@ impl VaultWasm {
         protocol_pubkey: &[u8],
         covenant_pubkeys: &[u8],
         covenant_quorum: u8,
-        have_only_covenants: bool,
         fee_rate: u64,
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
@@ -248,7 +242,6 @@ impl VaultWasm {
             protocol_pubkey,
             covenant_pubkeys,
             covenant_quorum,
-            have_only_covenants,
             fee_rate,
             rbf,
             UnstakingType::CovenantsProtocol,
@@ -264,7 +257,6 @@ impl VaultWasm {
         protocol_pubkey: &[u8],
         covenant_pubkeys: &[u8],
         covenant_quorum: u8,
-        have_only_covenants: bool,
         fee_rate: u64,
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
@@ -275,7 +267,6 @@ impl VaultWasm {
             protocol_pubkey,
             covenant_pubkeys,
             covenant_quorum,
-            have_only_covenants,
             fee_rate,
             rbf,
             UnstakingType::CovenantsUser,
@@ -290,7 +281,6 @@ impl VaultWasm {
         protocol_pubkey: &[u8],
         covenant_pubkeys: &[u8],
         covenant_quorum: u8,
-        have_only_covenants: bool,
         fee_rate: u64,
         rbf: bool,
         unstaking_type: UnstakingType,
@@ -308,7 +298,6 @@ impl VaultWasm {
             protocol_pub_key,
             covenant_pub_keys,
             covenant_quorum,
-            have_only_covenants,
             rbf,
             fee_rate,
         };
@@ -350,13 +339,13 @@ impl VaultWasm {
         custodial_pubkeys: &[u8],
         covenant_quorum: u8,
         destination_chain: &[u8],
-        destination_smartcontract_address: &[u8],
+        destination_token_address: &[u8],
         destination_recipient_address: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
-        let (destination_chain, destination_contract_address, destination_recipient_address) = self
+        let (destination_chain, destination_token_address, destination_recipient_address) = self
             .parse_destination_params(
                 destination_chain,
-                destination_smartcontract_address,
+                destination_token_address,
                 destination_recipient_address,
             )?;
 
@@ -365,7 +354,7 @@ impl VaultWasm {
             covenant_pub_keys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
             covenant_quorum,
             destination_chain,
-            destination_contract_address,
+            destination_token_address,
             destination_recipient_address,
         };
 

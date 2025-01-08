@@ -4,11 +4,11 @@ use validator::Validate;
 use super::{
     manager, CoreError, DataScript, DataScriptParams, DataScriptParamsWithOnlyCovenants,
     LockingScript, LockingScriptParams, LockingScriptWithOnlyCovenantsParams, Staking,
-    VaultManager, DEST_CHAIN_SIZE, DEST_CONTRACT_ADDRESS_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
+    VaultManager, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE, DEST_TOKEN_ADDRESS_SIZE,
 };
 
 /// Type alias for destination address
-pub type DestinationContractAddress = [u8; DEST_CONTRACT_ADDRESS_SIZE];
+pub type DestinationTokenAddress = [u8; DEST_TOKEN_ADDRESS_SIZE];
 
 /// Type alias for destination recipient address
 pub type DestinationRecipientAddress = [u8; DEST_RECIPIENT_ADDRESS_SIZE];
@@ -25,9 +25,8 @@ pub struct BuildStakingParams {
     pub covenant_pub_keys: Vec<PublicKey>,
     pub covenant_quorum: u8,
     pub staking_amount: u64,
-    pub have_only_covenants: bool,
     pub destination_chain: DestinationChain,
-    pub destination_contract_address: DestinationContractAddress,
+    pub destination_token_address: DestinationTokenAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
 }
 
@@ -37,7 +36,7 @@ pub struct BuildStakingWithOnlyCovenantsParams {
     pub covenant_pub_keys: Vec<PublicKey>,
     pub covenant_quorum: u8,
     pub destination_chain: DestinationChain,
-    pub destination_contract_address: DestinationContractAddress,
+    pub destination_token_address: DestinationTokenAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
 }
 
@@ -93,7 +92,6 @@ impl Staking for VaultManager {
                 protocol_pub_key: &x_only_keys.protocol,
                 covenant_pub_keys: &x_only_keys.covenants,
                 covenant_quorum: params.covenant_quorum,
-                have_only_covenants: params.have_only_covenants,
             },
         )?;
 
@@ -102,10 +100,9 @@ impl Staking for VaultManager {
             service_tag: self.service_tag(),
             version: self.version(),
             network_id: self.network_id(),
-            have_only_covenants: params.have_only_covenants,
             covenant_quorum: params.covenant_quorum,
             destination_chain_id: &params.destination_chain,
-            destination_contract_address: &params.destination_contract_address,
+            destination_token_address: &params.destination_token_address,
             destination_recipient_address: &params.destination_recipient_address,
         })?;
 
@@ -139,9 +136,10 @@ impl Staking for VaultManager {
                 tag: self.tag(),
                 version: self.version(),
                 network_id: self.network_id(),
+                service_tag: self.service_tag(),
                 covenant_quorum: params.covenant_quorum,
                 destination_chain_id: &params.destination_chain,
-                destination_contract_address: &params.destination_contract_address,
+                destination_token_address: &params.destination_token_address,
                 destination_recipient_address: &params.destination_recipient_address,
             })?;
 

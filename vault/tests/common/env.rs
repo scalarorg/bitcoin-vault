@@ -42,8 +42,6 @@ pub struct Env {
     #[validate(range(min = 0))]
     pub covenant_quorum: u8,
 
-    pub have_only_covenants: bool,
-
     #[validate(length(min = 3))]
     pub network: String,
 
@@ -106,9 +104,6 @@ impl Env {
             covenant_quorum: env::var("COVENANT_QUORUM")
                 .map(|v| v.parse().unwrap_or(default_env.covenant_quorum))
                 .unwrap_or(default_env.covenant_quorum),
-            have_only_covenants: env::var("HAVE_ONLY_COVENANTS")
-                .map(|v| v.parse().unwrap_or(default_env.have_only_covenants))
-                .unwrap_or(default_env.have_only_covenants),
             network: env::var("NETWORK").unwrap_or(default_env.network),
             tag: env::var("TAG").unwrap_or(default_env.tag),
             version: env::var("VERSION")
@@ -140,7 +135,6 @@ impl Default for Env {
             destination_contract_address: "1F98C06D8734D5A9FF0b53e3294626E62e4d232C".to_string(),
             destination_recipient_address: "130C4810D57140e1E62967cBF742CaEaE91b6ecE".to_string(),
             covenant_quorum: 3,
-            have_only_covenants: false,
             network: "regtest".to_string(),
             tag: "SCALAR".to_string(),
             version: 0,

@@ -8,9 +8,9 @@ use bitcoin::{
 };
 
 use super::{
-    CoreError, DestinationChain, DestinationContractAddress, DestinationRecipientAddress,
-    TaprootTree, EMBEDDED_DATA_SCRIPT_SIZE, ONLY_COVENANTS_EMBEDDED_DATA_SCRIPT_SIZE,
-    ONLY_COVENANTS_UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
+    CoreError, DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, TaprootTree,
+    EMBEDDED_DATA_SCRIPT_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
+    UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE,
 };
 
 #[derive(Debug)]
@@ -19,7 +19,6 @@ pub struct LockingScriptParams<'a> {
     pub protocol_pub_key: &'a XOnlyPublicKey,
     pub covenant_pub_keys: &'a [XOnlyPublicKey],
     pub covenant_quorum: u8,
-    pub have_only_covenants: bool,
 }
 
 #[derive(Debug)]
@@ -39,7 +38,6 @@ impl LockingScript {
             params.protocol_pub_key,
             params.covenant_pub_keys,
             params.covenant_quorum,
-            params.have_only_covenants,
         )?;
 
         Ok(LockingScript(tree.into_script(secp)))
@@ -69,9 +67,8 @@ pub struct DataScriptParams<'a> {
     pub network_id: u8,
     pub covenant_quorum: u8,
     pub destination_chain_id: &'a DestinationChain,
-    pub destination_contract_address: &'a DestinationContractAddress,
+    pub destination_token_address: &'a DestinationTokenAddress,
     pub destination_recipient_address: &'a DestinationRecipientAddress,
-    pub have_only_covenants: bool,
     pub service_tag: &'a Vec<u8>,
 }
 
@@ -79,9 +76,10 @@ pub struct DataScriptParamsWithOnlyCovenants<'a> {
     pub tag: &'a Vec<u8>,
     pub version: u8,
     pub network_id: u8,
+    pub service_tag: &'a Vec<u8>,
     pub covenant_quorum: u8,
     pub destination_chain_id: &'a DestinationChain,
-    pub destination_contract_address: &'a DestinationContractAddress,
+    pub destination_token_address: &'a DestinationTokenAddress,
     pub destination_recipient_address: &'a DestinationRecipientAddress,
 }
 
@@ -89,6 +87,7 @@ pub struct DataScriptParamsWithOnlyCovenantsUnstaking<'a> {
     pub tag: &'a Vec<u8>,
     pub version: u8,
     pub network_id: u8,
+    pub service_tag: &'a Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -98,13 +97,27 @@ pub struct DataScript(ScriptBuf);
  * Taproot tree type
  * Ref: [docs/op_return.md](docs/op_return.md)
  */
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TaprootTreeType {
-    OneBranchOnlyKeys = 0b00000000,
-    OneBranchOnlyCovenants = 0b01000000,
-    ManyBranchNoCovenants = 0b10000000,
-    ManyBranchWithCovenants = 0b11000000,
+    /**
+     * For future use
+     */
+    OnlyKeys = 0b00000000,
+
+    /**
+     * Only covenants
+     */
+    CovenantOnly = 0b01000000,
+
+    /**
+     * User - Protocol, Covenant - Protocol, User - Covenant
+     */
+    MultiBranch = 0b10000000,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum UnstakingTaprootTreeType {
+    CovenantOnly = 0b01000001,
 }
 
 impl TryFrom<u8> for TaprootTreeType {
@@ -112,18 +125,12 @@ impl TryFrom<u8> for TaprootTreeType {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0b00000000 => Ok(Self::OneBranchOnlyKeys),
-            0b01000000 => Ok(Self::OneBranchOnlyCovenants),
-            0b10000000 => Ok(Self::ManyBranchNoCovenants),
-            0b11000000 => Ok(Self::ManyBranchWithCovenants),
+            0b00000000 => Ok(Self::OnlyKeys),
+            0b01000000 => Ok(Self::CovenantOnly),
+            0b10000000 => Ok(Self::MultiBranch),
             _ => Err(CoreError::InvalidTaprootTreeType),
         }
     }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum UnstakingTaprootTreeType {
-    OneBranchOnlyCovenants = 0b01000001,
 }
 
 impl TryFrom<u8> for UnstakingTaprootTreeType {
@@ -131,7 +138,7 @@ impl TryFrom<u8> for UnstakingTaprootTreeType {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0b01000001 => Ok(Self::OneBranchOnlyCovenants),
+            0b01000001 => Ok(Self::CovenantOnly),
             _ => Err(CoreError::InvalidTaprootTreeType),
         }
     }
@@ -141,11 +148,13 @@ impl DataScript {
     pub fn new(params: &DataScriptParams) -> Result<Self, CoreError> {
         let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
         let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
-        let flags = if !params.have_only_covenants {
-            TaprootTreeType::ManyBranchNoCovenants as u8
-        } else {
-            TaprootTreeType::ManyBranchWithCovenants as u8
-        };
+        // let flags = if !params.have_only_covenants {
+        //     TaprootTreeType::ManyBranchNoCovenants as u8
+        // } else {
+        //     TaprootTreeType::ManyBranchWithCovenants as u8
+        // };
+
+        let flags = TaprootTreeType::MultiBranch as u8;
 
         let mut data = Vec::<u8>::with_capacity(EMBEDDED_DATA_SCRIPT_SIZE);
         data.extend_from_slice(&tag_hash);
@@ -155,7 +164,7 @@ impl DataScript {
         data.extend_from_slice(&service_tag_hash);
         data.push(params.covenant_quorum);
         data.extend_from_slice(params.destination_chain_id);
-        data.extend_from_slice(params.destination_contract_address);
+        data.extend_from_slice(params.destination_token_address);
         data.extend_from_slice(params.destination_recipient_address);
 
         let data_slice: &[u8; EMBEDDED_DATA_SCRIPT_SIZE] = data
@@ -175,19 +184,21 @@ impl DataScript {
         params: &DataScriptParamsWithOnlyCovenants,
     ) -> Result<Self, CoreError> {
         let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
-        let flags = TaprootTreeType::OneBranchOnlyCovenants as u8;
+        let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
+        let flags = TaprootTreeType::CovenantOnly as u8;
 
-        let mut data = Vec::<u8>::with_capacity(ONLY_COVENANTS_EMBEDDED_DATA_SCRIPT_SIZE);
+        let mut data = Vec::<u8>::with_capacity(EMBEDDED_DATA_SCRIPT_SIZE);
         data.extend_from_slice(&tag_hash);
         data.push(params.version);
         data.push(params.network_id);
         data.push(flags);
+        data.extend_from_slice(&service_tag_hash);
         data.push(params.covenant_quorum);
         data.extend_from_slice(params.destination_chain_id);
-        data.extend_from_slice(params.destination_contract_address);
+        data.extend_from_slice(params.destination_token_address);
         data.extend_from_slice(params.destination_recipient_address);
 
-        let data_slice: &[u8; ONLY_COVENANTS_EMBEDDED_DATA_SCRIPT_SIZE] = data
+        let data_slice: &[u8; EMBEDDED_DATA_SCRIPT_SIZE] = data
             .as_slice()
             .try_into()
             .map_err(|_| CoreError::CannotConvertOpReturnDataToSlice)?;
@@ -204,16 +215,17 @@ impl DataScript {
         params: &DataScriptParamsWithOnlyCovenantsUnstaking,
     ) -> Result<Self, CoreError> {
         let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
+        let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
 
-        let flags = UnstakingTaprootTreeType::OneBranchOnlyCovenants as u8;
+        let flags = UnstakingTaprootTreeType::CovenantOnly as u8;
 
-        let mut data = Vec::<u8>::with_capacity(ONLY_COVENANTS_UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE);
+        let mut data = Vec::<u8>::with_capacity(UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE);
         data.extend_from_slice(&tag_hash);
         data.push(params.version);
         data.push(params.network_id);
         data.push(flags);
-
-        let data_slice: &[u8; ONLY_COVENANTS_UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE] = data
+        data.extend_from_slice(&service_tag_hash);
+        let data_slice: &[u8; UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE] = data
             .as_slice()
             .try_into()
             .map_err(|_| CoreError::CannotConvertOpReturnDataToSlice)?;
