@@ -4,6 +4,10 @@ use std::slice;
 
 use crate::FFIError;
 
+type AmountFFI = u64;
+
+pub type PublicKeyFFI = [u8; 33];
+
 #[repr(C)]
 pub struct ByteBuffer {
     pub data: *mut u8,
@@ -34,8 +38,6 @@ pub struct ScriptBufFFI {
     pub data: *mut u8,
     pub len: usize,
 }
-
-type AmountFFI = u64;
 
 #[repr(C)]
 pub struct PreviousStakingUTXOFFI {
@@ -74,8 +76,6 @@ impl Into<UnstakingOutput> for &UnstakingOutputFFI {
         }
     }
 }
-
-pub type PublicKeyFFI = [u8; 33];
 
 impl ScriptBufFFI {
     pub fn to_vec(&self) -> Vec<u8> {

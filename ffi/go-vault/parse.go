@@ -19,21 +19,46 @@ void free_byte_buffer(ByteBuffer buffer);
 import "C"
 import (
 	"encoding/json"
+	"fmt"
 	"unsafe"
 )
 
+type TransactionType string
+
+const (
+	TransactionTypeUnstaking TransactionType = "Unstaking"
+	TransactionTypeStaking   TransactionType = "Staking"
+)
+
+func (t TransactionType) String() string {
+	return string(t)
+}
+
+func (t TransactionType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(t))
+}
+
+func (t *TransactionType) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*t = TransactionType(s)
+	return nil
+}
+
 // VaultReturnTxOutput represents the parsed vault return transaction output
 type VaultReturnTxOutput struct {
-	Tag                         []byte `json:"tag"`
-	Version                     uint8  `json:"version"`
-	NetworkID                   uint8  `json:"network_id"`
-	Flags                       uint8  `json:"flags"`
-	ServiceTag                  []byte `json:"service_tag"`
-	HaveOnlyCovenants           bool   `json:"have_only_covenants"`
-	CovenantQuorum              uint8  `json:"covenant_quorum"`
-	DestinationChain            []byte `json:"destination_chain"`
-	DestinationContractAddress  []byte `json:"destination_contract_address"`
-	DestinationRecipientAddress []byte `json:"destination_recipient_address"`
+	Tag                         []byte          `json:"tag"`
+	Version                     uint8           `json:"version"`
+	NetworkID                   uint8           `json:"network_id"`
+	Flags                       uint8           `json:"flags"`
+	ServiceTag                  []byte          `json:"service_tag"`
+	TransactionType             TransactionType `json:"transaction_type"`
+	CovenantQuorum              uint8           `json:"covenant_quorum"`
+	DestinationChain            []byte          `json:"destination_chain"`
+	DestinationTokenAddress     []byte          `json:"destination_token_address"`
+	DestinationRecipientAddress []byte          `json:"destination_recipient_address"`
 }
 
 // ParseVaultEmbeddedData parses the script pubkey and returns the vault return transaction output
@@ -54,6 +79,8 @@ func ParseVaultEmbeddedData(scriptPubkey []byte) (*VaultReturnTxOutput, error) {
 
 	// Convert the C buffer to Go slice
 	goBytes := C.GoBytes(unsafe.Pointer(result.data), C.int(result.len))
+
+	fmt.Printf("goBytes: %s\n", goBytes)
 
 	// Parse JSON into VaultReturnTxOutput
 	var output VaultReturnTxOutput

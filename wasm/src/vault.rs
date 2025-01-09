@@ -5,10 +5,9 @@ use crate::{decoder::Decoder, encoder::Encoder};
 use bitcoin::{Amount, NetworkKind, OutPoint, PublicKey, XOnlyPublicKey};
 use bitcoin_vault::{
     BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
-    BuildUnstakingWithOnlyCovenantsParams, DestinationChain, DestinationRecipientAddress,
-    DestinationTokenAddress, LockingScript, LockingScriptWithOnlyCovenantsParams,
-    PreviousStakingUTXO, Signing, Staking, Unstaking, UnstakingOutput as VaultUnstakingOutput,
-    UnstakingType, VaultManager,
+    DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, LockingScript,
+    LockingScriptWithOnlyCovenantsParams, PreviousStakingUTXO, Signing, Staking, Unstaking,
+    UnstakingOutput as VaultUnstakingOutput, UnstakingType, VaultManager,
 };
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {

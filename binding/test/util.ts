@@ -14,6 +14,10 @@ import {
 
 import * as ecc from "tiny-secp256k1";
 
+// BTC_NODE_ADDRESS=localhost:48332
+// BTC_NODE_USER=scalar
+// BTC_NODE_PASSWORD=scalartestnet4
+
 const StaticEnvSchema = z.object({
   TAG: z.string().optional().default("SCALAR"),
   SERVICE_TAG: z.string().optional().default("light"),
@@ -22,11 +26,10 @@ const StaticEnvSchema = z.object({
     .enum(["bitcoin", "testnet", "regtest", "testnet4"])
     .optional()
     .default("regtest"),
-  HOST: z.string().optional().default("localhost"),
-  PORT: z.string().optional().default("18332"),
-  USERNAME: z.string().optional().default("user"),
-  PASSWORD: z.string().optional().default("password"),
-  WALLET_NAME: z.string().optional().default("staker"),
+  BTC_NODE_ADDRESS: z.string().optional().default("localhost:18332"),
+  BTC_NODE_USER: z.string().optional().default("user"),
+  BTC_NODE_PASSWORD: z.string().optional().default("password"),
+  WALLET_NAME: z.string().optional().default("legacy"),
   STAKING_AMOUNT: z.bigint().optional().default(BigInt(10_000)),
   HAVE_ONLY_CUSTODIAL: z.boolean().optional().default(false),
   CUSTODIAL_QUORUM: z.number().optional().default(3),
@@ -35,11 +38,11 @@ const StaticEnvSchema = z.object({
   DEST_USER_ADDRESS: z
     .string()
     .length(40)
-    .default("24a1dB57Fa3ecAFcbaD91d6Ef068439acEeAe090"),
-  DEST_SMART_CONTRACT_ADDRESS: z
+    .default("8B73C6c3F60ac6F45bb6A7D2A0080AF829c76e43"),
+  DEST_TOKEN_ADDRESS: z
     .string()
     .length(40)
-    .default("B91e3A8Ef862567026d6F376c9F3d6b814Ca4337"),
+    .default("aBbeEcbBfE4732b9DA50CE6b298EDf47E351Fc05"),
   BTC_ENV_PATH: z.string().optional().default(".bitcoin/.env.btc"),
   BOND_HOLDER_ADDRESS: z.string().min(10),
   BOND_HOLDER_PRIVATE_KEY: z.string().min(10),
@@ -48,12 +51,11 @@ const StaticEnvSchema = z.object({
 
 export const StaticEnv = StaticEnvSchema.parse({
   TAG: process.env.TAG,
-  VERSION: process.env.VERSION,
+  VERSION: Number(process.env.VERSION),
   NETWORK: process.env.NETWORK,
-  HOST: process.env.HOST,
-  PORT: process.env.PORT,
-  USERNAME: process.env.USERNAME,
-  PASSWORD: process.env.PASSWORD,
+  BTC_NODE_ADDRESS: process.env.BTC_NODE_ADDRESS,
+  BTC_NODE_USER: process.env.BTC_NODE_USER,
+  BTC_NODE_PASSWORD: process.env.BTC_NODE_PASSWORD,
   WALLET_NAME: process.env.WALLET_NAME,
   STAKING_AMOUNT: process.env.STAKING_AMOUNT,
   HAVE_ONLY_CUSTODIAL: process.env.HAVE_ONLY_CUSTODIAL,
@@ -86,11 +88,11 @@ export const setUpTest = async () => {
 
   const btcClient = new Client({
     network: StaticEnv.NETWORK === "testnet4" ? "testnet" : StaticEnv.NETWORK,
-    host: StaticEnv.HOST,
-    port: StaticEnv.PORT,
+    host: StaticEnv.BTC_NODE_ADDRESS.split(":")[0],
+    port: StaticEnv.BTC_NODE_ADDRESS.split(":")[1],
     wallet: StaticEnv.WALLET_NAME,
-    username: StaticEnv.USERNAME,
-    password: StaticEnv.PASSWORD,
+    username: StaticEnv.BTC_NODE_USER,
+    password: StaticEnv.BTC_NODE_PASSWORD,
   });
 
   // const custodialPubkeys = envMap.get("COVENANT_PUBKEYS")?.split(",");
@@ -171,9 +173,7 @@ export const setupStakingTx = async () => {
       ChainType.EVM,
       BigInt(StaticEnv.DEST_CHAIN_ID)
     ),
-    destinationContractAddress: hexToBytes(
-      StaticEnv.DEST_SMART_CONTRACT_ADDRESS
-    ),
+    destinationContractAddress: hexToBytes(StaticEnv.DEST_TOKEN_ADDRESS),
     destinationRecipientAddress: hexToBytes(StaticEnv.DEST_USER_ADDRESS),
     availableUTXOs: addressUtxos,
     feeRate,

@@ -1,8 +1,4 @@
-import {
-  UnstakingInput,
-  UnstakingOutput,
-  VaultWasm,
-} from "@scalar-lab/bitcoin-wasm";
+import { UnstakingInput, VaultWasm } from "@scalar-lab/bitcoin-wasm";
 import ECPairFactory from "ecpair";
 
 import * as bitcoinLib from "bitcoinjs-lib";
@@ -12,7 +8,6 @@ import {
   TBuildUnsignedStakingPsbt,
   TBuildUnsignedStakingWithOnlyCovenantsPsbt,
   TBuildUnsignedUnstakingUserProtocolPsbt,
-  TBuildUnsignedUnstakingWithOnlyCovenantsPsbt,
   TNetwork,
 } from "./types";
 
@@ -37,10 +32,6 @@ export const isTestnet = (network: TNetwork) => NetworkKind[network] === 1;
 export class VaultUtils {
   private wasm: VaultWasm | null = null;
   private network: bitcoinLib.Network | null = null;
-  // private tag: string | null = null;
-  // private serviceTag: string | null = null;
-  // private version: number | null = null;
-
   public static NETWORK_KIND: Record<TNetwork, number> = {
     bitcoin: 0,
     testnet: 1,
@@ -96,7 +87,6 @@ export class VaultUtils {
       params.protocolPubkey,
       params.custodialPubkeys,
       params.covenantQuorum,
-      params.haveOnlyCovenants,
       params.destinationChain.toBytes(),
       params.destinationContractAddress,
       params.destinationRecipientAddress
@@ -157,7 +147,6 @@ export class VaultUtils {
       params.protocolPubkey,
       params.covenantPubkeys,
       params.covenantQuorum,
-      params.haveOnlyCovenants,
       params.feeRate,
       params.rbf
     );
@@ -215,37 +204,6 @@ export class VaultUtils {
       psbt: psbtResult.psbt,
       fee: psbtResult.fee,
     };
-  };
-
-  public buildUnsignedUnstakingWithOnlyCovenantsPsbt = (
-    params: TBuildUnsignedUnstakingWithOnlyCovenantsPsbt
-  ) => {
-    if (!this.wasm) {
-      throw new Error("VaultWasm instance not initialized");
-    }
-
-    const inputs = params.inputs.map((input) => {
-      return new UnstakingInput(
-        input.script_pubkey,
-        hexToBytes(input.txid),
-        input.vout,
-        input.value
-      );
-    });
-
-    const output = new UnstakingOutput(
-      params.output.script,
-      params.output.value
-    );
-
-    return this.wasm.build_unstaking_with_only_covenants(
-      inputs,
-      output,
-      params.covenantPubkeys,
-      params.covenantQuorum,
-      params.feeRate,
-      params.rbf
-    );
   };
 
   public getNetwork() {

@@ -5,7 +5,7 @@ import { bytesToHex, ChainType, DestinationChain, hexToBytes } from "../src";
 import { logToJSON, setUpTest, StaticEnv } from "./util";
 
 //Start local regtest bitcoin node before running the test
-describe("Vault-Staking", async () => {
+describe("Vault-Staking-Only-Custodial", async () => {
   const TestSuite = await setUpTest();
   it("should create, signed and broadcast staking psbt", async () => {
     const addressUtxos = await getAddressUtxos({
@@ -33,14 +33,12 @@ describe("Vault-Staking", async () => {
     console.log("STAKING_AMOUNT", StaticEnv.STAKING_AMOUNT);
 
     const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
-      TestSuite.vaultUtils.buildStakingOutput({
+      TestSuite.vaultUtils.buildStakingOutputWithOnlyCovenants({
         stakingAmount: StaticEnv.STAKING_AMOUNT,
         stakerPubkey: TestSuite.stakerPubKey,
         stakerAddress: TestSuite.stakerAddress,
-        protocolPubkey: TestSuite.protocolPubkey,
         custodialPubkeys: TestSuite.custodialPubkeys,
         covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
-        haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
         destinationChain: new DestinationChain(
           ChainType.EVM,
           StaticEnv.DEST_CHAIN_ID
@@ -66,6 +64,6 @@ describe("Vault-Staking", async () => {
 
     console.log("txHexfromPsbt", txHexfromPsbt);
     const txid = await sendrawtransaction(txHexfromPsbt, TestSuite.btcClient);
-    console.log("Successfully broadcasted txid", txid);
+    console.log("\nSuccessfully broadcasted txid", txid);
   });
 });

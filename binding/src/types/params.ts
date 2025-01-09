@@ -50,15 +50,3 @@ export type TBuildUnsignedUnstakingUserProtocolPsbt = {
   feeRate: bigint;
   rbf: boolean;
 };
-
-export type TBuildUnsignedUnstakingWithOnlyCovenantsPsbt = {
-  inputs: PreviousStakingUTXO[];
-  output: TxOutput;
-  stakerPubkey: Uint8Array;
-  protocolPubkey: Uint8Array;
-  covenantPubkeys: Uint8Array;
-  covenantQuorum: number;
-  haveOnlyCovenants: boolean;
-  feeRate: bigint;
-  rbf: boolean;
-};
