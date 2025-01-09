@@ -29,8 +29,6 @@ typedef struct {
     AmountFFI amount_in_sats;
 } UnstakingOutputFFI;
 
-typedef uint8_t PublicKeyFFI[33];
-
 typedef struct {
     uint8_t* data;
     size_t len;
@@ -47,7 +45,7 @@ ByteBuffer build_with_only_covenants(
   size_t inputs_len,
   const UnstakingOutputFFI* outputs_ptr,
   size_t outputs_len,
-  const PublicKeyFFI* covenant_pub_keys_ptr,
+  const uint8_t (*covenant_pub_keys_ptr)[33],
   size_t covenant_pub_keys_len,
   uint8_t covenant_quorum,
   bool rbf,
@@ -133,7 +131,7 @@ func BuildCovenantOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, 
 		C.size_t(len(inputs)),
 		(*C.UnstakingOutputFFI)(unsafe.Pointer(&outputsFFI[0])),
 		C.size_t(len(outputs)),
-		(*C.PublicKeyFFI)(unsafe.Pointer(&covenantPubKeys[0])),
+		(*[33]C.uint8_t)(unsafe.Pointer(&covenantPubKeys[0])),
 		C.size_t(len(covenantPubKeys)),
 		C.uint8_t(covenantQuorum),
 		C.bool(rbf),
