@@ -6,8 +6,9 @@ use bitcoin::{Amount, NetworkKind, OutPoint, PublicKey, XOnlyPublicKey};
 use bitcoin_vault::{
     BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
     BuildUnstakingWithOnlyCovenantsParams, DestinationChain, DestinationRecipientAddress,
-    DestinationTokenAddress, LockingScriptWithOnlyCovenantsParams, PreviousStakingUTXO, Signing,
-    Staking, Unstaking, UnstakingOutput as VaultUnstakingOutput, UnstakingType, VaultManager,
+    DestinationTokenAddress, LockingScript, LockingScriptWithOnlyCovenantsParams,
+    PreviousStakingUTXO, Signing, Staking, Unstaking, UnstakingOutput as VaultUnstakingOutput,
+    UnstakingType, VaultManager,
 };
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {
@@ -375,9 +376,8 @@ impl VaultWasm {
             .iter()
             .map(|p| XOnlyPublicKey::from(*p))
             .collect::<Vec<_>>();
-        let script = self
-            .manager
-            .only_covenants_locking_script(&LockingScriptWithOnlyCovenantsParams {
+        let script =
+            LockingScript::only_covenants_locking_script(&LockingScriptWithOnlyCovenantsParams {
                 covenant_pub_keys: &covenant_x_only_pubkeys,
                 covenant_quorum,
             })

@@ -43,20 +43,13 @@ const (
 )
 
 // Helper function to decode hex string and handle error
-func mustDecodeHex(t *testing.T, s string) []byte {
-	decoded, err := hex.DecodeString(s)
-	if err != nil {
-		t.Fatalf("Failed to decode hex: %v", err)
-	}
-	return decoded
-}
 
 func TestSignPsbtAndCollectSigs(t *testing.T) {
 	Init()
 
 	// Setup test inputs
-	psbtBytes := mustDecodeHex(t, PSBT_HEX)
-	privkeyBytes := mustDecodeHex(t, PRIVKEY_HEX)
+	psbtBytes := mustDecodeHex(PSBT_HEX)
+	privkeyBytes := mustDecodeHex(PRIVKEY_HEX)
 
 	// Execute the function being tested
 	tapScriptSigs, err := vault.SignPsbtAndCollectSigs(

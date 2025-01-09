@@ -4,4 +4,6 @@ use thiserror::Error;
 pub enum FFIError {
     #[error("Invalid Txid")]
     InvalidTxid,
+    #[error("Failed to parse xonly public keys")]
+    FailedToBuildScript,
 }

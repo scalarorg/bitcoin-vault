@@ -56,8 +56,19 @@ impl LockingScript {
         Ok(LockingScript(tree.into_script(secp)))
     }
 
+    pub fn only_covenants_locking_script(
+        params: &LockingScriptWithOnlyCovenantsParams,
+    ) -> Result<Self, CoreError> {
+        let secp = Secp256k1::new();
+        LockingScript::new_with_only_covenants(&secp, params)
+    }
+
     pub fn into_script(self) -> ScriptBuf {
         self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_bytes()
     }
 }
 

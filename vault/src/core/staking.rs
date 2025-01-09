@@ -150,12 +150,3 @@ impl Staking for VaultManager {
         ))
     }
 }
-
-impl VaultManager {
-    pub fn only_covenants_locking_script(
-        &self,
-        params: &LockingScriptWithOnlyCovenantsParams,
-    ) -> Result<LockingScript, CoreError> {
-        LockingScript::new_with_only_covenants(self.secp(), params)
-    }
-}

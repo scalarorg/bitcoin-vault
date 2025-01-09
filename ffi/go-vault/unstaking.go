@@ -61,26 +61,6 @@ import (
 	"unsafe"
 )
 
-type OutPoint struct {
-	Txid [32]byte
-	Vout uint32
-}
-
-type ScriptBuf = []byte
-
-type PreviousStakingUTXO struct {
-	OutPoint OutPoint
-	Amount   uint64
-	Script   ScriptBuf
-}
-
-type UnstakingOutput struct {
-	LockingScript ScriptBuf
-	Amount        uint64
-}
-
-type PublicKey [33]byte
-
 func convertInputsToFFI(inputs []PreviousStakingUTXO) ([]C.PreviousStakingUTXOFFI, []unsafe.Pointer) {
 	inputsFFI := make([]C.PreviousStakingUTXOFFI, len(inputs))
 	ptrs := make([]unsafe.Pointer, len(inputs))
