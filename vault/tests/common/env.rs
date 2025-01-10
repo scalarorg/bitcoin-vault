@@ -34,7 +34,7 @@ pub struct Env {
     pub destination_chain: String,
 
     #[validate(length(equal = 40))]
-    pub destination_contract_address: String,
+    pub destination_token_address: String,
 
     #[validate(length(equal = 40))]
     pub destination_recipient_address: String,
@@ -97,8 +97,8 @@ impl Env {
             destination_chain: env::var("DESTINATION_CHAIN")
                 .unwrap_or(default_env.destination_chain),
 
-            destination_contract_address: env::var("DESTINATION_CONTRACT_ADDRESS")
-                .unwrap_or(default_env.destination_contract_address),
+            destination_token_address: env::var("DESTINATION_TOKEN_ADDRESS")
+                .unwrap_or(default_env.destination_token_address),
             destination_recipient_address: env::var("DESTINATION_RECIPIENT_ADDRESS")
                 .unwrap_or(default_env.destination_recipient_address),
             covenant_quorum: env::var("COVENANT_QUORUM")
@@ -132,8 +132,8 @@ impl Default for Env {
             protocol_private_key: "".to_string(),
             covenant_private_keys: vec![],
             destination_chain: "0100000000AA36A7".to_string(),
-            destination_contract_address: "1F98C06D8734D5A9FF0b53e3294626E62e4d232C".to_string(),
-            destination_recipient_address: "130C4810D57140e1E62967cBF742CaEaE91b6ecE".to_string(),
+            destination_token_address: "".to_string(),
+            destination_recipient_address: "".to_string(),
             covenant_quorum: 3,
             network: "regtest".to_string(),
             tag: "SCALAR".to_string(),

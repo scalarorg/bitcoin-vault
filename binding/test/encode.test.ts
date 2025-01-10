@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { calculateUnstakingPayloadHash } from "../src/encode/unstaking";
+import { calculateUnstakingPayloadHash } from "./encode/contractCallWithToken";
 import { BTCFeeOpts } from "../src/types/fee";
 
 describe("encode", () => {

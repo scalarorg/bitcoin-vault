@@ -44,7 +44,7 @@ impl<'staking> TestSuite<'staking> {
     ) -> Transaction {
         let destination_chain = self.hex_to_destination(&self.env.destination_chain);
         let destination_token_address =
-            self.hex_to_destination(&self.env.destination_contract_address);
+            self.hex_to_destination(&self.env.destination_token_address);
         let destination_recipient_address =
             self.hex_to_destination(&self.env.destination_recipient_address);
 
@@ -75,7 +75,7 @@ impl<'staking> TestSuite<'staking> {
                     staking_amount: amount,
                     destination_chain: self.hex_to_destination(&self.env.destination_chain),
                     destination_token_address: self
-                        .hex_to_destination(&self.env.destination_contract_address),
+                        .hex_to_destination(&self.env.destination_token_address),
                     destination_recipient_address: self
                         .hex_to_destination(&self.env.destination_recipient_address),
                 },
