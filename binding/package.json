@@ -1,6 +1,6 @@
 {
   "name": "@scalar-lab/bitcoin-vault",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "license": "MIT",
   "type": "module",
   "module": "dist/index.js",

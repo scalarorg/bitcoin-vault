@@ -1,5 +1,5 @@
-export const unstakingPayloadAbi = [
-  { type: "bytes", name: "lockingScript" },
-  { type: "uint64", name: "amount" },
-  { type: "bytes1", name: "feeOpts" },
+export const contractCallWithTokenAbi = [
+  { type: "uint8", name: "feeOpts" },
+  { type: "bool", name: "rbf" },
+  { type: "bytes", name: "recipientChainIdentifier" },
 ] as const;

@@ -1,24 +1,24 @@
 /**
  * @description: typescript version of CalculateUnstakingPayloadHash
  * @description: Check go-utils/encode/unstaking.go for the go version
- * @param {Uint8Array} lockingScript - The locking script of the staker
- * @param {number} amount - The amount of satoshis to stake
  * @param {BTCFeeOpts} feeOpts - The fee options
+ * @param {boolean} rbf - The rbf flag
+ * @param {`0x${string}`} recipientChainIdentifier - The recipient chain identifier
  * @returns {Uint8Array} encodedPayload - The encoded payload
  */
 
 import { BTCFeeOpts } from "@/types/fee";
 import { encodeAbiParameters } from "viem";
-import { unstakingPayloadAbi } from "./abi";
+import { contractCallWithTokenAbi } from "./abi";
 
-export const calculateUnstakingPayloadHash = (
-  lockingScript: `0x${string}`,
-  amount: bigint,
-  feeOpts: BTCFeeOpts
+export const calculateContractCallWithTokenPayload = (
+  feeOpts: BTCFeeOpts,
+  rbf: boolean,
+  recipientChainIdentifier: `0x${string}`
 ): `0x${string}` => {
-  return encodeAbiParameters(unstakingPayloadAbi, [
-    lockingScript,
-    amount,
-    BTCFeeOpts.BytesString(feeOpts),
+  return encodeAbiParameters(contractCallWithTokenAbi, [
+    feeOpts,
+    rbf,
+    recipientChainIdentifier,
   ]);
 };
