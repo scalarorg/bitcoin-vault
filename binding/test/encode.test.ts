@@ -1,24 +1,24 @@
 import { describe, it, expect } from "bun:test";
-import { calculateUnstakingPayloadHash } from "./encode/contractCallWithToken";
+import { calculateContractCallWithTokenPayload } from "../src/encode/contractCallWithToken";
 import { BTCFeeOpts } from "../src/types/fee";
+import { decodeAbiParameters } from "viem";
+import { contractCallWithTokenAbi } from "../src/encode/abi";
 
 describe("encode", () => {
   it("should calculate unstaking payload hash", () => {
-    const example_string =
-      "0x1234567890123456789012345678901234567890123456789012345678901234567890";
-    const tmp_amount = 7n;
-    const tmp_fee_opts = BTCFeeOpts.FastestFee;
-
-    const payload = calculateUnstakingPayloadHash(
-      example_string,
-      tmp_amount,
-      tmp_fee_opts
+    const lockingScript = "0x001450dceca158a9c872eb405d52293d351110572c9e";
+    const payload = calculateContractCallWithTokenPayload(
+      BTCFeeOpts.MinimumFee,
+      true,
+      lockingScript
     );
-
     console.log("payload", payload);
 
-    const expected_payload =
-      "0x000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000070400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002312345678901234567890123456789012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000";
-    expect(payload).toBe(expected_payload);
+    const decoded = decodeAbiParameters(contractCallWithTokenAbi, payload);
+    console.log("decoded", decoded);
+
+    expect(decoded[0]).toBe(BTCFeeOpts.MinimumFee);
+    expect(decoded[1]).toBe(true);
+    expect(decoded[2]).toBe(lockingScript);
   });
 });
