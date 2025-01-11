@@ -34,7 +34,7 @@ func TestUnstaking(t *testing.T) {
 	outputs := []vault.UnstakingOutput{
 		{
 			LockingScript: []byte{0x01, 0x02, 0x03},
-			Amount:        100000000,
+			Amount:        10_000,
 		},
 	}
 	covenantPubKeys := []vault.PublicKey{}
