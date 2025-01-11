@@ -28,9 +28,10 @@ mod test_only_covenants {
         let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(&[staking_tx], None);
 
         let psbt_base64 = base64::encode(unstaked_psbt.serialize());
-        println!("psbt_base64: {}", psbt_base64);
-
         let psbt_hex = hex::encode(unstaked_psbt.serialize());
+
+        println!("=== UNSTAKED PSBT ===");
+        println!("psbt_base64: {}", psbt_base64);
         println!("psbt_hex: {}", psbt_hex);
 
         let signing_privkeys = suite.get_random_covenant_privkeys();

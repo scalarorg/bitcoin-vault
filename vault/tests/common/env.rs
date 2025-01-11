@@ -136,9 +136,9 @@ impl Default for Env {
             destination_recipient_address: "".to_string(),
             covenant_quorum: 3,
             network: "regtest".to_string(),
-            tag: "SCALAR".to_string(),
+            tag: "".to_string(),
             version: 0,
-            service_tag: "light".to_string(),
+            service_tag: "".to_string(),
         }
     }
 }

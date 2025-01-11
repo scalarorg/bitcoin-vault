@@ -72,7 +72,7 @@ export const getEstimatedFee = (
   nInputs: number,
   nOutputs: number
 ) => {
-  return (148 * nInputs + 34 * nOutputs + 12) * feeRate;
+  return (11 + (68 + 112) * nInputs + 34 * nOutputs) * feeRate;
 };
 
 export const createStakingPsbt = (
