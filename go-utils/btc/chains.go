@@ -2,19 +2,17 @@ package btc
 
 import (
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/scalarorg/bitcoin-vault/go-utils/chain"
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
 var chaincfgTestnet4ParamsName = "testnet4"
 
 // Chain represents a Bitcoin network configuration
 type chainType struct {
-	*chain.BaseChain
+	*types.BaseChain
 	Params     *chaincfg.Params
 	ParamsName string
 }
-
-
 
 var (
 	displayedNameByID map[uint64]string
@@ -34,7 +32,7 @@ func init() {
 // BTCChainRecords provides access to Bitcoin chain configuration and parameters
 type Records struct{}
 
-var _ chain.ChainRecords = &Records{}
+var _ types.ChainRecordsType = &Records{}
 
 var records = &Records{}
 

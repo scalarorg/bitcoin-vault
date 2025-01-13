@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
 type ChainInfoBytes [ChainInfoBytesSize]byte
@@ -30,8 +32,8 @@ func (c ChainInfoBytes) Bytes() []byte {
 	return c[:]
 }
 
-func (c ChainInfoBytes) ChainType() ChainType {
-	return ChainType(c[0])
+func (c ChainInfoBytes) ChainType() types.ChainType {
+	return types.ChainType(c[0])
 }
 
 func (c ChainInfoBytes) ChainID() uint64 {
@@ -51,7 +53,7 @@ func (c *ChainInfoBytes) FromString(s string) error {
 		return fmt.Errorf("invalid format")
 	}
 
-	var chainType ChainType
+	var chainType types.ChainType
 	err := chainType.FromString(parts[0])
 	if err != nil {
 		return fmt.Errorf("invalid chain type")

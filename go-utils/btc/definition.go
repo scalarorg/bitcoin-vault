@@ -2,13 +2,13 @@ package btc
 
 import (
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/scalarorg/bitcoin-vault/go-utils/chain"
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
 // Define all chains in a single source of truth
 var chains = []chainType{
 	{
-		BaseChain: &chain.BaseChain{
+		BaseChain: &types.BaseChain{
 			ID:            0,
 			DisplayedName: "Bitcoin",
 		},
@@ -16,7 +16,7 @@ var chains = []chainType{
 		ParamsName: chaincfg.MainNetParams.Name,
 	},
 	{
-		BaseChain: &chain.BaseChain{
+		BaseChain: &types.BaseChain{
 			ID:            1,
 			DisplayedName: "Bitcoin Testnet",
 		},
@@ -24,7 +24,7 @@ var chains = []chainType{
 		ParamsName: chaincfg.TestNet3Params.Name,
 	},
 	{
-		BaseChain: &chain.BaseChain{
+		BaseChain: &types.BaseChain{
 			ID:            2,
 			DisplayedName: "Bitcoin Regression",
 		},
@@ -32,7 +32,7 @@ var chains = []chainType{
 		ParamsName: chaincfg.RegressionNetParams.Name,
 	},
 	{
-		BaseChain: &chain.BaseChain{
+		BaseChain: &types.BaseChain{
 			ID:            3,
 			DisplayedName: "Bitcoin Signet",
 		},
@@ -40,7 +40,7 @@ var chains = []chainType{
 		ParamsName: chaincfg.SigNetParams.Name,
 	},
 	{
-		BaseChain: &chain.BaseChain{
+		BaseChain: &types.BaseChain{
 			ID:            4,
 			DisplayedName: chaincfgTestnet4ParamsName,
 		},

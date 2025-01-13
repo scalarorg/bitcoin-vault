@@ -5,33 +5,34 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestChainType_String(t *testing.T) {
 	tests := []struct {
 		name      string
-		chainType ChainType
+		chainType types.ChainType
 		want      string
 	}{
 		{
 			name:      "Bitcoin chain type",
-			chainType: ChainTypeBitcoin,
+			chainType: types.ChainTypeBitcoin,
 			want:      "bitcoin",
 		},
 		{
 			name:      "EVM chain type",
-			chainType: ChainTypeEVM,
+			chainType: types.ChainTypeEVM,
 			want:      "evm",
 		},
 		{
 			name:      "Solana chain type",
-			chainType: ChainTypeSolana,
+			chainType: types.ChainTypeSolana,
 			want:      "solana",
 		},
 		{
 			name:      "Cosmos chain type",
-			chainType: ChainTypeCosmos,
+			chainType: types.ChainTypeCosmos,
 			want:      "cosmos",
 		},
 	}
@@ -46,25 +47,25 @@ func TestChainType_String(t *testing.T) {
 func TestDestinationChain_Bytes_And_FromBytes(t *testing.T) {
 	tests := []struct {
 		name        string
-		chainType   ChainType
+		chainType   types.ChainType
 		chainID     uint64
 		shouldBeNil bool
 	}{
 		{
 			name:        "Valid Bitcoin chain",
-			chainType:   ChainTypeBitcoin,
+			chainType:   types.ChainTypeBitcoin,
 			chainID:     1,
 			shouldBeNil: false,
 		},
 		{
 			name:        "Valid EVM chain",
-			chainType:   ChainTypeEVM,
+			chainType:   types.ChainTypeEVM,
 			chainID:     5,
 			shouldBeNil: false,
 		},
 		{
 			name:        "Invalid chain type",
-			chainType:   ChainType(99),
+			chainType:   types.ChainType(99),
 			chainID:     1,
 			shouldBeNil: true,
 		},
@@ -112,7 +113,7 @@ func TestDestinationChain_Bytes_And_FromBytes(t *testing.T) {
 
 func TestDestinationChain_JSON(t *testing.T) {
 	dc := &ChainInfo{
-		ChainType: ChainTypeBitcoin,
+		ChainType: types.ChainTypeBitcoin,
 		ChainID:   1,
 	}
 
@@ -133,52 +134,52 @@ func TestDestinationChain_JSON(t *testing.T) {
 func TestValidateChainType(t *testing.T) {
 	tests := []struct {
 		name      string
-		chainType ChainType
+		chainType types.ChainType
 		want      bool
 	}{
 		{
 			name:      "Valid Bitcoin chain",
-			chainType: ChainTypeBitcoin,
+			chainType: types.ChainTypeBitcoin,
 			want:      true,
 		},
 		{
 			name:      "Valid EVM chain",
-			chainType: ChainTypeEVM,
+			chainType: types.ChainTypeEVM,
 			want:      true,
 		},
 		{
 			name:      "Valid Solana chain",
-			chainType: ChainTypeSolana,
+			chainType: types.ChainTypeSolana,
 			want:      true,
 		},
 		{
 			name:      "Valid Cosmos chain",
-			chainType: ChainTypeCosmos,
+			chainType: types.ChainTypeCosmos,
 			want:      true,
 		},
 		{
 			name:      "Invalid chain type",
-			chainType: ChainType(99),
+			chainType: types.ChainType(99),
 			want:      false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, ValidateChainType(tt.chainType))
+			assert.Equal(t, tt.want, types.ValidateChainType(tt.chainType))
 		})
 	}
 }
 
 func TestChainInfoBytes_String(t *testing.T) {
 	chainInfo := &ChainInfo{
-		ChainType: ChainTypeBitcoin,
+		ChainType: types.ChainTypeBitcoin,
 		ChainID:   1,
 	}
 	assert.Equal(t, "bitcoin|1", chainInfo.ToBytes().String())
 
 	evmChainInfo := &ChainInfo{
-		ChainType: ChainTypeEVM,
+		ChainType: types.ChainTypeEVM,
 		ChainID:   11155111,
 	}
 	assert.Equal(t, "evm|11155111", evmChainInfo.ToBytes().String())
@@ -189,6 +190,6 @@ func TestChainInfoBytes_FromString(t *testing.T) {
 	err := chainInfoBytes.FromString("bitcoin|2")
 	assert.NoError(t, err)
 	fmt.Printf("chainInfoBytes: %x\n", chainInfoBytes.Bytes())
-	assert.Equal(t, ChainTypeBitcoin, chainInfoBytes.ChainType())
+	assert.Equal(t, types.ChainTypeBitcoin, chainInfoBytes.ChainType())
 	assert.Equal(t, uint64(2), chainInfoBytes.ChainID())
 }

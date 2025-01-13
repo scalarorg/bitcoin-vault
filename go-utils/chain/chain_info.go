@@ -3,11 +3,17 @@ package chain
 import (
 	"encoding/binary"
 	"fmt"
+
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
+const ChainInfoBytesSize = 8
+
+const SEPARATOR = "|"
+
 type ChainInfo struct {
-	ChainType ChainType `json:"chain_type"`
-	ChainID   uint64    `json:"chain_id"`
+	ChainType types.ChainType `json:"chain_type"`
+	ChainID   uint64          `json:"chain_id"`
 }
 
 func NewChainInfoFromBytes(bytes []byte) *ChainInfo {
@@ -15,10 +21,10 @@ func NewChainInfoFromBytes(bytes []byte) *ChainInfo {
 		return nil
 	}
 
-	if !ValidateChainType(ChainType(bytes[0])) {
+	if !types.ValidateChainType(types.ChainType(bytes[0])) {
 		return nil
 	}
-	chainType := ChainType(bytes[0])
+	chainType := types.ChainType(bytes[0])
 	bytes[0] = 0
 	chainID := binary.BigEndian.Uint64(bytes)
 

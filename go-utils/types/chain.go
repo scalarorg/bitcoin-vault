@@ -1,21 +1,6 @@
-package chain
+package types
 
-import "fmt"
-
-const ChainInfoBytesSize = 8
-
-const SEPARATOR = "|"
-
-type ChainType uint8
-
-type ChainRecords interface {
-	GetDisplayedName(chainID uint64) string
-}
-
-type BaseChain struct {
-	ID            uint64
-	DisplayedName string
-}
+import fmt "fmt"
 
 const (
 	ChainTypeBitcoin ChainType = iota // 0x00
@@ -44,6 +29,17 @@ var ChainTypeFromString = map[string]ChainType{
 	ChainTypeSolanaStr:  ChainTypeSolana,
 	ChainTypeCosmosStr:  ChainTypeCosmos,
 }
+
+type ChainRecordsType interface {
+	GetDisplayedName(chainID uint64) string
+}
+
+type BaseChain struct {
+	ID            uint64
+	DisplayedName string
+}
+
+type ChainType uint8
 
 func ValidateChainType(chainType ChainType) bool {
 	return chainType <= ChainTypeCosmos

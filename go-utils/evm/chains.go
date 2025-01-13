@@ -1,11 +1,11 @@
 package evm
 
 import (
-	"github.com/scalarorg/bitcoin-vault/go-utils/chain"
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
 type chainType struct {
-	*chain.BaseChain
+	*types.BaseChain
 }
 
 var (
@@ -23,7 +23,7 @@ func init() {
 // EvmChainRecords provides access to EVM chain configuration and parameters
 type Records struct{}
 
-var _ chain.ChainRecords = &Records{}
+var _ types.ChainRecordsType = &Records{}
 
 var records = &Records{}
 
