@@ -1,16 +1,15 @@
-package address
+package btc
 
 import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/scalarorg/bitcoin-vault/go-utils/chain"
 )
 
 func ScriptPubKeyToAddress(scriptPubKey []byte, paramsName string) (btcutil.Address, error) {
 
-	chainParams := chain.BtcChainConfigValueParams[paramsName]
+	chainParams := BtcChainsRecords().GetChainParamsByName(paramsName)
 	if chainParams == nil {
 		return nil, fmt.Errorf("chain params not found")
 	}

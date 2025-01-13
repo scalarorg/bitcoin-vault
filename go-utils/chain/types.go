@@ -8,6 +8,16 @@ const SEPARATOR = "|"
 
 type ChainType uint8
 
+type ChainRecords interface {
+	GetChainNameByID(chainID uint64) string
+	GetChainIDByName(chainName string) uint64
+}
+
+type BaseChain struct {
+	ID   uint64
+	Name string
+}
+
 const (
 	ChainTypeBitcoin ChainType = iota // 0x00
 	ChainTypeEVM                      // 0x01

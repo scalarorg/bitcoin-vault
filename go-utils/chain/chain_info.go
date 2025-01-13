@@ -45,6 +45,18 @@ func (dc *ChainInfo) Bytes() []byte {
 	return bytes
 }
 
+func (c *ChainInfo) FromString(s string) error {
+	chainInfoBytes := ChainInfoBytes{}
+	err := chainInfoBytes.FromString(s)
+	if err != nil {
+		return err
+	}
+
+	c.ChainType = chainInfoBytes.ChainType()
+	c.ChainID = chainInfoBytes.ChainID()
+	return nil
+}
+
 func (ChainInfo) Size() int {
 	return ChainInfoBytesSize
 }

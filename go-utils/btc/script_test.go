@@ -1,10 +1,10 @@
-package address_test
+package btc_test
 
 import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/scalarorg/bitcoin-vault/go-utils/address"
+	"github.com/scalarorg/bitcoin-vault/go-utils/btc"
 )
 
 func TestScriptPubKeyToAddress(t *testing.T) {
@@ -13,7 +13,7 @@ func TestScriptPubKeyToAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	add, err := address.ScriptPubKeyToAddress(scriptPubKey, "testnet3")
+	add, err := btc.ScriptPubKeyToAddress(scriptPubKey, "testnet3")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestScriptPubKeyToAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	add, err = address.ScriptPubKeyToAddress(scriptPubKey, "testnet4")
+	add, err = btc.ScriptPubKeyToAddress(scriptPubKey, "testnet4")
 	if err != nil {
 		t.Fatal(err)
 	}
