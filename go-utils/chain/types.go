@@ -9,13 +9,12 @@ const SEPARATOR = "|"
 type ChainType uint8
 
 type ChainRecords interface {
-	GetChainNameByID(chainID uint64) string
-	GetChainIDByName(chainName string) uint64
+	GetDisplayedName(chainID uint64) string
 }
 
 type BaseChain struct {
-	ID   uint64
-	Name string
+	ID            uint64
+	DisplayedName string
 }
 
 const (
