@@ -1,6 +1,6 @@
 # Bitcoin Vault Documentation
 
-> 2024-11-27 @0xdavid
+> 2025-01-14 @0xdavid
 
 ## Project Overview
 
@@ -18,7 +18,8 @@ Bitcoin Vault is a comprehensive solution for managing Bitcoin vault transaction
 
 ### 🌟 Vault Library (vault)
 
-The foundational Rust library implementing core Bitcoin vault functionality.
+> Details in [vault/README.md](./vault/README.md)
+> The foundational Rust library implementing core Bitcoin vault functionality.
 
 #### Key Features:
 
@@ -36,10 +37,10 @@ The foundational Rust library implementing core Bitcoin vault functionality.
 
 2. Unstaking transaction management for:
 
-     - [x] P2TR with multi-signatures of covenant key holders
-     - [x] P2TR with user and protocol signatures
-     - [x] P2TR with user and multi-signature of covenant key holders
-     - [x] P2TR with protocol and multi-signature of covenant key holders
+   - [x] P2TR with multi-signatures of covenant key holders
+   - [x] P2TR with user and protocol signatures
+   - [x] P2TR with user and multi-signature of covenant key holders
+   - [x] P2TR with protocol and multi-signature of covenant key holders
 
 3. Signing:
 
@@ -185,21 +186,19 @@ const vault = VaultUtils.getInstance({
 // Create staking transaction
 const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
   TestSuite.vaultUtils.buildStakingOutput({
-    stakingAmount: StaticEnv.STAKING_AMOUNT,
-    stakerPubkey: TestSuite.stakerPubKey,
-    stakerAddress: TestSuite.stakerAddress,
-    protocolPubkey: TestSuite.protocolPubkey,
-    custodialPubkeys: TestSuite.custodialPubkeys,
-    covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
-    haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
+    stakingAmount: BigInt(100000000),
+    stakerPubkey: Buffer.from("02...", "hex"),
+    stakerAddress: Buffer.from("bc1...", "hex"),
+    protocolPubkey: Buffer.from("02...", "hex"),
+    custodialPubkeys: [Buffer.from("02...", "hex"), ...].concat(),
+    covenantQuorum: 1,
+    haveOnlyCovenants: false,
     destinationChain: new DestinationChain(
       ChainType.EVM,
-      StaticEnv.DEST_CHAIN_ID
+      11155111
     ),
-    destinationContractAddress: hexToBytes(
-      StaticEnv.DEST_SMART_CONTRACT_ADDRESS
-    ),
-    destinationRecipientAddress: hexToBytes(StaticEnv.DEST_USER_ADDRESS),
+    destinationContractAddress: hexToBytes("0x..."),
+    destinationRecipientAddress: hexToBytes("0x..."),
     availableUTXOs: addressUtxos,
     feeRate,
     rbf: true,
@@ -210,20 +209,18 @@ const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
 const params: TBuildUnsignedUnstakingUserProtocolPsbt = {
   input,
   output,
-  stakerPubkey: testSuite.stakerPubKey,
-  protocolPubkey: testSuite.protocolPubkey,
-  covenantPubkeys: testSuite.custodialPubkeys,
-  covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
-  haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
+  stakerPubkey: Buffer.from("02...", "hex"),
+  protocolPubkey: Buffer.from("02...", "hex"),
+  covenantPubkeys: [Buffer.from("02...", "hex"), ...].concat(),
+  covenantQuorum: 1,
+  haveOnlyCovenants: false,
   feeRate: BigInt(feeRate),
   rbf: true,
 };
 
-// Sign the psbt
-const signedPsbt = await TestSuite.vaultUtils.signPsbt(
-  unsignedVaultPsbt,
-  TestSuite.stakerPrivKey
-);
+      // Build the unsigned psbt
+const psbtHex =
+  TestSuite.vaultUtils.buildUnsignedUnstakingUserProtocolPsbt(params);
 ```
 
 - More details can be found in `binding/test`

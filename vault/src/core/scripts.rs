@@ -159,11 +159,6 @@ impl DataScript {
     pub fn new(params: &DataScriptParams) -> Result<Self, CoreError> {
         let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
         let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
-        // let flags = if !params.have_only_covenants {
-        //     TaprootTreeType::ManyBranchNoCovenants as u8
-        // } else {
-        //     TaprootTreeType::ManyBranchWithCovenants as u8
-        // };
 
         let flags = TaprootTreeType::MultiBranch as u8;
 

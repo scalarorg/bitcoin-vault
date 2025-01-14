@@ -4,10 +4,13 @@ This directory contains the Foreign Function Interface (FFI) implementation for 
 
 ## Structure
 
-ffi/
-├── src/ # Rust FFI implementation
-├── go-vault/ # Go language bindings
-└── Cargo.toml # Rust package configuration
+```md
+bitcoin-vault/
+├── ffi/
+│   ├── src/ # Rust FFI implementation
+│   ├── go-vault/ # Go language bindings
+│   └── Cargo.toml # Rust package configuration
+```
 
 ## Features
 
