@@ -138,3 +138,50 @@ let psbt = vault_manager.build(
 ```
 
 - More in tests: [tests](./tests/)
+
+## Run Tests
+
+- Setup `.env.test.regtest` for regtest
+- Setup `.env.test.testnet4` for testnet4
+
+### Locally
+
+1. Start the bitcoin node regtest:
+
+```sh
+./bitcoin.sh run <bond_holder_wif>
+```
+
+- This will start a Bitcoin node in **regtest** mode.
+- Then import the private key (wif) of the wallet into the Bitcoin node.
+- Finally, it dumps an taproot address into the `.bitcoin/staker-p2tr.txt` file.
+- Copy the address and replace in the `.env.test.regtest` file. Eg `BOND_HOLDER_ADDRESS=bcrt1p...`
+
+2. Run the tests:
+
+```sh
+./test.sh <test_file> <test_name>
+```
+
+- `test_file`: The name of the test file to run.
+- `test_name`: The name of the test to run.
+
+### Testnet4
+
+1. Add overriden env variables in `.env.test.testnet4`
+
+```
+# Override default network and wallet settings
+NETWORK=testnet4
+BTC_NODE_ADDRESS=
+BTC_NODE_USER=
+BTC_NODE_PASSWORD=
+BOND_HOLDER_ADDRESS=
+BOND_HOLDER_WALLET=
+```
+
+2. Run the tests:
+
+```sh
+./test.sh <test_file> <test_name>
+```

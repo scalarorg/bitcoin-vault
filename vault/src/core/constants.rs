@@ -1,7 +1,5 @@
 /**
- * ```
  * Please refer to [OP_RETURN](../docs/op_return.md) for more details.
- * ```
  */
 
 /// Size of the tag hash in bytes

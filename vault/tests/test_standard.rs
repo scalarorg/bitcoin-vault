@@ -7,13 +7,13 @@ use crate::common::helper::log_tx_result;
 use crate::common::TestSuite;
 
 #[cfg(test)]
-mod test_e2e {
+mod test_standard {
     use bitcoin::{secp256k1::All, Psbt};
     use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, UnstakingType, VaultManager};
 
     use super::*;
 
-    // cargo test --package bitcoin-vault --test test_e2e -- test_e2e::test_staking --exact --show-output
+    // cargo test --package bitcoin-vault --test test_standard -- test_standard::test_staking --exact --show-output
     #[test]
     fn test_staking() {
         let suite = TestSuite::new();
@@ -21,18 +21,14 @@ mod test_e2e {
         println!("tx_id: {:?}", staking_tx.compute_txid());
     }
 
-    // Note: if you want to test on testnet4, you need to set the network to testnet4 in the .env file, ssh <testnet4> -L 48332:127.0.0.1:48332
-
-    // cargo test --package bitcoin-vault --test mod -- test_e2e::test_user_protocol_unstaking --exact --show-output
+    // cargo test --package bitcoin-vault --test test_standard -- test_standard::test_user_protocol --exact --show-output
     #[test]
-    fn test_user_protocol_unstaking() {
-        // prepare staking tx
+    fn test_user_protocol() {
         let suite = TestSuite::new();
         let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::MultiBranch);
 
         // prepare unstaking tx
-        let mut unstaked_psbt =
-            suite.build_unstaking_tx(&staking_tx, UnstakingType::UserProtocol, None);
+        let mut unstaked_psbt = suite.build_unstaking_tx(&staking_tx, UnstakingType::UserProtocol);
 
         // sign unstaking psbt
         <VaultManager as Signing>::sign_psbt_by_single_key(
@@ -57,15 +53,14 @@ mod test_e2e {
         log_tx_result(&result);
     }
 
-    // cargo test --package bitcoin-vault --test test_e2e -- test_e2e::test_covenants_user_unstaking --exact --show-output
+    // cargo test --package bitcoin-vault --test test_standard -- test_standard::test_covenants_user --exact --show-output
     #[test]
-    fn test_covenants_user_unstaking() {
+    fn test_covenants_user() {
         let suite = TestSuite::new();
 
         let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::MultiBranch);
 
-        let mut unstaked_psbt =
-            suite.build_unstaking_tx(&staking_tx, UnstakingType::CovenantsUser, None);
+        let mut unstaked_psbt = suite.build_unstaking_tx(&staking_tx, UnstakingType::CovenantsUser);
 
         // Sign with user key first
         <VaultManager as Signing>::sign_psbt_by_single_key(
@@ -98,13 +93,13 @@ mod test_e2e {
         log_tx_result(&result);
     }
 
-    // cargo test --package bitcoin-vault --test test_e2e -- test_e2e::test_covenants_protocol_unstaking --exact --show-output
+    // cargo test --package bitcoin-vault --test test_standard -- test_standard::test_covenants_protocol --exact --show-output
     #[test]
-    fn test_covenants_protocol_unstaking() {
+    fn test_covenants_protocol() {
         let suite = TestSuite::new();
         let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::MultiBranch);
         let mut unstaked_psbt =
-            suite.build_unstaking_tx(&staking_tx, UnstakingType::CovenantsProtocol, None);
+            suite.build_unstaking_tx(&staking_tx, UnstakingType::CovenantsProtocol);
 
         // Sign with user key first
         <VaultManager as Signing>::sign_psbt_by_single_key(

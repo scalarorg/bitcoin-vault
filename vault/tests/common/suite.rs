@@ -24,10 +24,28 @@ use bitcoincore_rpc::RpcApi;
 use crate::common::env::*;
 use crate::common::helper::*;
 
+#[cfg(test)]
+#[derive(Debug, Clone, Copy)]
+pub enum TestEnv {
+    Regtest,
+    Testnet4,
+}
+
+#[cfg(test)]
+impl TestEnv {
+    pub fn from_env() -> Self {
+        match std::env::var("TEST_ENV").as_deref() {
+            Ok("regtest") => TestEnv::Regtest,
+            Ok("testnet4") => TestEnv::Testnet4,
+            _ => TestEnv::Regtest,
+        }
+    }
+}
+
 #[derive(Debug)]
-pub struct TestSuite<'a> {
+pub struct TestSuite {
     rpc: Client,
-    pub env: &'a Env,
+    pub env: Env,
     user_pair: (PrivateKey, PublicKey),
     protocol_pair: (PrivateKey, PublicKey),
     covenant_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)>,
@@ -36,7 +54,7 @@ pub struct TestSuite<'a> {
     network_id: NetworkKind,
 }
 
-impl<'staking> TestSuite<'staking> {
+impl TestSuite {
     pub fn prepare_staking_tx(
         &self,
         amount: u64,
@@ -104,7 +122,7 @@ impl<'staking> TestSuite<'staking> {
             get_fee_rate(),
         );
 
-        println!("fee: {:?}", fee);
+        println!("Staking Fee: {:?}", fee);
 
         let total_output_value = unsigned_tx
             .output
@@ -167,9 +185,15 @@ impl<'staking> TestSuite<'staking> {
     }
 }
 
-impl<'a> TestSuite<'a> {
+impl TestSuite {
     pub fn new() -> Self {
-        let env = &get_env();
+        let env: TestEnv = TestEnv::from_env();
+        let env = match env {
+            TestEnv::Regtest => Env::new(Some(".env.test.regtest")).unwrap(),
+            TestEnv::Testnet4 => Env::new(Some(".env.test.testnet4")).unwrap(),
+        };
+
+        let cloned_env = env.clone();
 
         let secp = Secp256k1::new();
 
@@ -198,11 +222,14 @@ impl<'a> TestSuite<'a> {
             network_id as u8,
         );
 
+        let holder_privkey = env.bond_holder_private_key;
+        let protocol_privkey = env.protocol_private_key;
+
         Self {
             rpc,
-            env,
-            user_pair: key_from_wif(&env.bond_holder_private_key, &secp),
-            protocol_pair: key_from_wif(&env.protocol_private_key, &secp),
+            env: cloned_env,
+            user_pair: key_from_wif(&holder_privkey, &secp),
+            protocol_pair: key_from_wif(&protocol_privkey, &secp),
             covenant_pairs,
             user_address,
             manager,
@@ -214,7 +241,6 @@ impl<'a> TestSuite<'a> {
         &self,
         staking_tx: &Transaction,
         unstaking_type: UnstakingType,
-        have_only_covenants: Option<bool>,
     ) -> Psbt {
         let vout: usize = 0;
 
@@ -339,7 +365,7 @@ impl<'a> TestSuite<'a> {
     }
 }
 
-impl<'setter> TestSuite<'setter> {
+impl TestSuite {
     pub fn set_rpc(&mut self, wallet_name: &str) {
         self.rpc = create_rpc(
             &self.env.btc_node_address,
@@ -350,7 +376,7 @@ impl<'setter> TestSuite<'setter> {
     }
 }
 
-impl<'getter> TestSuite<'getter> {
+impl TestSuite {
     pub fn user_pubkey(&self) -> PublicKey {
         self.user_pair.1
     }

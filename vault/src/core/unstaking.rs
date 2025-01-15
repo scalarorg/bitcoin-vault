@@ -82,6 +82,8 @@ impl Unstaking for VaultManager {
             params.fee_rate,
         );
 
+        println!("Unstaking Fee: {:?}", fee);
+
         unsigned_tx.output[0].value = params.input.amount_in_sats - fee;
 
         let mut psbt =

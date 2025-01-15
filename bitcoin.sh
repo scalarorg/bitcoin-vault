@@ -1,6 +1,16 @@
 #!/bin/sh
 run() {
-    NAME=${1:-"bitcoin-regtest"}
+    PRIVKEY=${1:-}
+    NAME=${2:-"bitcoin-regtest"}
+    docker rm -f ${NAME}
+    validate_wif "$PRIVKEY"
+    while [ $? -eq 0 ]; do
+        echo "Invalid private key"
+        read -p "Enter the private key: " answer
+        PRIVKEY=$answer
+        validate_wif "$PRIVKEY"
+    done
+
     docker run --rm -d \
         --name ${NAME} \
         -p 18332:18332 \
@@ -9,10 +19,65 @@ run() {
         -v $(pwd)/bitcoin.conf:/root/.bitcoin/bitcoin.conf \
         -v $(pwd)/bitcoin.sh:/root/bitcoin.sh \
         -e DATADIR=/root/.bitcoin \
+        -e BOND_HOLDER_PRIVATE_KEY=$PRIVKEY \
         -u root \
         -w /root/.bitcoin \
         --entrypoint /bin/sh \
         lncm/bitcoind:v26.1 /root/bitcoin.sh entrypoint
+}
+
+validate_wif() {
+    PRIVKEY=${1:-}
+    if [ -z "$PRIVKEY" ]; then
+        echo "Private key is not set"
+        return 0
+    fi
+    if ! echo "$PRIVKEY" | grep -qE '^[5KLc9][1-9A-HJ-NP-Za-km-z]{50,51}$'; then
+        echo "Private key must be in WIF format"
+        return 0
+    fi
+    return 1
+}
+
+entrypoint() {
+    if [ -z "$BOND_HOLDER_PRIVATE_KEY" ]; then
+        echo "BOND_HOLDER_PRIVATE_KEY is not set"
+        exit 1
+    fi
+
+    apk add --no-cache jq
+    WORKDIR=${DATADIR:-/data/.bitcoin}
+    bitcoind
+    while ! nc -z 127.0.0.1 18332; do
+        sleep 1
+    done
+
+    createwallet_descriptors staker passphrase
+    createwallet_legacy legacy passphrase
+
+    # Read wif from .env
+    STAKER_WIF=$BOND_HOLDER_PRIVATE_KEY
+
+    import_wallet_by_wif staker $STAKER_WIF p2tr passphrase
+    import_wallet_by_wif legacy $STAKER_WIF p2wpkh passphrase
+
+    fund_address staker $(cat $WORKDIR/staker-p2tr.txt)
+    fund_address legacy $(cat $WORKDIR/legacy-p2wpkh.txt)
+
+    list_unspent staker $(cat $WORKDIR/staker-p2tr.txt)
+    list_unspent legacy $(cat $WORKDIR/legacy-p2wpkh.txt)
+
+    ln -s /root/bitcoin.sh /usr/local/bin/bsh
+
+    create_miner_wallet miner passphrase
+
+    while true; do
+        MINER_ADDRESS=$(cat $WORKDIR/miner-p2tr.txt)
+        echo "Mining 1 block to ${MINER_ADDRESS}"
+        fund_address miner ${MINER_ADDRESS}
+    done
+
+    sleep infinity
 }
 
 createwallet_descriptors() {
@@ -57,6 +122,13 @@ create_miner_wallet() {
     BTC_ADDRESS=$(bitcoin-cli -rpcwallet=${MINER_WALLET_NAME} getnewaddress $LABEL bech32m)
 
     echo $BTC_ADDRESS >$WORKDIR/${MINER_WALLET_NAME}-p2tr.txt
+}
+
+fund_address() {
+    WALLET_NAME=${1:-staker}
+    ADDRESS=${2}
+    bitcoin-cli -rpcwallet=${WALLET_NAME} generatetoaddress 101 ${ADDRESS} >/dev/null 2>&1
+    sleep 5
 }
 
 unlock_wallet() {
@@ -117,16 +189,16 @@ p2wpkh() {
 
     # Import the private key
     bitcoin-cli -rpcwallet=${WALLET_NAME} importprivkey "${WIF}" "label" false
-    
+
     # Get all addresses with the label
     ADDRESSES=$(bitcoin-cli -rpcwallet=${WALLET_NAME} getaddressesbylabel "label")
-    
+
     # Loop through addresses and find the bech32 one
     for addr in $(echo $ADDRESSES | jq -r 'keys[]'); do
         ADDR_INFO=$(bitcoin-cli -rpcwallet=${WALLET_NAME} getaddressinfo "$addr")
         IS_WITNESS=$(echo $ADDR_INFO | jq -r '.iswitness')
         WITNESS_VERSION=$(echo $ADDR_INFO | jq -r '.witness_version')
-        
+
         # Check if it's a native segwit address (bech32)
         if [ "$IS_WITNESS" = "true" ] && [ "$WITNESS_VERSION" = "0" ]; then
             echo $addr
@@ -135,53 +207,12 @@ p2wpkh() {
     done
 }
 
+## CLI Helpers
+
+### Usage: bsh <command>
+
 list_descriptors() {
     bitcoin-cli listdescriptors
-}
-
-entrypoint() {
-    apk add --no-cache jq
-    WORKDIR=${DATADIR:-/data/.bitcoin}
-    bitcoind
-    while ! nc -z 127.0.0.1 18332; do
-        sleep 1
-    done
-
-    createwallet_descriptors staker passphrase
-    createwallet_legacy legacy passphrase
-
-    STAKER_WIF=cQ7kMt56n8GeKkshaiCt3Lh2ChuaD3tWdSrH37MwU93PA4qZs9JR
-    PROTOCOL_WIF=cVpL6mBRYV3Dmkx87wfbtZ4R3FTD6g58VkTt1ERkqGTMzTcDVw5M
-
-    import_wallet_by_wif staker $STAKER_WIF p2tr passphrase
-    import_wallet_by_wif legacy $STAKER_WIF p2wpkh passphrase
-
-    fund_address staker $(cat $WORKDIR/staker-p2tr.txt)
-    fund_address legacy $(cat $WORKDIR/legacy-p2wpkh.txt)
-
-    list_unspent staker $(cat $WORKDIR/staker-p2tr.txt)
-    list_unspent legacy $(cat $WORKDIR/legacy-p2wpkh.txt)
-
-    # import_wallet_by_wif protocol $PROTOCOL_WIF p2tr passphrase
-
-    ln -s /root/bitcoin.sh /usr/local/bin/bsh
-
-    create_miner_wallet miner passphrase
-
-    while true; do
-        MINER_ADDRESS=$(cat $WORKDIR/miner-p2tr.txt)
-        echo "Mining 1 block to ${MINER_ADDRESS}"
-        fund_address miner ${MINER_ADDRESS}
-    done
-
-    sleep infinity
-}
-
-fund_address() {
-    WALLET_NAME=${1:-staker}
-    ADDRESS=${2}
-    bitcoin-cli -rpcwallet=${WALLET_NAME} generatetoaddress 101 ${ADDRESS} >/dev/null 2>&1
-    sleep 5
 }
 
 list_unspent() {

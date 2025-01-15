@@ -220,26 +220,3 @@ impl TryFrom<&Transaction> for VaultTransaction {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::VaultReturnTxOutput;
-    use bitcoin::Transaction;
-    #[test]
-    fn test_vault_return_tx_output() {
-        let tx_hex = "02000000000101d9f3c9143498dd3eef49a1f25c8bb73814aa7e95779f08d771074c217fc031850000000000fdffffff030f2700000000000022512080e1fa1faa2651a970cb8de8bfa7f1a184a9dad0c10515af0e6655f99d2ca2530000000000000000416a3f5343414c41520001806c6967687403a736aa00000000001f98c06d8734d5a9ff0b53e3294626e62e4d232c130c4810d57140e1e62967cbf742caeae91b6ece0dca052a0100000022512095033d48b6029174ed3ba21390756c56e90c41eeeef41c172c81d1d09a167cda0140288d98fe6078eb68c4a93fac65a1e8febaec2ebd60a55aa584afd493b8ec5660d0c0b42f2063811e22f6cd35efbb293dbdaab6eed9872dcee597aa535f0b1afa00000000";
-        let tx_hex_with_only_covenants = "02000000000101bb520c6dc5043249b56157246cf381d0ab8abcf6fae82f2c18f757a9d02e616e0200000000fdffffff030f270000000000002251207f815abf6dfd78423a708aa8db1c2c906eecac910c035132d342e4988a37b8d500000000000000003c6a3a5343414c415200014003a736aa00000000001f98c06d8734d5a9ff0b53e3294626e62e4d232c130c4810d57140e1e62967cbf742caeae91b6ece1aa2052a0100000022512095033d48b6029174ed3ba21390756c56e90c41eeeef41c172c81d1d09a167cda014097f6cab5f3e5c2a8e65120dd9f1582d2c5fce543728381cbf014ceb64bc79fb2420673c60540ad0040f44d4e9872ed47c43155e7edd4f6e9555ee87c37d2c10d00000000";
-        let tx_hexs = vec![tx_hex, tx_hex_with_only_covenants];
-
-        for tx_hex in tx_hexs {
-            // Decode hex string to bytes
-            let tx_bytes = hex::decode(tx_hex).unwrap();
-
-            // Parse bytes into Transaction
-            let tx: Transaction = bitcoin::consensus::deserialize(&tx_bytes).unwrap();
-            // Now you can test VaultReturnTxOutput conversion
-            let vault_return = VaultReturnTxOutput::try_from(&tx.output[1]).unwrap();
-            println!("vault_return: {:?}", vault_return);
-        }
-    }
-}

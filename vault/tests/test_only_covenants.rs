@@ -21,7 +21,7 @@ mod test_only_covenants {
 
     // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_e2e --exact --show-output
     #[test]
-    fn test_e2e() {
+    fn test_basic_flow() {
         let suite = TestSuite::new();
         let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::CovenantOnly);
 

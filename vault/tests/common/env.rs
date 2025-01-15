@@ -1,10 +1,9 @@
 use dotenv::from_path;
-use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::env;
 use validator::{Validate, ValidationError};
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Clone, Deserialize, Validate)]
 pub struct Env {
     #[validate(length(min = 10))]
     pub btc_node_address: String,
@@ -54,21 +53,8 @@ pub struct Env {
     pub service_tag: String,
 }
 
-lazy_static! {
-    static ref ENV: Env = Env::new(None).unwrap();
-    static ref ENV_TEST: Env = Env::new(Some(".env.test")).unwrap();
-}
-
-pub fn get_env() -> &'static Env {
-    if cfg!(test) {
-        &ENV_TEST
-    } else {
-        &ENV
-    }
-}
-
 impl Env {
-    fn new(path: Option<&str>) -> Result<Self, ValidationError> {
+    pub fn new(path: Option<&str>) -> Result<Self, ValidationError> {
         // Load environment variables from .env file
         let current_dir = env::current_dir().unwrap();
         if let Some(path) = path {
