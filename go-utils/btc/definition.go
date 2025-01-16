@@ -42,7 +42,7 @@ var chains = []chainType{
 	{
 		BaseChain: &types.BaseChain{
 			ID:            4,
-			DisplayedName: chaincfgTestnet4ParamsName,
+			DisplayedName: "Bitcoin Testnet4",
 		},
 		Params:     &chaincfg.TestNet3Params, // TODO: Update this to TestNet4Params when btcd supports it
 		ParamsName: chaincfgTestnet4ParamsName,
