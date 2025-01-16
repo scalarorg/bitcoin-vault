@@ -34,7 +34,7 @@ typedef struct {
     size_t len;
 } ByteBuffer;
 
-ByteBuffer build_with_only_covenants(
+ByteBuffer build_custodian_only(
   const uint8_t* tag,
   size_t tag_len,
   const uint8_t* service_tag,
@@ -45,9 +45,9 @@ ByteBuffer build_with_only_covenants(
   size_t inputs_len,
   const UnstakingOutputFFI* outputs_ptr,
   size_t outputs_len,
-  const uint8_t (*covenant_pub_keys_ptr)[33],
-  size_t covenant_pub_keys_len,
-  uint8_t covenant_quorum,
+  const uint8_t (*custodian_pub_keys_ptr)[33],
+  size_t custodian_pub_keys_len,
+  uint8_t custodian_quorum,
   bool rbf,
   uint64_t fee_rate
 );
@@ -102,7 +102,7 @@ func convertOutputsToFFI(outputs []UnstakingOutput) ([]C.UnstakingOutputFFI, []u
 	return outputsFFI, ptrs
 }
 
-func BuildCovenantOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, network NetworkKind, inputs []PreviousStakingUTXO, outputs []UnstakingOutput, covenantPubKeys []PublicKey, covenantQuorum uint8, rbf bool, feeRate uint64) ([]byte, error) {
+func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, network NetworkKind, inputs []PreviousStakingUTXO, outputs []UnstakingOutput, custodianPubKeys []PublicKey, custodianQuorum uint8, rbf bool, feeRate uint64) ([]byte, error) {
 	if !network.Valid() {
 		return nil, ErrInvalidNetwork
 	}
@@ -120,7 +120,7 @@ func BuildCovenantOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, 
 		}
 	}()
 
-	result := C.build_with_only_covenants(
+	result := C.build_custodian_only(
 		(*C.uint8_t)(unsafe.Pointer(&tag[0])),
 		C.size_t(len(tag)),
 		(*C.uint8_t)(unsafe.Pointer(&serviceTag[0])),
@@ -131,16 +131,16 @@ func BuildCovenantOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, 
 		C.size_t(len(inputs)),
 		(*C.UnstakingOutputFFI)(unsafe.Pointer(&outputsFFI[0])),
 		C.size_t(len(outputs)),
-		(*[33]C.uint8_t)(unsafe.Pointer(&covenantPubKeys[0])),
-		C.size_t(len(covenantPubKeys)),
-		C.uint8_t(covenantQuorum),
+		(*[33]C.uint8_t)(unsafe.Pointer(&custodianPubKeys[0])),
+		C.size_t(len(custodianPubKeys)),
+		C.uint8_t(custodianQuorum),
 		C.bool(rbf),
 		C.uint64_t(feeRate),
 	)
 	defer C.free_byte_buffer(result)
 
 	if result.data == nil || result.len == 0 {
-		return nil, ErrFailedToBuildCovenantOnlyUnstakingTx
+		return nil, ErrFailedToBuildCustodianOnlyUnstakingTx
 	}
 
 	return C.GoBytes(unsafe.Pointer(result.data), C.int(result.len)), nil

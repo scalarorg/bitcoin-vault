@@ -21,6 +21,7 @@ test:
 
 copy:
 	@mkdir -p $(LIB_DIR)
+	@rm -f $(LIB_DIR)/*
 	@cp $(LIBRARY_PATH)/libbitcoin_vault_ffi.* $(LIB_DIR)
 
 clean:

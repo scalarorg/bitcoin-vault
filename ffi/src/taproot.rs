@@ -6,35 +6,35 @@ use bitcoin_vault::{CustodianOnlyLockingScriptParams, LockingScript};
 use crate::{create_null_buffer, ByteBuffer, PublicKeyFFI};
 
 #[no_mangle]
-pub unsafe extern "C" fn only_covenants_locking_script(
-    covenant_pub_keys_ptr: *const PublicKeyFFI,
-    covenant_pub_keys_len: usize,
-    covenant_quorum: u8,
+pub unsafe extern "C" fn custodians_only_locking_script(
+    custodian_pub_keys_ptr: *const PublicKeyFFI,
+    custodian_pub_keys_len: usize,
+    custodian_quorum: u8,
 ) -> ByteBuffer {
     // Safety checks for null pointers
-    if covenant_pub_keys_ptr.is_null() {
+    if custodian_pub_keys_ptr.is_null() {
         return create_null_buffer();
     }
 
-    let covenant_pub_keys = slice::from_raw_parts(covenant_pub_keys_ptr, covenant_pub_keys_len);
+    let custodian_pub_keys = slice::from_raw_parts(custodian_pub_keys_ptr, custodian_pub_keys_len);
 
-    let covenant_pub_keys: Vec<PublicKey> = covenant_pub_keys
+    let custodian_pub_keys: Vec<PublicKey> = custodian_pub_keys
         .iter()
         .map(|key| PublicKey::from_slice(key.as_slice()).unwrap())
         .collect();
 
-    let covenant_x_only_pubkeys: Vec<XOnlyPublicKey> = covenant_pub_keys
+    let custodian_x_only_pubkeys: Vec<XOnlyPublicKey> = custodian_pub_keys
         .iter()
         .map(|p| XOnlyPublicKey::from(*p))
         .collect::<Vec<_>>();
 
     // Create parameters for the unstaking function
     let result = LockingScript::get_custodian_only(&CustodianOnlyLockingScriptParams {
-        custodian_pub_keys: &covenant_x_only_pubkeys,
-        custodian_quorum: covenant_quorum,
+        custodian_pub_keys: &custodian_x_only_pubkeys,
+        custodian_quorum: custodian_quorum,
     });
 
-    // Call the build_with_only_covenants function
+    // Call the build_custodian_only function
     match result {
         Ok(script) => {
             let script_bytes = script.to_bytes();

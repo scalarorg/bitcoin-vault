@@ -16,8 +16,8 @@ func TestParseVaultEmbeddedData(t *testing.T) {
 		scriptHex string
 		name      string
 	}{
-		{scriptHex: "6a3f5343414c41520101406c69676874030100000000aa36a7abbeecbbfe4732b9da50ce6b298edf47e351fc058b73c6c3f60ac6f45bb6a7d2a0080af829c76e43", name: "Only Covenants Version 1"},
-		{scriptHex: "6a3f5343414c41520101406c69676874030100000000aa36a7abbeecbbfe4732b9da50ce6b298edf47e351fc058b73c6c3f60ac6f45bb6a7d2a0080af829c76e43", name: "Only Covenants Version 1"},
+		{scriptHex: "6a3f5343414c41520101406c69676874030100000000aa36a7abbeecbbfe4732b9da50ce6b298edf47e351fc058b73c6c3f60ac6f45bb6a7d2a0080af829c76e43", name: "Custodians Only Version 1"},
+		{scriptHex: "6a3f5343414c41520101406c69676874030100000000aa36a7abbeecbbfe4732b9da50ce6b298edf47e351fc058b73c6c3f60ac6f45bb6a7d2a0080af829c76e43", name: "Custodians Only Version 1"},
 	}
 
 	for _, test := range tests {
@@ -37,7 +37,7 @@ func TestParseVaultEmbeddedData(t *testing.T) {
 			t.Logf("Flags: %+v", output.Flags)
 			t.Logf("Service Tag: %s", output.ServiceTag)
 			t.Logf("Transaction Type: %+v", output.TransactionType)
-			t.Logf("Covenants Quorum: %+v", output.CovenantQuorum)
+			t.Logf("Custodians Quorum: %+v", output.CustodianQuorum)
 			t.Logf("Destination: %+x", output.DestinationChain)
 			t.Logf("Destination Token Address: %+x", output.DestinationTokenAddress)
 			t.Logf("Destination Recipient: %+x", output.DestinationRecipientAddress)
