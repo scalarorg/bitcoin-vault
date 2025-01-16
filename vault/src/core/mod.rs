@@ -1,7 +1,9 @@
+mod branches;
 mod constants;
 mod errors;
 mod fee;
 mod manager;
+mod params;
 mod psbt;
 mod scripts;
 mod signing;
@@ -11,9 +13,11 @@ mod traits;
 mod unstaking;
 mod utxo;
 
+pub use branches::*;
 pub use constants::*;
 pub use errors::*;
 pub use manager::*;
+pub use params::*;
 pub use psbt::*;
 pub use scripts::*;
 pub use signing::*;

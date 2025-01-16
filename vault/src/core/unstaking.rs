@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
 use super::{
-    manager, CoreError, DataScript, DataScriptParamsWithOnlyCovenantsUnstaking, TaprootTree,
-    Unstaking, UnstakingOutput, VaultManager, XOnlyKeys,
+    manager, CoreError, CustodianOnlyUnstakingParams, DataScript, TaprootTree,
+    UPCTaprootTreeParams, UPCUnstakingParams, Unstaking, UnstakingDataScriptParams,
+    UnstakingOutput, VaultManager, XOnlyKeys,
 };
 
 use super::PreviousStakingUTXO;
@@ -13,59 +14,36 @@ use bitcoin::{
     absolute, transaction, Amount, OutPoint, Psbt, PublicKey, ScriptBuf, Sequence, TapLeafHash,
     TapSighashType, Transaction, TxIn, TxOut, Witness, XOnlyPublicKey,
 };
-use validator::Validate;
 
 #[derive(Debug, PartialEq)]
 pub enum UnstakingType {
     UserProtocol,
-    CovenantsProtocol,
-    CovenantsUser,
-}
-
-/// Because the unstaking tx is formed from a previous staking tx, 1 - 1 mapping is used.
-/// So we just need one input and one output.
-#[derive(Debug, Validate)]
-pub struct BuildUnstakingParams {
-    pub input: PreviousStakingUTXO,
-    pub locking_script: ScriptBuf,
-    pub user_pub_key: PublicKey,
-    pub protocol_pub_key: PublicKey,
-    pub covenant_pub_keys: Vec<PublicKey>,
-    pub covenant_quorum: u8,
-    pub rbf: bool,
-    pub fee_rate: u64,
-}
-
-#[derive(Debug, Validate)]
-pub struct BuildUnstakingWithOnlyCovenantsParams {
-    pub inputs: Vec<PreviousStakingUTXO>,
-    pub unstaking_outputs: Vec<UnstakingOutput>,
-    pub covenant_pub_keys: Vec<PublicKey>,
-    pub covenant_quorum: u8,
-    pub rbf: bool,
-    pub fee_rate: u64,
+    CustodianProtocol,
+    CustodianUser,
 }
 
 impl Unstaking for VaultManager {
     type Error = CoreError;
 
-    fn build(
+    fn build_upc(
         &self,
-        params: &BuildUnstakingParams,
+        params: &UPCUnstakingParams,
         unstaking_type: UnstakingType,
     ) -> Result<Psbt, Self::Error> {
-        let x_only_keys = manager::VaultManager::convert_all_to_x_only_keys(
+        let x_only_keys = manager::VaultManager::convert_upc_to_x_only_keys(
             &params.user_pub_key,
             &params.protocol_pub_key,
-            &params.covenant_pub_keys,
+            &params.custodian_pub_keys,
         );
 
-        let tree = TaprootTree::new(
+        let tree = TaprootTree::new_upc(
             self.secp(),
-            &x_only_keys.user,
-            &x_only_keys.protocol,
-            &x_only_keys.covenants,
-            params.covenant_quorum,
+            &UPCTaprootTreeParams {
+                user_pub_key: x_only_keys.user,
+                protocol_pub_key: x_only_keys.protocol,
+                custodian_pub_keys: x_only_keys.custodians.clone(),
+                custodian_quorum: params.custodian_quorum,
+            },
         )?;
 
         let (branch, keys) =
@@ -76,13 +54,13 @@ impl Unstaking for VaultManager {
         tx_builder.add_input(params.input.outpoint);
 
         let indexed_output = self.create_indexed_output()?;
-        
+
         tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
 
         tx_builder.add_output(Amount::ZERO, params.locking_script.clone());
 
         let mut unsigned_tx = tx_builder.build();
-        
+
         let fee = self.calculate_transaction_fee(
             unsigned_tx.output.len() as u64,
             unsigned_tx.input.len() as u64,
@@ -99,19 +77,19 @@ impl Unstaking for VaultManager {
         Ok(psbt)
     }
 
-    fn build_with_only_covenants(
+    fn build_custodian_only(
         &self,
-        params: &BuildUnstakingWithOnlyCovenantsParams,
+        params: &CustodianOnlyUnstakingParams,
     ) -> Result<Psbt, Self::Error> {
-        let covenants_x_only = self.convert_to_x_only_keys(&params.covenant_pub_keys);
+        let x_only_pub_keys = self.convert_to_x_only_keys(&params.custodian_pub_keys);
 
-        let tree = TaprootTree::new_with_only_covenants(
+        let tree = TaprootTree::new_custodian_only(
             self.secp(),
-            &covenants_x_only,
-            params.covenant_quorum,
+            &x_only_pub_keys,
+            params.custodian_quorum,
         )?;
 
-        let only_covenants_script = tree.clone().into_script(self.secp());
+        let custodian_only_script = tree.clone().into_script(self.secp());
 
         let mut tx_builder = UnstakingTransactionBuilder::new(params.rbf);
 
@@ -126,7 +104,7 @@ impl Unstaking for VaultManager {
         let change = self.calculate_change(&params.inputs, total_output_value);
 
         if change > Amount::ZERO {
-            self.add_change_output_placeholder(&mut tx_builder, &only_covenants_script);
+            self.add_change_output_placeholder(&mut tx_builder, &custodian_only_script);
         }
 
         let mut unsigned_tx = tx_builder.build();
@@ -140,12 +118,12 @@ impl Unstaking for VaultManager {
         self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;
 
         let (branch, keys) = (
-            tree.only_covenants_branch.as_ref().unwrap(),
-            covenants_x_only,
+            tree.only_custodian_branch.as_ref().unwrap(),
+            x_only_pub_keys,
         );
 
         if change > Amount::ZERO {
-            self.replace_change_output(&mut unsigned_tx, change, &only_covenants_script);
+            self.replace_change_output(&mut unsigned_tx, change, &custodian_only_script);
         }
 
         let mut psbt =
@@ -262,14 +240,12 @@ impl VaultManager {
     }
 
     fn create_indexed_output(&self) -> Result<UnstakingOutput, CoreError> {
-        let unstaking_script = DataScript::new_unstaking_with_only_covenants(
-            &DataScriptParamsWithOnlyCovenantsUnstaking {
-                tag: self.tag(),
-                version: self.version(),
-                network_id: self.network_id(),
-                service_tag: self.service_tag(),
-            },
-        )?;
+        let unstaking_script = DataScript::new_unstaking(&UnstakingDataScriptParams {
+            tag: self.tag(),
+            version: self.version(),
+            network_id: self.network_id(),
+            service_tag: self.service_tag(),
+        })?;
         Ok(UnstakingOutput {
             amount_in_sats: Amount::ZERO,
             locking_script: unstaking_script.into_script(),
@@ -379,18 +355,18 @@ impl UnstakingKeys {
     ) -> (&'a ScriptBuf, Vec<XOnlyPublicKey>) {
         match unstaking_type {
             UnstakingType::UserProtocol => (
-                &tree.user_protocol_branch,
+                tree.user_protocol_branch.as_ref().unwrap(),
                 vec![x_only_keys.user, x_only_keys.protocol],
             ),
-            UnstakingType::CovenantsProtocol => {
+            UnstakingType::CustodianProtocol => {
                 let mut keys = vec![x_only_keys.protocol];
-                keys.extend_from_slice(&x_only_keys.covenants);
-                (&tree.covenants_protocol_branch, keys)
+                keys.extend_from_slice(&x_only_keys.custodians);
+                (&tree.protocol_custodian_branch.as_ref().unwrap(), keys)
             }
-            UnstakingType::CovenantsUser => {
+            UnstakingType::CustodianUser => {
                 let mut keys = vec![x_only_keys.user];
-                keys.extend_from_slice(&x_only_keys.covenants);
-                (&tree.covenants_user_branch, keys)
+                keys.extend_from_slice(&x_only_keys.custodians);
+                (&tree.user_custodian_branch.as_ref().unwrap(), keys)
             }
         }
     }

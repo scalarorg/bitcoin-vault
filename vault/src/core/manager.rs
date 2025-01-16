@@ -13,7 +13,7 @@ pub struct VaultManager {
 pub struct XOnlyKeys {
     pub user: XOnlyPublicKey,
     pub protocol: XOnlyPublicKey,
-    pub covenants: Vec<XOnlyPublicKey>,
+    pub custodians: Vec<XOnlyPublicKey>,
 }
 
 impl VaultManager {
@@ -48,22 +48,26 @@ impl VaultManager {
         self.network_id
     }
 
-    pub fn convert_all_to_x_only_keys(
+    pub fn convert_pubkey_to_x_only_key(pubkey: &PublicKey) -> XOnlyPublicKey {
+        XOnlyPublicKey::from(*pubkey)
+    }
+
+    pub fn convert_upc_to_x_only_keys(
         user_pub_key: &PublicKey,
         protocol_pub_key: &PublicKey,
-        covenant_pub_keys: &[PublicKey],
+        custodian_pub_keys: &[PublicKey],
     ) -> XOnlyKeys {
-        let user_x_only = XOnlyPublicKey::from(*user_pub_key);
-        let protocol_x_only = XOnlyPublicKey::from(*protocol_pub_key);
-        let covenant_x_only = covenant_pub_keys
+        let user_x_only = Self::convert_pubkey_to_x_only_key(user_pub_key);
+        let protocol_x_only = Self::convert_pubkey_to_x_only_key(protocol_pub_key);
+        let custodian_x_only = custodian_pub_keys
             .iter()
-            .map(|pk| XOnlyPublicKey::from(*pk))
+            .map(|pk| Self::convert_pubkey_to_x_only_key(pk))
             .collect();
 
         XOnlyKeys {
             user: user_x_only,
             protocol: protocol_x_only,
-            covenants: covenant_x_only,
+            custodians: custodian_x_only,
         }
     }
 }

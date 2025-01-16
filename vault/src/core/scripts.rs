@@ -9,58 +9,63 @@ use bitcoin::{
 
 use super::{
     CoreError, DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, TaprootTree,
-    EMBEDDED_DATA_SCRIPT_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
+    UPCTaprootTreeParams, EMBEDDED_DATA_SCRIPT_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
     UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE,
 };
 
 #[derive(Debug)]
-pub struct LockingScriptParams<'a> {
+pub struct UPCLockingScriptParams<'a> {
     pub user_pub_key: &'a XOnlyPublicKey,
     pub protocol_pub_key: &'a XOnlyPublicKey,
-    pub covenant_pub_keys: &'a [XOnlyPublicKey],
-    pub covenant_quorum: u8,
+    pub custodian_pub_keys: &'a [XOnlyPublicKey],
+    pub custodian_quorum: u8,
 }
 
 #[derive(Debug)]
-pub struct LockingScriptWithOnlyCovenantsParams<'a> {
-    pub covenant_pub_keys: &'a [XOnlyPublicKey],
-    pub covenant_quorum: u8,
+pub struct CustodianOnlyLockingScriptParams<'a> {
+    pub custodian_pub_keys: &'a [XOnlyPublicKey],
+    pub custodian_quorum: u8,
 }
 
 #[derive(Debug)]
 pub struct LockingScript(ScriptBuf);
 
 impl LockingScript {
-    pub fn new(secp: &Secp256k1<All>, params: &LockingScriptParams) -> Result<Self, CoreError> {
-        let tree = TaprootTree::new(
-            secp,
-            params.user_pub_key,
-            params.protocol_pub_key,
-            params.covenant_pub_keys,
-            params.covenant_quorum,
-        )?;
-
-        Ok(LockingScript(tree.into_script(secp)))
-    }
-
-    pub fn new_with_only_covenants(
+    pub fn new_upc(
         secp: &Secp256k1<All>,
-        params: &LockingScriptWithOnlyCovenantsParams,
+        params: &UPCLockingScriptParams,
     ) -> Result<Self, CoreError> {
-        let tree = TaprootTree::new_with_only_covenants(
+        let tree = TaprootTree::new_upc(
             secp,
-            params.covenant_pub_keys,
-            params.covenant_quorum,
+            &UPCTaprootTreeParams {
+                user_pub_key: params.user_pub_key.clone(),
+                protocol_pub_key: params.protocol_pub_key.clone(),
+                custodian_pub_keys: params.custodian_pub_keys.to_vec(),
+                custodian_quorum: params.custodian_quorum,
+            },
         )?;
 
         Ok(LockingScript(tree.into_script(secp)))
     }
 
-    pub fn only_covenants_locking_script(
-        params: &LockingScriptWithOnlyCovenantsParams,
+    pub fn new_custodian_only(
+        secp: &Secp256k1<All>,
+        params: &CustodianOnlyLockingScriptParams,
+    ) -> Result<Self, CoreError> {
+        let tree = TaprootTree::new_custodian_only(
+            secp,
+            params.custodian_pub_keys,
+            params.custodian_quorum,
+        )?;
+
+        Ok(LockingScript(tree.into_script(secp)))
+    }
+
+    pub fn get_custodian_only(
+        params: &CustodianOnlyLockingScriptParams,
     ) -> Result<Self, CoreError> {
         let secp = Secp256k1::new();
-        LockingScript::new_with_only_covenants(&secp, params)
+        LockingScript::new_custodian_only(&secp, params)
     }
 
     pub fn into_script(self) -> ScriptBuf {
@@ -76,25 +81,25 @@ pub struct DataScriptParams<'a> {
     pub tag: &'a Vec<u8>,
     pub version: u8,
     pub network_id: u8,
-    pub covenant_quorum: u8,
+    pub custodian_quorum: u8,
     pub destination_chain_id: &'a DestinationChain,
     pub destination_token_address: &'a DestinationTokenAddress,
     pub destination_recipient_address: &'a DestinationRecipientAddress,
     pub service_tag: &'a Vec<u8>,
 }
 
-pub struct DataScriptParamsWithOnlyCovenants<'a> {
+pub struct CustodianOnlyDataParams<'a> {
     pub tag: &'a Vec<u8>,
     pub version: u8,
     pub network_id: u8,
     pub service_tag: &'a Vec<u8>,
-    pub covenant_quorum: u8,
+    pub custodian_quorum: u8,
     pub destination_chain_id: &'a DestinationChain,
     pub destination_token_address: &'a DestinationTokenAddress,
     pub destination_recipient_address: &'a DestinationRecipientAddress,
 }
 
-pub struct DataScriptParamsWithOnlyCovenantsUnstaking<'a> {
+pub struct UnstakingDataScriptParams<'a> {
     pub tag: &'a Vec<u8>,
     pub version: u8,
     pub network_id: u8,
@@ -116,19 +121,19 @@ pub enum TaprootTreeType {
     OnlyKeys = 0b00000000,
 
     /**
-     * Only covenants
+     * Only custodians
      */
-    CovenantOnly = 0b01000000,
+    CustodianOnly = 0b01000000,
 
     /**
-     * User - Protocol, Covenant - Protocol, User - Covenant
+     * User - Protocol, Custodian - Protocol, User - Custodian
      */
-    MultiBranch = 0b10000000,
+    UPCBranch = 0b10000000,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum UnstakingTaprootTreeType {
-    CovenantOnly = 0b01000001,
+    CustodianOnly = 0b01000001,
 }
 
 impl TryFrom<u8> for TaprootTreeType {
@@ -137,8 +142,8 @@ impl TryFrom<u8> for TaprootTreeType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0b00000000 => Ok(Self::OnlyKeys),
-            0b01000000 => Ok(Self::CovenantOnly),
-            0b10000000 => Ok(Self::MultiBranch),
+            0b01000000 => Ok(Self::CustodianOnly),
+            0b10000000 => Ok(Self::UPCBranch),
             _ => Err(CoreError::InvalidTaprootTreeType),
         }
     }
@@ -149,18 +154,18 @@ impl TryFrom<u8> for UnstakingTaprootTreeType {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0b01000001 => Ok(Self::CovenantOnly),
+            0b01000001 => Ok(Self::CustodianOnly),
             _ => Err(CoreError::InvalidTaprootTreeType),
         }
     }
 }
 
 impl DataScript {
-    pub fn new(params: &DataScriptParams) -> Result<Self, CoreError> {
+    pub fn new_upc(params: &DataScriptParams) -> Result<Self, CoreError> {
         let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
         let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
 
-        let flags = TaprootTreeType::MultiBranch as u8;
+        let flags = TaprootTreeType::UPCBranch as u8;
 
         let mut data = Vec::<u8>::with_capacity(EMBEDDED_DATA_SCRIPT_SIZE);
         data.extend_from_slice(&tag_hash);
@@ -168,7 +173,7 @@ impl DataScript {
         data.push(params.network_id);
         data.push(flags);
         data.extend_from_slice(&service_tag_hash);
-        data.push(params.covenant_quorum);
+        data.push(params.custodian_quorum);
         data.extend_from_slice(params.destination_chain_id);
         data.extend_from_slice(params.destination_token_address);
         data.extend_from_slice(params.destination_recipient_address);
@@ -186,12 +191,10 @@ impl DataScript {
         Ok(DataScript(embedded_data_script))
     }
 
-    pub fn new_with_only_covenants(
-        params: &DataScriptParamsWithOnlyCovenants,
-    ) -> Result<Self, CoreError> {
+    pub fn new_custodian_only(params: &CustodianOnlyDataParams) -> Result<Self, CoreError> {
         let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
         let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
-        let flags = TaprootTreeType::CovenantOnly as u8;
+        let flags = TaprootTreeType::CustodianOnly as u8;
 
         let mut data = Vec::<u8>::with_capacity(EMBEDDED_DATA_SCRIPT_SIZE);
         data.extend_from_slice(&tag_hash);
@@ -199,7 +202,7 @@ impl DataScript {
         data.push(params.network_id);
         data.push(flags);
         data.extend_from_slice(&service_tag_hash);
-        data.push(params.covenant_quorum);
+        data.push(params.custodian_quorum);
         data.extend_from_slice(params.destination_chain_id);
         data.extend_from_slice(params.destination_token_address);
         data.extend_from_slice(params.destination_recipient_address);
@@ -217,13 +220,11 @@ impl DataScript {
         Ok(DataScript(embedded_data_script))
     }
 
-    pub fn new_unstaking_with_only_covenants(
-        params: &DataScriptParamsWithOnlyCovenantsUnstaking,
-    ) -> Result<Self, CoreError> {
+    pub fn new_unstaking(params: &UnstakingDataScriptParams) -> Result<Self, CoreError> {
         let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
         let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
 
-        let flags = UnstakingTaprootTreeType::CovenantOnly as u8;
+        let flags = UnstakingTaprootTreeType::CustodianOnly as u8;
 
         let mut data = Vec::<u8>::with_capacity(UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE);
         data.extend_from_slice(&tag_hash);

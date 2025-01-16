@@ -183,5 +183,5 @@ BOND_HOLDER_WALLET=
 2. Run the tests:
 
 ```sh
-./test.sh <test_file> <test_name>
+TEST_ENV=testnet4 ./test.sh <test_file> <test_name>
 ```

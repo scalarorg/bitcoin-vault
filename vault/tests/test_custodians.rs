@@ -2,7 +2,7 @@
 mod common;
 
 #[cfg(test)]
-mod test_only_covenants {
+mod test_custodians {
     use bitcoin::hex::DisplayHex;
     use bitcoin::{secp256k1::All, Amount, Psbt};
     use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, UnstakingOutput, VaultManager};
@@ -11,21 +11,25 @@ mod test_only_covenants {
     use crate::common::helper::{get_adress, key_from_wif, log_tx_result};
     use crate::common::TestSuite;
 
-    // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_staking --exact --show-output
     #[test]
     fn test_staking() {
         let suite = TestSuite::new();
-        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::CovenantOnly);
+        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::CustodianOnly);
         println!("tx_id: {:?}", staking_tx.compute_txid());
     }
 
-    // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_e2e --exact --show-output
     #[test]
     fn test_basic_flow() {
         let suite = TestSuite::new();
-        let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::CovenantOnly);
+        let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::CustodianOnly);
 
-        let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(&[staking_tx], None);
+        let mut unstaked_psbt = suite.build_batch_custodian_only_unstaking_tx(
+            &[staking_tx],
+            vec![UnstakingOutput {
+                amount_in_sats: Amount::from_sat(8000),
+                locking_script: suite.user_address().script_pubkey(),
+            }],
+        );
 
         let psbt_base64 = base64::encode(unstaked_psbt.serialize());
         let psbt_hex = hex::encode(unstaked_psbt.serialize());
@@ -34,7 +38,7 @@ mod test_only_covenants {
         println!("psbt_base64: {}", psbt_base64);
         println!("psbt_hex: {}", psbt_hex);
 
-        let signing_privkeys = suite.get_random_covenant_privkeys();
+        let signing_privkeys = suite.pick_random_custodian_privkeys();
 
         for privkey in signing_privkeys {
             <VaultManager as Signing>::sign_psbt_by_single_key(
@@ -55,14 +59,18 @@ mod test_only_covenants {
         log_tx_result(&result);
     }
 
-    // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_partial_unstaking --exact --show-output
     #[test]
     fn test_partial_unstaking() {
         let suite = TestSuite::new();
-        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
+        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CustodianOnly);
 
-        let mut unstaked_psbt =
-            suite.build_only_covenants_unstaking_tx(&[staking_tx], Some(Amount::from_sat(8000)));
+        let mut unstaked_psbt = suite.build_batch_custodian_only_unstaking_tx(
+            &[staking_tx],
+            vec![UnstakingOutput {
+                amount_in_sats: Amount::from_sat(8000),
+                locking_script: suite.user_address().script_pubkey(),
+            }],
+        );
 
         let psbt_base64 = base64::encode(unstaked_psbt.serialize());
         println!("psbt_base64: {}", psbt_base64);
@@ -70,7 +78,7 @@ mod test_only_covenants {
         let psbt_hex = hex::encode(unstaked_psbt.serialize());
         println!("psbt_hex: {}", psbt_hex);
 
-        let signing_privkeys = suite.get_random_covenant_privkeys();
+        let signing_privkeys = suite.pick_random_custodian_privkeys();
 
         println!("signing_privkeys: {:?}", signing_privkeys);
 
@@ -98,17 +106,19 @@ mod test_only_covenants {
         log_tx_result(&result);
     }
 
-    // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_partial_unstaking_multiple_utxos --exact --show-output
     #[test]
     fn test_partial_unstaking_multiple_utxos() {
         let suite = TestSuite::new();
-        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
+        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CustodianOnly);
 
-        let staking_tx2 = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
+        let staking_tx2 = suite.prepare_staking_tx(100000, TaprootTreeType::CustodianOnly);
 
-        let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(
+        let mut unstaked_psbt = suite.build_batch_custodian_only_unstaking_tx(
             &[staking_tx, staking_tx2],
-            Some(Amount::from_sat(7000)),
+            vec![UnstakingOutput {
+                amount_in_sats: Amount::from_sat(7000),
+                locking_script: suite.user_address().script_pubkey(),
+            }],
         );
 
         let psbt_base64 = base64::encode(unstaked_psbt.serialize());
@@ -117,7 +127,7 @@ mod test_only_covenants {
         let psbt_hex = hex::encode(unstaked_psbt.serialize());
         println!("psbt_hex: {}", psbt_hex);
 
-        let signing_privkeys = suite.get_random_covenant_privkeys();
+        let signing_privkeys = suite.pick_random_custodian_privkeys();
 
         println!("signing_privkeys: {:?}", signing_privkeys);
 
@@ -149,7 +159,6 @@ mod test_only_covenants {
         log_tx_result(&result);
     }
 
-    // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_parallel_signing_multiple_utxos --exact --show-output
     #[test]
     fn test_parallel_signing_multiple_utxos() {
         use std::sync::mpsc;
@@ -159,16 +168,21 @@ mod test_only_covenants {
 
         // Create multiple staking transactions (inputs)
         let staking_txs: Vec<_> = (0..2)
-            .map(|_| suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly))
+            .map(|_| suite.prepare_staking_tx(100000, TaprootTreeType::CustodianOnly))
             .collect();
 
-        let another_address = "tb1p5hpkty3ykt92qx6m0rastprnreqx6dqexagg8mgp3hgz53p9lk3qd2c4f2";
+        let another_address = match suite.env.network.as_str() {
+            "testnet4" => "tb1p5hpkty3ykt92qx6m0rastprnreqx6dqexagg8mgp3hgz53p9lk3qd2c4f2",
+            "regtest" => "bcrt1qwu0w6haezr25hmgqm5una9f8vdjk9fk363d59c",
+            _ => panic!("Unknown network"),
+        };
+
         let another_address = get_adress(&suite.env.network, another_address);
 
         println!("script_pubkey: {:?}", another_address.script_pubkey());
 
         // Create the original unsigned PSBT
-        let original_psbt: Psbt = suite.build_batch_only_covenants_unstaking_tx(
+        let original_psbt: Psbt = suite.build_batch_custodian_only_unstaking_tx(
             &staking_txs,
             vec![
                 UnstakingOutput {
@@ -183,7 +197,7 @@ mod test_only_covenants {
         );
 
         // Get signing keys
-        let signing_privkeys = suite.get_random_covenant_privkeys();
+        let signing_privkeys = suite.pick_random_custodian_privkeys();
 
         // Channel for collecting signatures
         let (tx, rx) = mpsc::channel();
@@ -255,17 +269,19 @@ mod test_only_covenants {
         println!("🚀 ==== DONE ==== 🚀");
     }
 
-    // cargo test --package bitcoin-vault --test test_only_covenants -- test_only_covenants::test_sign_wrong_pubkey --exact --show-output
     #[test]
     fn test_sign_wrong_pubkey() {
         let suite = TestSuite::new();
-        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
+        let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CustodianOnly);
 
-        let staking_tx2 = suite.prepare_staking_tx(100000, TaprootTreeType::CovenantOnly);
+        let staking_tx2 = suite.prepare_staking_tx(100000, TaprootTreeType::CustodianOnly);
 
-        let mut unstaked_psbt = suite.build_only_covenants_unstaking_tx(
+        let mut unstaked_psbt = suite.build_batch_custodian_only_unstaking_tx(
             &[staking_tx, staking_tx2],
-            Some(Amount::from_sat(7000)),
+            vec![UnstakingOutput {
+                amount_in_sats: Amount::from_sat(7000),
+                locking_script: suite.user_address().script_pubkey(),
+            }],
         );
 
         let psbt_base64 = base64::encode(unstaked_psbt.serialize());
@@ -274,7 +290,7 @@ mod test_only_covenants {
         let psbt_hex = hex::encode(unstaked_psbt.serialize());
         println!("psbt_hex: {}", psbt_hex);
 
-        let mut signing_privkeys = suite.get_random_covenant_privkeys();
+        let mut signing_privkeys = suite.pick_random_custodian_privkeys();
 
         let wif = "cNGbmJbymnzaFUPZ8XSLvQQxHEEcTkh1ojBMMpvg5vFX5V1afcmR";
 

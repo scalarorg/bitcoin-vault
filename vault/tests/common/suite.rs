@@ -6,18 +6,17 @@ use bitcoin::{
     absolute, address::NetworkChecked, key::Secp256k1, transaction, Address, NetworkKind,
     PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
 };
-use bitcoin::{AddressType, Amount, OutPoint, Txid, XOnlyPublicKey};
+use bitcoin::{AddressType, Amount, OutPoint};
 use bitcoin_vault::{
-    BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
-    BuildUnstakingWithOnlyCovenantsParams, PreviousStakingUTXO, Signing, Staking, TaprootTreeType,
-    Unstaking, UnstakingOutput, UnstakingType, VaultManager,
+    CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, PreviousStakingUTXO, Signing,
+    Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams, Unstaking, UnstakingOutput,
+    UnstakingType, VaultManager,
 };
 use bitcoincore_rpc::json::GetTransactionResult;
 
 use std::collections::BTreeMap;
 
 use bitcoin::secp256k1::rand::prelude::SliceRandom;
-use bitcoin::secp256k1::rand::Rng;
 use bitcoincore_rpc::Client;
 use bitcoincore_rpc::RpcApi;
 
@@ -37,7 +36,9 @@ impl TestEnv {
         match std::env::var("TEST_ENV").as_deref() {
             Ok("regtest") => TestEnv::Regtest,
             Ok("testnet4") => TestEnv::Testnet4,
-            _ => TestEnv::Regtest,
+            _ => {
+                panic!("Unknown test environment");
+            }
         }
     }
 }
@@ -48,7 +49,7 @@ pub struct TestSuite {
     pub env: Env,
     user_pair: (PrivateKey, PublicKey),
     protocol_pair: (PrivateKey, PublicKey),
-    covenant_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)>,
+    custodian_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)>,
     user_address: Address<NetworkChecked>,
     pub manager: VaultManager,
     network_id: NetworkKind,
@@ -70,11 +71,11 @@ impl TestSuite {
             TaprootTreeType::OnlyKeys => {
                 panic!("not implemented");
             }
-            TaprootTreeType::CovenantOnly => <VaultManager as Staking>::build_with_only_covenants(
+            TaprootTreeType::CustodianOnly => <VaultManager as Staking>::build_custodian_only(
                 &self.manager,
-                &BuildStakingWithOnlyCovenantsParams {
-                    covenant_pub_keys: self.covenant_pubkeys(),
-                    covenant_quorum: self.env.covenant_quorum,
+                &CustodianOnlyStakingParams {
+                    custodian_pub_keys: self.custodian_pubkeys(),
+                    custodian_quorum: self.env.custodian_quorum,
                     staking_amount: amount,
                     destination_chain,
                     destination_token_address,
@@ -83,13 +84,13 @@ impl TestSuite {
             )
             .unwrap()
             .into_tx_outs(),
-            TaprootTreeType::MultiBranch => <VaultManager as Staking>::build(
+            TaprootTreeType::UPCBranch => <VaultManager as Staking>::build_upc(
                 &self.manager,
-                &BuildStakingParams {
+                &UPCStakingParams {
                     user_pub_key: self.user_pubkey(),
                     protocol_pub_key: self.protocol_pubkey(),
-                    covenant_pub_keys: self.covenant_pubkeys(),
-                    covenant_quorum: self.env.covenant_quorum,
+                    custodian_pub_keys: self.custodian_pubkeys(),
+                    custodian_quorum: self.env.custodian_quorum,
                     staking_amount: amount,
                     destination_chain: self.hex_to_destination(&self.env.destination_chain),
                     destination_token_address: self
@@ -206,11 +207,11 @@ impl TestSuite {
 
         let user_address = get_adress(&env.network, &env.bond_holder_address);
 
-        let mut covenant_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)> = BTreeMap::new();
+        let mut custodian_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)> = BTreeMap::new();
 
-        for (_, s) in env.covenant_private_keys.iter().enumerate() {
+        for (_, s) in env.custodian_private_keys.iter().enumerate() {
             let (privkey, pubkey) = key_from_wif(s, &secp);
-            covenant_pairs.insert(pubkey, (privkey, pubkey));
+            custodian_pairs.insert(pubkey, (privkey, pubkey));
         }
 
         let network_id = get_network_id_from_str(&env.network);
@@ -230,23 +231,24 @@ impl TestSuite {
             env: cloned_env,
             user_pair: key_from_wif(&holder_privkey, &secp),
             protocol_pair: key_from_wif(&protocol_privkey, &secp),
-            covenant_pairs,
+            custodian_pairs,
             user_address,
             manager,
             network_id,
         }
     }
 
-    pub fn build_unstaking_tx(
+    #[allow(dead_code)]
+    pub fn build_upc_unstaking_tx(
         &self,
         staking_tx: &Transaction,
         unstaking_type: UnstakingType,
     ) -> Psbt {
         let vout: usize = 0;
 
-        <VaultManager as Unstaking>::build(
+        <VaultManager as Unstaking>::build_upc(
             &self.manager,
-            &BuildUnstakingParams {
+            &UPCUnstakingParams {
                 input: PreviousStakingUTXO {
                     outpoint: OutPoint::new(staking_tx.compute_txid(), vout as u32),
                     amount_in_sats: staking_tx.output[vout].value,
@@ -255,8 +257,8 @@ impl TestSuite {
                 locking_script: self.user_address().script_pubkey(),
                 user_pub_key: self.user_pubkey(),
                 protocol_pub_key: self.protocol_pubkey(),
-                covenant_pub_keys: self.covenant_pubkeys(),
-                covenant_quorum: self.env.covenant_quorum,
+                custodian_pub_keys: self.custodian_pubkeys(),
+                custodian_quorum: self.env.custodian_quorum,
                 fee_rate: get_fee_rate(),
                 rbf: true,
             },
@@ -265,45 +267,16 @@ impl TestSuite {
         .unwrap()
     }
 
-    pub fn build_only_covenants_unstaking_tx(
-        &self,
-        staking_txs: &[Transaction],
-        amount: Option<Amount>,
-    ) -> Psbt {
-        let vout: usize = 0;
-        <VaultManager as Unstaking>::build_with_only_covenants(
-            &self.manager,
-            &BuildUnstakingWithOnlyCovenantsParams {
-                inputs: staking_txs
-                    .iter()
-                    .map(|t| PreviousStakingUTXO {
-                        outpoint: OutPoint::new(t.compute_txid(), vout as u32),
-                        amount_in_sats: t.output[vout].value,
-                        script_pubkey: t.output[vout].script_pubkey.clone(),
-                    })
-                    .collect(),
-                unstaking_outputs: vec![UnstakingOutput {
-                    amount_in_sats: amount.unwrap_or(staking_txs[0].output[vout].value),
-                    locking_script: self.user_address().script_pubkey(),
-                }],
-                covenant_pub_keys: self.covenant_pubkeys(),
-                covenant_quorum: self.env.covenant_quorum,
-                fee_rate: get_fee_rate(),
-                rbf: true,
-            },
-        )
-        .unwrap()
-    }
-
-    pub fn build_batch_only_covenants_unstaking_tx(
+    #[allow(dead_code)]
+    pub fn build_batch_custodian_only_unstaking_tx(
         &self,
         staking_txs: &[Transaction],
         unstaking_outputs: Vec<UnstakingOutput>,
     ) -> Psbt {
         let vout: usize = 0;
-        <VaultManager as Unstaking>::build_with_only_covenants(
+        <VaultManager as Unstaking>::build_custodian_only(
             &self.manager,
-            &BuildUnstakingWithOnlyCovenantsParams {
+            &CustodianOnlyUnstakingParams {
                 inputs: staking_txs
                     .iter()
                     .map(|t| PreviousStakingUTXO {
@@ -313,8 +286,8 @@ impl TestSuite {
                     })
                     .collect(),
                 unstaking_outputs,
-                covenant_pub_keys: self.covenant_pubkeys(),
-                covenant_quorum: self.env.covenant_quorum,
+                custodian_pub_keys: self.custodian_pubkeys(),
+                custodian_quorum: self.env.custodian_quorum,
                 fee_rate: get_fee_rate(),
                 rbf: true,
             },
@@ -355,25 +328,6 @@ impl TestSuite {
 
         Some(tx)
     }
-
-    pub fn get_tx_by_id(&self, txid: &Txid) -> Result<Transaction, ()> {
-        let result = self.rpc.get_transaction(txid, None).map_err(|_| ())?;
-
-        let tx = bitcoin::consensus::deserialize(&result.hex).map_err(|_| ())?;
-
-        Ok(tx)
-    }
-}
-
-impl TestSuite {
-    pub fn set_rpc(&mut self, wallet_name: &str) {
-        self.rpc = create_rpc(
-            &self.env.btc_node_address,
-            &self.env.btc_node_user,
-            &self.env.btc_node_password,
-            wallet_name,
-        );
-    }
 }
 
 impl TestSuite {
@@ -389,30 +343,20 @@ impl TestSuite {
         self.protocol_pair.1
     }
 
+    #[allow(dead_code)]
     pub fn protocol_privkey(&self) -> PrivateKey {
         self.protocol_pair.0
     }
 
-    pub fn covenant_pubkeys(&self) -> Vec<PublicKey> {
-        self.covenant_pairs.values().map(|p| p.1).collect()
+    pub fn custodian_pubkeys(&self) -> Vec<PublicKey> {
+        self.custodian_pairs.values().map(|p| p.1).collect()
     }
 
-    pub fn covenant_x_only_pubkeys(&self) -> Vec<XOnlyPublicKey> {
-        self.covenant_pubkeys()
-            .iter()
-            .map(|p| p.inner.x_only_public_key().0)
-            .collect::<Vec<_>>()
-    }
-
-    pub fn covenant_privkeys(&self) -> Vec<Vec<u8>> {
-        self.covenant_pairs
+    pub fn custodian_privkeys(&self) -> Vec<Vec<u8>> {
+        self.custodian_pairs
             .values()
             .map(|p| p.0.to_bytes())
             .collect()
-    }
-
-    pub fn n_quorum(&self) -> usize {
-        self.env.covenant_quorum as usize
     }
 
     pub fn user_address(&self) -> Address<NetworkChecked> {
@@ -426,17 +370,13 @@ impl TestSuite {
         hex_to_vec(hex_str).try_into().unwrap()
     }
 
-    pub fn rpc(&self) -> &Client {
-        &self.rpc
-    }
-
     pub fn network_id(&self) -> NetworkKind {
         self.network_id
     }
 
-    pub fn get_random_covenant_privkeys(&self) -> Vec<Vec<u8>> {
-        let covenant_privkeys = self.covenant_privkeys();
-        let mut indices: Vec<usize> = (0..covenant_privkeys.len()).collect();
+    pub fn pick_random_custodian_privkeys(&self) -> Vec<Vec<u8>> {
+        let custodian_privkeys = self.custodian_privkeys();
+        let mut indices: Vec<usize> = (0..custodian_privkeys.len()).collect();
 
         // Shuffle the indices to ensure randomness
         let mut rng = rand::thread_rng();
@@ -445,8 +385,8 @@ impl TestSuite {
         // Take the first `n` unique indices
         indices
             .into_iter()
-            .take(self.env.covenant_quorum as usize)
-            .map(|i| covenant_privkeys[i].clone())
+            .take(self.env.custodian_quorum as usize)
+            .map(|i| custodian_privkeys[i].clone())
             .collect()
     }
 }

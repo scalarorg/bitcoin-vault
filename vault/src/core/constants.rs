@@ -17,8 +17,8 @@ pub const FLAGS_SIZE: usize = 1;
 /// Size of the optional service tag hash in bytes
 pub const SERVICE_TAG_HASH_SIZE: usize = 5;
 
-/// Size of the covenant quorum field in bytes
-pub const COVENANT_QUORUM_SIZE: usize = 1;
+/// Size of the custodian quorum field in bytes
+pub const CUSTODIAN_QUORUM_SIZE: usize = 1;
 
 /// Size of the destination chain identifier in bytes
 pub const DEST_CHAIN_SIZE: usize = 8;
@@ -35,7 +35,7 @@ pub const EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
     + NETWORK_ID_SIZE
     + FLAGS_SIZE
     + SERVICE_TAG_HASH_SIZE
-    + COVENANT_QUORUM_SIZE
+    + CUSTODIAN_QUORUM_SIZE
     + DEST_CHAIN_SIZE
     + DEST_TOKEN_ADDRESS_SIZE
     + DEST_RECIPIENT_ADDRESS_SIZE;
