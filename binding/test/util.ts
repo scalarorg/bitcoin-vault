@@ -8,7 +8,7 @@ import {
   getMempoolClient,
   hexToBytes,
   sendrawtransaction,
-  TBuildUnsignedStakingPsbt,
+  TBuildUPCStakingPsbt,
   VaultUtils,
 } from "../src";
 
@@ -31,9 +31,8 @@ const StaticEnvSchema = z.object({
   BTC_NODE_PASSWORD: z.string().optional().default("password"),
   WALLET_NAME: z.string().optional().default("legacy"),
   STAKING_AMOUNT: z.bigint().optional().default(BigInt(10_000)),
-  HAVE_ONLY_CUSTODIAL: z.boolean().optional().default(false),
   CUSTODIAL_QUORUM: z.number().optional().default(3),
-  COVENANT_PRIVKEYS: z.string().min(10),
+  CUSTODIAN_PRIVKEYS: z.string().min(10),
   DEST_CHAIN_ID: z.bigint().min(BigInt(1)).default(BigInt(11155111)),
   DEST_USER_ADDRESS: z
     .string()
@@ -58,9 +57,8 @@ export const StaticEnv = StaticEnvSchema.parse({
   BTC_NODE_PASSWORD: process.env.BTC_NODE_PASSWORD,
   WALLET_NAME: process.env.WALLET_NAME,
   STAKING_AMOUNT: process.env.STAKING_AMOUNT,
-  HAVE_ONLY_CUSTODIAL: process.env.HAVE_ONLY_CUSTODIAL,
   CUSTODIAL_QUORUM: process.env.CUSTODIAL_QUORUM,
-  COVENANT_PRIVKEYS: process.env.COVENANT_PRIVKEYS,
+  CUSTODIAN_PRIVKEYS: process.env.CUSTODIAN_PRIVKEYS,
   DEST_CHAIN_ID: process.env.DEST_CHAIN_ID,
   DEST_USER_ADDRESS: process.env.DEST_USER_ADDRESS,
   DEST_SMART_CONTRACT_ADDRESS: process.env.DEST_SMART_CONTRACT_ADDRESS,
@@ -95,28 +93,23 @@ export const setUpTest = async () => {
     password: StaticEnv.BTC_NODE_PASSWORD,
   });
 
-  // const custodialPubkeys = envMap.get("COVENANT_PUBKEYS")?.split(",");
-  // if (!custodialPubkeys) {
-  //   throw new Error("COVENANT_PUBKEYS is not set");
-  // }
+  const custodianPrivateKeys = StaticEnv.CUSTODIAN_PRIVKEYS?.split(",");
 
-  const covenantsPrivateKeys = StaticEnv.COVENANT_PRIVKEYS?.split(",");
-
-  if (!covenantsPrivateKeys || covenantsPrivateKeys.length === 0) {
-    throw new Error("COVENANTS_PRIVATE_KEYS is not set");
+  if (!custodianPrivateKeys || custodianPrivateKeys.length === 0) {
+    throw new Error("CUSTODIAN_PRIVATE_KEYS is not set");
   }
 
-  const numberOfCovenants = covenantsPrivateKeys.length;
+  const numberOfCustodians = custodianPrivateKeys.length;
 
-  const covenantPubkeys = covenantsPrivateKeys.map((privateKey) => {
+  const custodianPubkeys = custodianPrivateKeys.map((privateKey) => {
     const keyPair = VaultUtils.ECPair.fromWIF(privateKey, network);
     return keyPair.publicKey;
   });
 
-  const custodialPubkeysBuffer = new Uint8Array(33 * numberOfCovenants);
+  const custodialPubkeysBuffer = new Uint8Array(33 * numberOfCustodians);
 
-  for (let i = 0; i < numberOfCovenants; i++) {
-    custodialPubkeysBuffer.set(covenantPubkeys[i], i * 33);
+  for (let i = 0; i < numberOfCustodians; i++) {
+    custodialPubkeysBuffer.set(custodianPubkeys[i], i * 33);
   }
 
   const bondHolderAddress = StaticEnv.BOND_HOLDER_ADDRESS;
@@ -161,14 +154,13 @@ export const setupStakingTx = async () => {
     await TestSuite.mempoolClient.fees.getFeesRecommended(); // Get this from Mempool API
   //1. Build the unsigned psbt
 
-  const params: TBuildUnsignedStakingPsbt = {
+  const params: TBuildUPCStakingPsbt = {
     stakingAmount: StaticEnv.STAKING_AMOUNT,
     stakerPubkey: TestSuite.stakerPubKey,
     stakerAddress: TestSuite.stakerAddress,
     protocolPubkey: TestSuite.protocolPubkey,
-    custodialPubkeys: TestSuite.custodialPubkeys,
-    covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
-    haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
+    custodianPubkeys: TestSuite.custodialPubkeys,
+    custodianQuorum: StaticEnv.CUSTODIAL_QUORUM,
     destinationChain: new DestinationChain(
       ChainType.EVM,
       BigInt(StaticEnv.DEST_CHAIN_ID)
@@ -181,7 +173,7 @@ export const setupStakingTx = async () => {
   };
 
   const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
-    TestSuite.vaultUtils.buildStakingOutput(params);
+    TestSuite.vaultUtils.buildUPCStakingPsbt(params);
   //2. Sign the psbt
   const signedPsbt = TestSuite.vaultUtils.signPsbt({
     psbt: unsignedVaultPsbt,

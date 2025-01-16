@@ -8,8 +8,8 @@ The core module provides the fundamental building blocks for Bitcoin Vault opera
 
 - Supports two staking modes:
 
-  - Standard staking with user, protocol, and covenant keys
-  - Covenant-only staking
+  - Standard staking with user, protocol, and custodian keys
+  - Custodian-only staking
 
 - Implements Taproot script trees for spending conditions
 - Handles OP_RETURN data scripts for metadata
@@ -18,9 +18,9 @@ The core module provides the fundamental building blocks for Bitcoin Vault opera
 
 - Supports multiple unstaking paths:
   - User + Protocol
-  - Covenants + Protocol
-  - Covenants + User
-  - Covenants Only
+  - Custodians + Protocol
+  - Custodians + User
+  - Custodians Only
 - Implements RBF (Replace-By-Fee) functionality
 - Handles fee distribution and change outputs
 
@@ -28,9 +28,9 @@ The core module provides the fundamental building blocks for Bitcoin Vault opera
 
 - Supports multiple signing paths:
   - User + Protocol
-  - Covenants + Protocol
-  - Covenants + User
-  - Covenants Only
+  - Custodians + Protocol
+  - Custodians + User
+  - Custodians Only
 - Handles transaction aggregation and signing
 - Supports partial signing for multi-signature transactions
 
@@ -52,7 +52,7 @@ pub trait Signing {
 
   - Taproot-based scripts implementing spending conditions
   - Support for multiple spending paths
-  - Covenant quorum enforcement
+  - Custodian quorum enforcement
 
 - Data Script:
 
@@ -84,14 +84,14 @@ pub trait Signing {
     User+Protocol  Cov+Protocol  Cov+User
 ```
 
-- Covenant-only tree:
+- Custodian-only tree:
 
 ```text
       Root
        │
        1
        │
-   Covenants
+   Custodians
 ```
 
 6. Usage Example
@@ -111,8 +111,8 @@ let vault_manager = VaultManager::new(
 let staking_output = vault_manager.build(&BuildStakingParams {
     user_pub_key,
     protocol_pub_key,
-    covenant_pub_keys,
-    covenant_quorum,
+    custodian_pub_keys,
+    custodian_quorum,
     staking_amount,
     destination_chain,
     destination_token_address,
@@ -127,8 +127,8 @@ let psbt = vault_manager.build(
         locking_script,
         user_pub_key,
         protocol_pub_key,
-        covenant_pub_keys,
-        covenant_quorum,
+        custodian_pub_keys,
+        custodian_quorum,
         rbf,
         fee_rate,
     },

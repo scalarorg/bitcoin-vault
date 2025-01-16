@@ -11,7 +11,7 @@
 | Network                | 1 byte   | BTC Network Kind, `0` for mainnet, `1` for others      | `0x01`                      |
 | Flags                  | 1 byte   | [See #Flags](#flags)                                   | `0x00`                      |
 | Protocol tag           | 5 bytes  | For display purpose                                    | `0x6C69676874`, b"light"    |
-| Covenant Quorum        | 1 byte   | Number of quorum keys                                  | `0x01`                      |
+| Custodian Quorum       | 1 byte   | Number of quorum keys                                  | `0x01`                      |
 | Dest Chain             | 8 bytes  | Destination chain info, [See #Dest Chain](#dest-chain) | `0x01`                      |
 | Token Contract Address | 20 bytes | ERC20 contract address on destination chain            | `0x01`                      |
 | Dest Recipient Address | 20 bytes | Recipient address on destination chain                 | `0x01`                      |
@@ -28,9 +28,9 @@
 
   - bit 7-6: type of the taproot tree (can be extended in the next bits)
     - `00`: one branch, only keys (not implemented yet, reserved for future)
-    - `01`: one branch, only covenants
-    - `10`: more than one branch, and dont have only-covenants feature
-    - `11`: more than one branch, and have only-covenants feature
+    - `01`: one branch, only custodians
+    - `10`: more than one branch, and dont have only-custodians feature
+    - `11`: more than one branch, and have only-custodians feature
   - other bits: reserved for future features:
   - bit-0: for unstaking use, if set, the unstaking tx will be used
     - `-------1`: unstaking tx
@@ -41,11 +41,11 @@
   ```rust
   pub enum TaprootTreeType {
     OneBranchOnlyKeys = 0b00000000,
-    OneBranchOnlyCovenants = 0b01000000,
-    ManyBranchNoCovenants = 0b10000000,
-    ManyBranchWithCovenants = 0b11000000,
+    OneBranchOnlycustodians = 0b01000000,
+    ManyBranchNocustodians = 0b10000000,
+    ManyBranchWithcustodians = 0b11000000,
 
-    OneBranchOnlyCovenants_Unstaking = 0b01000001,
+    OneBranchOnlycustodians_Unstaking = 0b01000001,
   }
   ```
 

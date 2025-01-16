@@ -45,7 +45,7 @@ pub struct VaultReturnTxOutput {
     pub flags: u8,
     pub service_tag: [u8; SERVICE_TAG_HASH_SIZE],
     pub transaction_type: VaultReturnTxOutputType,
-    pub covenant_quorum: u8,
+    pub custodian_quorum: u8,
     pub destination_chain: DestinationChain,
     pub destination_token_address: DestinationTokenAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
@@ -107,8 +107,8 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
 
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
 
-                // Read covenant_quorum
-                let covenant_quorum = read_bytes(bytes, &mut cursor, CUSTODIAN_QUORUM_SIZE)?[0];
+                // Read custodian_quorum
+                let custodian_quorum = read_bytes(bytes, &mut cursor, CUSTODIAN_QUORUM_SIZE)?[0];
 
                 // Read destination_chain_id
                 let destination_chain = read_bytes(bytes, &mut cursor, DEST_CHAIN_SIZE)?
@@ -141,7 +141,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     network_id,
                     flags,
                     transaction_type: VaultReturnTxOutputType::Staking,
-                    covenant_quorum,
+                    custodian_quorum,
                     destination_chain,
                     destination_token_address,
                     destination_recipient_address,

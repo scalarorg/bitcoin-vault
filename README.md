@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-Bitcoin Vault is a comprehensive solution for managing Bitcoin vault transactions, providing functionality for **staking**, **unstaking**, and **covenant management** on bitcoin network; it provides a **rust** library, **wasm** bindings, **go** ffi bindings, and a **typescript** sdk.
+Bitcoin Vault is a comprehensive solution for managing Bitcoin vault transactions, providing functionality for **staking**, **unstaking**, and **custodian management** on bitcoin network; it provides a **rust** library, **wasm** bindings, **go** ffi bindings, and a **typescript** sdk.
 
 ## Runtime Requirements
 

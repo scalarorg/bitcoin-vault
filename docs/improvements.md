@@ -1,9 +1,9 @@
 ### Security Parameters
 
 ```text
-MINIMUM_QUORUM = 3           // Minimum number of required covenant signatures
-MAX_CUSTODIANS = 15         // Maximum number of covenant signers
-TIMELOCK_BLOCKS = 144       // 24-hour timelock for covenant-only path
+MINIMUM_QUORUM = 3           // Minimum number of required custodian signatures
+MAX_CUSTODIANS = 15         // Maximum number of custodian signers
+TIMELOCK_BLOCKS = 144       // 24-hour timelock for custodian-only path
 ```
 
 ## Tree Structure
@@ -18,7 +18,7 @@ TIMELOCK_BLOCKS = 144       // 24-hour timelock for covenant-only path
     Emergency Branch     Standard Branch
             │           ┌─────┴─────┐
      Cov+Timelock       │           │
-                    User+Protocol  Covenant Branch
+                    User+Protocol  Custodian Branch
                                 ┌─────┴─────┐
                                 │           │
                            Cov+Protocol   Cov+User
@@ -52,13 +52,13 @@ To spend via this path:
 
 2. **Key Rotation**:
 
-   - Periodic covenant key rotation procedure
+   - Periodic custodian key rotation procedure
    - MuSig2 key aggregation for reduced witness size
    - Deterministic key derivation paths (BIP32)
 
 3. **Monitoring**:
 
-   - Covenant signature tracking
+   - Custodian signature tracking
    - Spending attempt notifications
    - Timelock monitoring
 
@@ -73,4 +73,4 @@ To spend via this path:
 - Cross-input signature aggregation (when available)
 - Point Time Lock Contracts (PTLCs) integration
 - Adaptor signatures for atomic swaps
-- Recursive covenants (with future soft fork)
+- Recursive custodians (with future soft fork)

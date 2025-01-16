@@ -28,7 +28,7 @@ impl CustodianScriptBuilder {
                 .push_opcode(OP_CHECKSIGVERIFY);
         }
 
-        // Sort covenant public keys
+        // Sort custodian public keys
         let mut sorted_pks = custodian_pub_keys.to_owned();
         sorted_pks.sort();
 
@@ -39,7 +39,7 @@ impl CustodianScriptBuilder {
             }
         }
 
-        // Add covenant keys to the script
+        // Add custodian keys to the script
         builder = builder.push_x_only_key(&sorted_pks[0]);
         builder = builder.push_opcode(OP_CHECKSIG);
 

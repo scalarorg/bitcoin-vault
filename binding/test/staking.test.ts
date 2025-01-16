@@ -24,7 +24,6 @@ describe("Vault-Staking", async () => {
     console.log("protocolPubkey", bytesToHex(TestSuite.protocolPubkey));
     console.log("custodialPubkeys", TestSuite.custodialPubkeys);
     console.log("CUSTODIAL_QUORUM", StaticEnv.CUSTODIAL_QUORUM);
-    console.log("HAVE_ONLY_CUSTODIAL", StaticEnv.HAVE_ONLY_CUSTODIAL);
     console.log("DEST_CHAIN_ID", StaticEnv.DEST_CHAIN_ID);
     console.log("DEST_SMART_CONTRACT_ADDRESS", StaticEnv.DEST_TOKEN_ADDRESS);
     console.log("DEST_USER_ADDRESS", StaticEnv.DEST_USER_ADDRESS);
@@ -33,14 +32,13 @@ describe("Vault-Staking", async () => {
     console.log("STAKING_AMOUNT", StaticEnv.STAKING_AMOUNT);
 
     const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
-      TestSuite.vaultUtils.buildStakingOutput({
+      TestSuite.vaultUtils.buildUPCStakingPsbt({
         stakingAmount: StaticEnv.STAKING_AMOUNT,
         stakerPubkey: TestSuite.stakerPubKey,
         stakerAddress: TestSuite.stakerAddress,
         protocolPubkey: TestSuite.protocolPubkey,
-        custodialPubkeys: TestSuite.custodialPubkeys,
-        covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
-        haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
+        custodianPubkeys: TestSuite.custodialPubkeys,
+        custodianQuorum: StaticEnv.CUSTODIAL_QUORUM,
         destinationChain: new DestinationChain(
           ChainType.EVM,
           StaticEnv.DEST_CHAIN_ID

@@ -33,14 +33,14 @@ The internal key uses a NUMS (Nothing Up My Sleeve - [BIP341](https://github.com
     User+Protocol  Cov+Protocol  Cov+User
 ```
 
-### Covenant-Only Tree
+### Custodian-Only Tree
 
 ```text
       Root
        │
        1
        │
-   Covenants
+   custodians
 ```
 
 ## Spending Paths
@@ -66,9 +66,9 @@ To spend via this path:
 <user_signature> <protocol_signature> <tap_script> <control_block>
 ```
 
-### 2. Covenant + Protocol Path
+### 2. Custodian + Protocol Path
 
-Requires a quorum of covenant signatures plus the protocol signature.
+Requires a quorum of custodian signatures plus the protocol signature.
 
 ```asm
 <protocol_pubkey> CHECKSIGVERIFY
@@ -82,8 +82,8 @@ Requires a quorum of covenant signatures plus the protocol signature.
 To spend via this path:
 
 - Protocol must provide a valid signature
-- Must collect signatures from covenant signers
-- Number of valid covenant signatures must meet or exceed the quorum
+- Must collect signatures from custodian signers
+- Number of valid custodian signatures must meet or exceed the quorum
 - Uses CHECKSIGADD for efficient multi-signature validation
 - Must reveal script and Merkle proof
 
@@ -95,9 +95,9 @@ To spend via this path:
 
 - If custodians are not present, the signature will be empty
 
-### 3. Covenant + User Path
+### 3. Custodian + User Path
 
-Requires a quorum of covenant signatures plus the user signature.
+Requires a quorum of custodian signatures plus the user signature.
 
 ```asm
 <user_pubkey> CHECKSIGVERIFY
@@ -111,7 +111,7 @@ Requires a quorum of covenant signatures plus the user signature.
 To spend via this path:
 
 - User must provide a valid signature
-- Must collect required covenant signatures meeting quorum
+- Must collect required custodian signatures meeting quorum
 - Must reveal script and Merkle proof
 
 - Example of witness:
@@ -120,9 +120,9 @@ To spend via this path:
 <user_signature> <custodian_signature_1> <custodian_signature_2> <custodian_signature_3> ... <tap_script> <control_block>
 ```
 
-### 4. Covenants Only Path (Optional)
+### 4. Custodians Only Path (Optional)
 
-Only requires a quorum of covenant signatures. Useful for recovery or emergency situations.
+Only requires a quorum of custodian signatures. Useful for recovery or emergency situations.
 
 ```asm
 <custodian_pubkey_1> CHECKSIG
@@ -134,7 +134,7 @@ Only requires a quorum of covenant signatures. Useful for recovery or emergency 
 
 To spend via this path:
 
-- Only requires covenant signatures meeting quorum
+- Only requires custodian signatures meeting quorum
 - Must reveal script and Merkle proof
 
 - Example of witness:
@@ -145,9 +145,9 @@ To spend via this path:
 
 ## Implementation Details
 
-1. **Sorted Public Keys**: Covenant public keys are sorted to ensure deterministic script generation
-2. **Duplicate Prevention**: Checks for duplicate covenant keys to prevent potential vulnerabilities
-3. **Flexible Quorum**: Configurable number of required covenant signatures
+1. **Sorted Public Keys**: Custodian public keys are sorted to ensure deterministic script generation
+2. **Duplicate Prevention**: Checks for duplicate custodian keys to prevent potential vulnerabilities
+3. **Flexible Quorum**: Configurable number of required custodian signatures
 4. **BIP341 Compliance**: Uses standardized **NUMS** point for Taproot internal key
 5. **Security Considerations**:
    - `CHECKSIGVERIFY` ensures critical signatures cannot be skipped
@@ -155,5 +155,5 @@ To spend via this path:
    - Duplicate key checks prevent signature reuse attacks
 
 ### Improvements
-- Can use MuSig2 for key path spending
 
+- Can use MuSig2 for key path spending

@@ -9,7 +9,7 @@ import {
   getEstimatedFee,
   hexToBytes,
   sendrawtransaction,
-  TBuildUnsignedUnstakingUserProtocolPsbt,
+  TBuildUPCUntakingPsbt,
 } from "../src";
 
 const TIMEOUT = 900_000;
@@ -101,21 +101,20 @@ describe("Vault-Unstaking", () => {
       console.log("estimatedFee", estimatedFee);
       console.log("output.value", output.value);
 
-      const params: TBuildUnsignedUnstakingUserProtocolPsbt = {
+      const params: TBuildUPCUntakingPsbt = {
         input,
         output,
         stakerPubkey: testSuite.stakerPubKey,
         protocolPubkey: testSuite.protocolPubkey,
-        covenantPubkeys: testSuite.custodialPubkeys,
-        covenantQuorum: StaticEnv.CUSTODIAL_QUORUM,
-        haveOnlyCovenants: StaticEnv.HAVE_ONLY_CUSTODIAL,
+        custodianPubkeys: testSuite.custodialPubkeys,
+        custodianQuorum: StaticEnv.CUSTODIAL_QUORUM,
         feeRate: BigInt(feeRate),
         rbf: true,
+        type: "user_protocol",
       };
 
       // Build the unsigned psbt
-      const psbtHex =
-        testSuite.vaultUtils.buildUnsignedUnstakingUserProtocolPsbt(params);
+      const psbtHex = testSuite.vaultUtils.buildUPCUnstakingPsbt(params);
 
       const psbtStr = bytesToHex(psbtHex);
 

@@ -5,9 +5,9 @@ import * as bitcoinLib from "bitcoinjs-lib";
 import * as ecc from "tiny-secp256k1";
 
 import {
-  TBuildUnsignedStakingPsbt,
-  TBuildUnsignedStakingWithOnlyCovenantsPsbt,
-  TBuildUnsignedUnstakingUserProtocolPsbt,
+  TBuildUPCStakingPsbt,
+  TBuildCustodianOnlyStakingPsbt,
+  TBuildUPCUntakingPsbt,
   TNetwork,
 } from "./types";
 
@@ -72,7 +72,7 @@ export class VaultUtils {
     return VaultUtils.instance;
   }
 
-  public buildStakingOutput = (params: TBuildUnsignedStakingPsbt) => {
+  public buildUPCStakingPsbt = (params: TBuildUPCStakingPsbt) => {
     if (!this.wasm) {
       throw new Error("VaultWasm instance not initialized");
     }
@@ -81,12 +81,12 @@ export class VaultUtils {
       throw new Error("Network not initialized");
     }
 
-    const outputBuf = this.wasm.build_staking_output(
+    const outputBuf = this.wasm.build_upc_staking_output(
       params.stakingAmount,
       params.stakerPubkey,
       params.protocolPubkey,
-      params.custodialPubkeys,
-      params.covenantQuorum,
+      params.custodianPubkeys,
+      params.custodianQuorum,
       params.destinationChain.toBytes(),
       params.destinationContractAddress,
       params.destinationRecipientAddress
@@ -126,8 +126,8 @@ export class VaultUtils {
     };
   };
 
-  public buildUnsignedUnstakingUserProtocolPsbt = (
-    params: TBuildUnsignedUnstakingUserProtocolPsbt
+  public buildUPCUnstakingPsbt = (
+    params: TBuildUPCUntakingPsbt
   ): Uint8Array => {
     if (!this.wasm) {
       throw new Error("VaultWasm instance not initialized");
@@ -140,20 +140,46 @@ export class VaultUtils {
       params.input.value
     );
 
-    return this.wasm.build_user_protocol_spend(
-      input,
-      params.output.script,
-      params.stakerPubkey,
-      params.protocolPubkey,
-      params.covenantPubkeys,
-      params.covenantQuorum,
-      params.feeRate,
-      params.rbf
-    );
+    if (params.type === "user_protocol") {
+      return this.wasm.build_user_protocol_spend(
+        input,
+        params.output.script,
+        params.stakerPubkey,
+        params.protocolPubkey,
+        params.custodianPubkeys,
+        params.custodianQuorum,
+        params.feeRate,
+        params.rbf
+      );
+    } else if (params.type === "user_custodian") {
+      return this.wasm.build_custodian_user_spend(
+        input,
+        params.output.script,
+        params.stakerPubkey,
+        params.protocolPubkey,
+        params.custodianPubkeys,
+        params.custodianQuorum,
+        params.feeRate,
+        params.rbf
+      );
+    } else if (params.type === "protocol_custodian") {
+      return this.wasm.build_custodian_protocol_spend(
+        input,
+        params.output.script,
+        params.stakerPubkey,
+        params.protocolPubkey,
+        params.custodianPubkeys,
+        params.custodianQuorum,
+        params.feeRate,
+        params.rbf
+      );
+    }
+
+    throw new Error("Invalid unstaking type");
   };
 
-  public buildStakingOutputWithOnlyCovenants = (
-    params: TBuildUnsignedStakingWithOnlyCovenantsPsbt
+  public buildCustodianOnlyStakingPsbt = (
+    params: TBuildCustodianOnlyStakingPsbt
   ) => {
     if (!this.wasm) {
       throw new Error("VaultWasm instance not initialized");
@@ -163,10 +189,10 @@ export class VaultUtils {
       throw new Error("Network not initialized");
     }
 
-    const outputBuf = this.wasm.build_staking_output_with_only_covenants(
+    const outputBuf = this.wasm.build_only_custodian_staking_output(
       params.stakingAmount,
-      params.custodialPubkeys,
-      params.covenantQuorum,
+      params.custodianPubkeys,
+      params.custodianQuorum,
       params.destinationChain.toBytes(),
       params.destinationContractAddress,
       params.destinationRecipientAddress
@@ -237,16 +263,16 @@ export class VaultUtils {
     return signedPsbt;
   }
 
-  public onlyCovenantsLockingScript = (params: {
-    covenantPubkeys: Uint8Array;
-    covenantQuorum: number;
+  public custodianOnlyLockingScript = (params: {
+    custodianPubkeys: Uint8Array;
+    custodianQuorum: number;
   }) => {
     if (!this.wasm) {
       throw new Error("VaultWasm instance not initialized");
     }
-    return this.wasm.only_covenants_locking_script(
-      params.covenantPubkeys,
-      params.covenantQuorum
+    return this.wasm.custodian_only_locking_script(
+      params.custodianPubkeys,
+      params.custodianQuorum
     );
   };
 }
