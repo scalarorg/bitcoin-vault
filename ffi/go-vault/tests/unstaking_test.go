@@ -10,8 +10,6 @@ import (
 	"github.com/scalarorg/bitcoin-vault/ffi/go-vault"
 )
 
-
-
 func TestUnstaking(t *testing.T) {
 	tag := []byte("tsclr")
 	serviceTag := []byte("proto")
@@ -37,16 +35,16 @@ func TestUnstaking(t *testing.T) {
 			Amount:        10_000,
 		},
 	}
-	covenantPubKeys := []vault.PublicKey{}
+	custodianPubKeys := []vault.PublicKey{}
 	for _, pubkey := range pubkeys {
 		pubkeyBytes, _ := hex.DecodeString(pubkey)
-		covenantPubKeys = append(covenantPubKeys, vault.PublicKey(pubkeyBytes))
+		custodianPubKeys = append(custodianPubKeys, vault.PublicKey(pubkeyBytes))
 	}
-	covenantQuorum := uint8(1)
+	custodianQuorum := uint8(1)
 	rbf := false
 	feeRate := uint64(1)
 
-	tx, err := vault.BuildCovenantOnlyUnstakingTx(tag, serviceTag, version, network, inputs, outputs, covenantPubKeys, covenantQuorum, rbf, feeRate)
+	tx, err := vault.BuildCustodianOnlyUnstakingTx(tag, serviceTag, version, network, inputs, outputs, custodianPubKeys, custodianQuorum, rbf, feeRate)
 	if err != nil {
 		t.Fatal(err)
 	}

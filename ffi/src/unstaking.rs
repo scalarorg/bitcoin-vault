@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[no_mangle]
-pub unsafe extern "C" fn build_with_only_covenants(
+pub unsafe extern "C" fn build_custodian_only(
     tag: *const u8,
     tag_len: usize,
     service_tag: *const u8,
@@ -24,14 +24,14 @@ pub unsafe extern "C" fn build_with_only_covenants(
     inputs_len: usize,
     outputs_ptr: *const UnstakingOutputFFI,
     outputs_len: usize,
-    covenant_pub_keys_ptr: *const PublicKeyFFI,
-    covenant_pub_keys_len: usize,
-    covenant_quorum: u8,
+    custodian_pub_keys_ptr: *const PublicKeyFFI,
+    custodian_pub_keys_len: usize,
+    custodian_quorum: u8,
     rbf: bool,
     fee_rate: u64,
 ) -> ByteBuffer {
     // Safety checks for null pointers
-    if inputs_ptr.is_null() || outputs_ptr.is_null() || covenant_pub_keys_ptr.is_null() {
+    if inputs_ptr.is_null() || outputs_ptr.is_null() || custodian_pub_keys_ptr.is_null() {
         return create_null_buffer();
     }
 
@@ -41,7 +41,7 @@ pub unsafe extern "C" fn build_with_only_covenants(
 
     let inputs = slice::from_raw_parts(inputs_ptr, inputs_len);
     let outputs = slice::from_raw_parts(outputs_ptr, outputs_len);
-    let covenant_pub_keys = slice::from_raw_parts(covenant_pub_keys_ptr, covenant_pub_keys_len);
+    let custodian_pub_keys = slice::from_raw_parts(custodian_pub_keys_ptr, custodian_pub_keys_len);
 
     let inputs: Vec<PreviousStakingUTXO> = inputs
         .iter()
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn build_with_only_covenants(
 
     let outputs: Vec<UnstakingOutput> = outputs.iter().map(|output| output.into()).collect();
 
-    let covenant_pub_keys: Vec<PublicKey> = covenant_pub_keys
+    let custodian_pub_keys: Vec<PublicKey> = custodian_pub_keys
         .iter()
         .map(|key| PublicKey::from_slice(key.as_slice()).unwrap())
         .collect();
@@ -59,8 +59,8 @@ pub unsafe extern "C" fn build_with_only_covenants(
     let params = CustodianOnlyUnstakingParams {
         inputs: inputs.to_vec(),
         unstaking_outputs: outputs.to_vec(),
-        custodian_pub_keys: covenant_pub_keys.to_vec(),
-        custodian_quorum: covenant_quorum,
+        custodian_pub_keys: custodian_pub_keys.to_vec(),
+        custodian_quorum: custodian_quorum,
         rbf,
         fee_rate,
     };
@@ -69,7 +69,7 @@ pub unsafe extern "C" fn build_with_only_covenants(
     let vault_manager =
         VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_kind); // Assuming a constructor exists
 
-    // Call the build_with_only_covenants function
+    // Call the build_custodian_only function
     match vault_manager.build_custodian_only(&params) {
         Ok(psbt) => {
             // Serialize the PSBT and return it as a ByteBuffer

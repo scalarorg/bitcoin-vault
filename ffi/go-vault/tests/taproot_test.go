@@ -7,7 +7,7 @@ import (
 )
 
 func TestLockingScript(t *testing.T) {
-	scripts, err := vault.OnlyCovenantsLockingScript(custodianPubKeys, 3)
+	scripts, err := vault.CustodiansOnlyLockingScript(custodianPubKeys, 3)
 	if err != nil {
 		t.Fatalf("Failed to build taproot script: %v", err)
 	}

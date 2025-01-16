@@ -55,7 +55,7 @@ type VaultReturnTxOutput struct {
 	Flags                       uint8           `json:"flags"`
 	ServiceTag                  []byte          `json:"service_tag"`
 	TransactionType             TransactionType `json:"transaction_type"`
-	CovenantQuorum              uint8           `json:"covenant_quorum"`
+	CustodianQuorum             uint8           `json:"custodian_quorum"`
 	DestinationChain            []byte          `json:"destination_chain"`
 	DestinationTokenAddress     []byte          `json:"destination_token_address"`
 	DestinationRecipientAddress []byte          `json:"destination_recipient_address"`
