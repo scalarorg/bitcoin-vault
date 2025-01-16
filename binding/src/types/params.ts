@@ -2,14 +2,13 @@ import { TxOutput } from "bitcoinjs-lib";
 import { UTXO } from "./bitcoin";
 import { DestinationChain } from "@/chain";
 
-export type TBuildUnsignedStakingPsbt = {
+export type TBuildUPCStakingPsbt = {
   stakingAmount: bigint;
   stakerPubkey: Uint8Array;
   stakerAddress: string;
   protocolPubkey: Uint8Array;
-  custodialPubkeys: Uint8Array;
-  covenantQuorum: number;
-  haveOnlyCovenants: boolean;
+  custodianPubkeys: Uint8Array;
+  custodianQuorum: number;
   destinationChain: DestinationChain;
   destinationContractAddress: Uint8Array;
   destinationRecipientAddress: Uint8Array;
@@ -18,12 +17,12 @@ export type TBuildUnsignedStakingPsbt = {
   rbf?: boolean;
 };
 
-export type TBuildUnsignedStakingWithOnlyCovenantsPsbt = {
+export type TBuildCustodianOnlyStakingPsbt = {
   stakingAmount: bigint;
   stakerPubkey: Uint8Array;
   stakerAddress: string;
-  custodialPubkeys: Uint8Array;
-  covenantQuorum: number;
+  custodianPubkeys: Uint8Array;
+  custodianQuorum: number;
   destinationChain: DestinationChain;
   destinationContractAddress: Uint8Array;
   destinationRecipientAddress: Uint8Array;
@@ -39,14 +38,14 @@ interface PreviousStakingUTXO {
   value: bigint;
 }
 
-export type TBuildUnsignedUnstakingUserProtocolPsbt = {
+export type TBuildUPCUntakingPsbt = {
   input: PreviousStakingUTXO;
   output: TxOutput;
   stakerPubkey: Uint8Array;
   protocolPubkey: Uint8Array;
-  covenantPubkeys: Uint8Array;
-  covenantQuorum: number;
-  haveOnlyCovenants: boolean;
+  custodianPubkeys: Uint8Array;
+  custodianQuorum: number;
   feeRate: bigint;
   rbf: boolean;
+  type: "user_protocol" | "user_custodian" | "protocol_custodian";
 };

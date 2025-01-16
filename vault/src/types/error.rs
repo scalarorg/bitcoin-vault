@@ -7,8 +7,8 @@ pub enum ParserError {
     InsufficientUTXOs { required: u64, available: u64 },
     #[error("Invalid tag")]
     InvalidTag,
-    #[error("Duplicate covenant keys")]
-    DuplicateCovenantKeys,
+    #[error("Duplicate custodian keys")]
+    DuplicateCustodianKeys,
     #[error("Other error: {0}")]
     Other(#[from] anyhow::Error),
     #[error("Taproot builder error: {0}")]

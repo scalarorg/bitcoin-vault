@@ -12,5 +12,5 @@ var (
 	ErrNoTapScriptSigs                      = errors.New("no tap script sigs")
 	ErrFailedToAggregateTapScriptSigs       = errors.New("failed to aggregate tap script sigs")
 	ErrFailedToFinalizePsbtAndExtractTx     = errors.New("failed to finalize psbt and extract tx")
-	ErrFailedToBuildCovenantOnlyUnstakingTx = errors.New("failed to build covenant only unstaking tx")
+	ErrFailedToBuildCovenantOnlyUnstakingTx = errors.New("failed to build custodian only unstaking tx")
 )
