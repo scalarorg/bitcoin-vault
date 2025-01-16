@@ -2,7 +2,7 @@ use std::slice;
 
 use bitcoin::PublicKey;
 use bitcoin_vault::{
-    BuildUnstakingWithOnlyCovenantsParams, PreviousStakingUTXO, UnstakingOutput, VaultManager,
+    CustodianOnlyUnstakingParams, PreviousStakingUTXO, UnstakingOutput, VaultManager,
 };
 
 use bitcoin_vault::Unstaking;
@@ -56,11 +56,11 @@ pub unsafe extern "C" fn build_with_only_covenants(
         .collect();
 
     // Create parameters for the unstaking function
-    let params = BuildUnstakingWithOnlyCovenantsParams {
+    let params = CustodianOnlyUnstakingParams {
         inputs: inputs.to_vec(),
         unstaking_outputs: outputs.to_vec(),
-        covenant_pub_keys: covenant_pub_keys.to_vec(),
-        covenant_quorum,
+        custodian_pub_keys: covenant_pub_keys.to_vec(),
+        custodian_quorum: covenant_quorum,
         rbf,
         fee_rate,
     };
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn build_with_only_covenants(
         VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_kind); // Assuming a constructor exists
 
     // Call the build_with_only_covenants function
-    match vault_manager.build_with_only_covenants(&params) {
+    match vault_manager.build_custodian_only(&params) {
         Ok(psbt) => {
             // Serialize the PSBT and return it as a ByteBuffer
             let psbt_bytes = psbt.serialize();

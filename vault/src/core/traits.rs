@@ -1,34 +1,33 @@
 use bitcoin::{NetworkKind, Psbt, XOnlyPublicKey};
 
 use super::{
-    signing::TapScriptSig, BuildStakingParams, BuildStakingWithOnlyCovenantsParams,
-    BuildUnstakingParams, BuildUnstakingWithOnlyCovenantsParams, CoreError, StakingOutput,
-    UnstakingType,
+    signing::TapScriptSig, CoreError, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams,
+    StakingOutput, UPCStakingParams, UPCUnstakingParams, UnstakingType,
 };
 
 pub trait Staking {
     type Error;
 
-    fn build(&self, params: &BuildStakingParams) -> Result<StakingOutput, Self::Error>;
+    fn build_upc(&self, params: &UPCStakingParams) -> Result<StakingOutput, Self::Error>;
 
-    fn build_with_only_covenants(
+    fn build_custodian_only(
         &self,
-        params: &BuildStakingWithOnlyCovenantsParams,
+        params: &CustodianOnlyStakingParams,
     ) -> Result<StakingOutput, Self::Error>;
 }
 
 pub trait Unstaking {
     type Error;
 
-    fn build(
+    fn build_upc(
         &self,
-        params: &BuildUnstakingParams,
+        params: &UPCUnstakingParams,
         unstaking_type: UnstakingType,
     ) -> Result<Psbt, Self::Error>;
 
-    fn build_with_only_covenants(
+    fn build_custodian_only(
         &self,
-        params: &BuildUnstakingWithOnlyCovenantsParams,
+        params: &CustodianOnlyUnstakingParams,
     ) -> Result<Psbt, Self::Error>;
 }
 
@@ -58,37 +57,27 @@ pub trait Signing {
     fn finalize_psbt_and_extract_tx(psbt: &mut Psbt) -> Result<Self::TxHex, CoreError>;
 }
 
-pub trait BuildUserProtocolBranch {
+pub trait BuildTwoPartyBranch {
+    fn build(x: &XOnlyPublicKey, y: &XOnlyPublicKey) -> Result<Self, CoreError>
+    where
+        Self: Sized;
+}
+
+pub trait BuildCustodianAndPartyBranch {
     fn build(
-        user_pub_key: &XOnlyPublicKey,
-        protocol_pub_key: &XOnlyPublicKey,
+        x: &XOnlyPublicKey,
+        custodian_pub_keys: &[XOnlyPublicKey],
+        custodian_quorum: u8,
     ) -> Result<Self, CoreError>
     where
         Self: Sized;
 }
 
-pub trait BuildCovenantProtocolBranch {
+pub trait BuildCustodianOnlyBranch {
     fn build(
-        covenant_pub_keys: &[XOnlyPublicKey],
-        covenant_quorum: u8,
-        protocol_pub_key: &XOnlyPublicKey,
+        custodian_pub_keys: &[XOnlyPublicKey],
+        custodian_quorum: u8,
     ) -> Result<Self, CoreError>
-    where
-        Self: Sized;
-}
-
-pub trait BuildCovenantUserBranch {
-    fn build(
-        covenant_pub_keys: &[XOnlyPublicKey],
-        covenant_quorum: u8,
-        user_pub_key: &XOnlyPublicKey,
-    ) -> Result<Self, CoreError>
-    where
-        Self: Sized;
-}
-
-pub trait BuildOnlyCovenantsBranch {
-    fn build(covenant_pub_keys: &[XOnlyPublicKey], covenant_quorum: u8) -> Result<Self, CoreError>
     where
         Self: Sized;
 }

@@ -27,20 +27,20 @@ Bitcoin Vault is a comprehensive solution for managing Bitcoin vault transaction
 
    - Create a staking output with supporting multiple taproot spend paths:
 
-     - [x] P2TR with multi-signatures of covenant key holders
+     - [x] P2TR with multi-signatures of custodian key holders
      - [x] P2TR with user and protocol signatures
-     - [x] P2TR with user and multi-signature of covenant key holders
-     - [x] P2TR with protocol and multi-signature of covenant key holders
+     - [x] P2TR with user and multi-signature of custodian key holders
+     - [x] P2TR with protocol and multi-signature of custodian key holders
 
-   - Create a staking output just only covenant key holders spend path:
-     - [x] P2TR with multi-signature of covenant key holders
+   - Create a staking output just only custodian key holders spend path:
+     - [x] P2TR with multi-signature of custodian key holders
 
 2. Unstaking transaction management for:
 
-   - [x] P2TR with multi-signatures of covenant key holders
+   - [x] P2TR with multi-signatures of custodian key holders
    - [x] P2TR with user and protocol signatures
-   - [x] P2TR with user and multi-signature of covenant key holders
-   - [x] P2TR with protocol and multi-signature of covenant key holders
+   - [x] P2TR with user and multi-signature of custodian key holders
+   - [x] P2TR with protocol and multi-signature of custodian key holders
 
 3. Signing:
 
@@ -56,11 +56,11 @@ Bitcoin Vault is a comprehensive solution for managing Bitcoin vault transaction
 5. Details:
 
    - Supports RBF (Replace-By-Fee) for staking and unstaking transactions
-   - Supports musig and OP_CHECKSIGADD for covenant script with quorum-based approval system
+   - Supports musig and OP_CHECKSIGADD for custodian script with quorum-based approval system
    - Supports segwit and p2tr addresses
 
 6. Future development:
-   - Apply musig2 for covenants
+   - Apply musig2 for custodians
    - Apply OP_CAT
 
 #### Directory Structure
@@ -191,8 +191,8 @@ const { psbt: unsignedVaultPsbt, fee: estimatedFee } =
     stakerAddress: Buffer.from("bc1...", "hex"),
     protocolPubkey: Buffer.from("02...", "hex"),
     custodialPubkeys: [Buffer.from("02...", "hex"), ...].concat(),
-    covenantQuorum: 1,
-    haveOnlyCovenants: false,
+    custodianQuorum: 1,
+    haveOnlycustodians: false,
     destinationChain: new DestinationChain(
       ChainType.EVM,
       11155111
@@ -211,9 +211,9 @@ const params: TBuildUnsignedUnstakingUserProtocolPsbt = {
   output,
   stakerPubkey: Buffer.from("02...", "hex"),
   protocolPubkey: Buffer.from("02...", "hex"),
-  covenantPubkeys: [Buffer.from("02...", "hex"), ...].concat(),
-  covenantQuorum: 1,
-  haveOnlyCovenants: false,
+  custodianPubkeys: [Buffer.from("02...", "hex"), ...].concat(),
+  custodianQuorum: 1,
+  haveOnlycustodians: false,
   feeRate: BigInt(feeRate),
   rbf: true,
 };

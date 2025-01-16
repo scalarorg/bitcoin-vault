@@ -4,9 +4,9 @@ use crate::errors::VaultABIError;
 use crate::{decoder::Decoder, encoder::Encoder};
 use bitcoin::{Amount, NetworkKind, OutPoint, PublicKey, XOnlyPublicKey};
 use bitcoin_vault::{
-    BuildStakingParams, BuildStakingWithOnlyCovenantsParams, BuildUnstakingParams,
-    DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, LockingScript,
-    LockingScriptWithOnlyCovenantsParams, PreviousStakingUTXO, Signing, Staking, Unstaking,
+    CustodianOnlyLockingScriptParams, CustodianOnlyStakingParams, DestinationChain,
+    DestinationRecipientAddress, DestinationTokenAddress, LockingScript, PreviousStakingUTXO,
+    Signing, Staking, UPCStakingParams, UPCUnstakingParams, Unstaking,
     UnstakingOutput as VaultUnstakingOutput, UnstakingType, VaultManager,
 };
 use wasm_bindgen::prelude::*;
@@ -98,12 +98,12 @@ impl VaultWasm {
     fn parse_pubkeys(
         staker_pubkey: &[u8],
         protocol_pubkey: &[u8],
-        covenant_pubkeys: &[u8],
+        custodian_pub_keys: &[u8],
     ) -> Result<(PublicKey, PublicKey, Vec<PublicKey>), VaultABIError> {
         Ok((
             Decoder::decode_33bytes_pubkey(staker_pubkey)?,
             Decoder::decode_33bytes_pubkey(protocol_pubkey)?,
-            Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)?,
+            Decoder::decode_33bytes_pubkey_list(custodian_pub_keys)?,
         ))
     }
 
@@ -152,7 +152,7 @@ impl VaultWasm {
     }
 
     #[wasm_bindgen]
-    pub fn build_staking_output(
+    pub fn build_upc_staking_output(
         &self,
         staking_amount: u64,
         //33 bytes pubkey
@@ -161,7 +161,7 @@ impl VaultWasm {
         protocol_pubkey: &[u8],
         //encoded 33 bytes pubkey list, length of each pubkey is 32 bytes
         custodial_pubkeys: &[u8],
-        covenant_quorum: u8,
+        custodian_quorum: u8,
         destination_chain: &[u8],
         destination_token_address: &[u8],
         destination_recipient_address: &[u8],
@@ -173,22 +173,22 @@ impl VaultWasm {
                 destination_recipient_address,
             )?;
 
-        let (user_pub_key, protocol_pub_key, covenant_pub_keys) =
+        let (user_pub_key, protocol_pub_key, custodian_pub_keys) =
             Self::parse_pubkeys(staker_pubkey, protocol_pubkey, custodial_pubkeys)?;
 
-        let params = BuildStakingParams {
+        let params = UPCStakingParams {
             staking_amount,
             user_pub_key,
             protocol_pub_key,
-            covenant_pub_keys,
-            covenant_quorum,
+            custodian_pub_keys,
+            custodian_quorum,
             destination_chain,
             destination_token_address,
             destination_recipient_address,
         };
 
         Self::handle_serialize_result(
-            <VaultManager as Staking>::build(&self.manager, &params),
+            <VaultManager as Staking>::build_upc(&self.manager, &params),
             |output| Encoder::serialize_tx_outs(&output.into_tx_outs()),
         )
     }
@@ -200,8 +200,8 @@ impl VaultWasm {
         locking_script: &[u8],
         staker_pubkey: &[u8],
         protocol_pubkey: &[u8],
-        covenant_pubkeys: &[u8],
-        covenant_quorum: u8,
+        custodian_pub_keys: &[u8],
+        custodian_quorum: u8,
         fee_rate: u64,
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
@@ -210,8 +210,8 @@ impl VaultWasm {
             locking_script,
             staker_pubkey,
             protocol_pubkey,
-            covenant_pubkeys,
-            covenant_quorum,
+            custodian_pub_keys,
+            custodian_quorum,
             fee_rate,
             rbf,
             UnstakingType::UserProtocol,
@@ -219,14 +219,14 @@ impl VaultWasm {
     }
 
     #[wasm_bindgen]
-    pub fn build_covenants_protocol_spend(
+    pub fn build_custodian_protocol_spend(
         &self,
         input: UnstakingInput,
         locking_script: &[u8],
         staker_pubkey: &[u8],
         protocol_pubkey: &[u8],
-        covenant_pubkeys: &[u8],
-        covenant_quorum: u8,
+        custodian_pub_keys: &[u8],
+        custodian_quorum: u8,
         fee_rate: u64,
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
@@ -240,23 +240,23 @@ impl VaultWasm {
             locking_script,
             staker_pubkey,
             protocol_pubkey,
-            covenant_pubkeys,
-            covenant_quorum,
+            custodian_pub_keys,
+            custodian_quorum,
             fee_rate,
             rbf,
-            UnstakingType::CovenantsProtocol,
+            UnstakingType::CustodianProtocol,
         )
     }
 
     #[wasm_bindgen]
-    pub fn build_covenants_user_spend(
+    pub fn build_custodian_user_spend(
         &self,
         input: UnstakingInput,
         locking_script: &[u8],
         staker_pubkey: &[u8],
         protocol_pubkey: &[u8],
-        covenant_pubkeys: &[u8],
-        covenant_quorum: u8,
+        custodian_pub_keys: &[u8],
+        custodian_quorum: u8,
         fee_rate: u64,
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
@@ -265,11 +265,11 @@ impl VaultWasm {
             locking_script,
             staker_pubkey,
             protocol_pubkey,
-            covenant_pubkeys,
-            covenant_quorum,
+            custodian_pub_keys,
+            custodian_quorum,
             fee_rate,
             rbf,
-            UnstakingType::CovenantsUser,
+            UnstakingType::CustodianUser,
         )
     }
 
@@ -279,8 +279,8 @@ impl VaultWasm {
         locking_script: &[u8],
         staker_pubkey: &[u8],
         protocol_pubkey: &[u8],
-        covenant_pubkeys: &[u8],
-        covenant_quorum: u8,
+        custodian_pub_keys: &[u8],
+        custodian_quorum: u8,
         fee_rate: u64,
         rbf: bool,
         unstaking_type: UnstakingType,
@@ -288,22 +288,22 @@ impl VaultWasm {
         // ### Description
         // ### Reversed txid is used to match the byte order of the txid in the previous staking UTXO.
         // ### References: https://learnmeabitcoin.com/technical/general/byte-order/#natural-byte-order
-        let (user_pub_key, protocol_pub_key, covenant_pub_keys) =
-            Self::parse_pubkeys(staker_pubkey, protocol_pubkey, covenant_pubkeys)?;
+        let (user_pub_key, protocol_pub_key, custodian_pub_keys) =
+            Self::parse_pubkeys(staker_pubkey, protocol_pubkey, custodian_pub_keys)?;
 
-        let params = BuildUnstakingParams {
+        let params = UPCUnstakingParams {
             input: input.try_into()?,
             locking_script: Decoder::decode_script_pubkey(locking_script),
             user_pub_key,
             protocol_pub_key,
-            covenant_pub_keys,
-            covenant_quorum,
+            custodian_pub_keys,
+            custodian_quorum,
             rbf,
             fee_rate,
         };
 
         Self::handle_serialize_result(
-            <VaultManager as Unstaking>::build(&self.manager, &params, unstaking_type),
+            <VaultManager as Unstaking>::build_upc(&self.manager, &params, unstaking_type),
             |psbt| psbt.serialize(),
         )
     }
@@ -332,12 +332,12 @@ impl VaultWasm {
 #[wasm_bindgen]
 impl VaultWasm {
     #[wasm_bindgen]
-    pub fn build_staking_output_with_only_covenants(
+    pub fn build_only_custodian_staking_output(
         &self,
         staking_amount: u64,
         //33 bytes pubkey
         custodial_pubkeys: &[u8],
-        covenant_quorum: u8,
+        custodian_quorum: u8,
         destination_chain: &[u8],
         destination_token_address: &[u8],
         destination_recipient_address: &[u8],
@@ -349,38 +349,37 @@ impl VaultWasm {
                 destination_recipient_address,
             )?;
 
-        let params = BuildStakingWithOnlyCovenantsParams {
+        let params = CustodianOnlyStakingParams {
             staking_amount,
-            covenant_pub_keys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
-            covenant_quorum,
+            custodian_pub_keys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
+            custodian_quorum,
             destination_chain,
             destination_token_address,
             destination_recipient_address,
         };
 
         Self::handle_serialize_result(
-            <VaultManager as Staking>::build_with_only_covenants(&self.manager, &params),
+            <VaultManager as Staking>::build_custodian_only(&self.manager, &params),
             |output| Encoder::serialize_tx_outs(&output.into_tx_outs()),
         )
     }
 
     #[wasm_bindgen]
-    pub fn only_covenants_locking_script(
+    pub fn custodian_only_locking_script(
         &self,
-        covenant_pubkeys: &[u8],
-        covenant_quorum: u8,
+        custodian_pub_keys: &[u8],
+        custodian_quorum: u8,
     ) -> Result<Vec<u8>, JsValue> {
-        let covenant_pub_keys = Decoder::decode_33bytes_pubkey_list(covenant_pubkeys)?;
-        let covenant_x_only_pubkeys: Vec<XOnlyPublicKey> = covenant_pub_keys
+        let custodian_pub_keys = Decoder::decode_33bytes_pubkey_list(custodian_pub_keys)?;
+        let custodian_x_only_pubkeys: Vec<XOnlyPublicKey> = custodian_pub_keys
             .iter()
             .map(|p| XOnlyPublicKey::from(*p))
             .collect::<Vec<_>>();
-        let script =
-            LockingScript::only_covenants_locking_script(&LockingScriptWithOnlyCovenantsParams {
-                covenant_pub_keys: &covenant_x_only_pubkeys,
-                covenant_quorum,
-            })
-            .map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        let script = LockingScript::get_custodian_only(&CustodianOnlyLockingScriptParams {
+            custodian_pub_keys: &custodian_x_only_pubkeys,
+            custodian_quorum,
+        })
+        .map_err(|e| JsValue::from(format!("{:?}", e)))?;
         Ok(script.into_script().to_bytes())
     }
 }

@@ -1,7 +1,7 @@
 use std::slice;
 
 use bitcoin::{PublicKey, XOnlyPublicKey};
-use bitcoin_vault::{LockingScript, LockingScriptWithOnlyCovenantsParams};
+use bitcoin_vault::{CustodianOnlyLockingScriptParams, LockingScript};
 
 use crate::{create_null_buffer, ByteBuffer, PublicKeyFFI};
 
@@ -29,11 +29,10 @@ pub unsafe extern "C" fn only_covenants_locking_script(
         .collect::<Vec<_>>();
 
     // Create parameters for the unstaking function
-    let result =
-        LockingScript::only_covenants_locking_script(&LockingScriptWithOnlyCovenantsParams {
-            covenant_pub_keys: &covenant_x_only_pubkeys,
-            covenant_quorum,
-        });
+    let result = LockingScript::get_custodian_only(&CustodianOnlyLockingScriptParams {
+        custodian_pub_keys: &covenant_x_only_pubkeys,
+        custodian_quorum: covenant_quorum,
+    });
 
     // Call the build_with_only_covenants function
     match result {

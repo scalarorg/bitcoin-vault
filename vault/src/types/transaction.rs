@@ -1,6 +1,6 @@
 use crate::{
     DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, TaprootTreeType,
-    UnstakingTaprootTreeType, COVENANT_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
+    UnstakingTaprootTreeType, CUSTODIAN_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
     DEST_TOKEN_ADDRESS_SIZE, FLAGS_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
     VERSION_SIZE,
 };
@@ -89,7 +89,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         let flags = read_bytes(bytes, &mut cursor, FLAGS_SIZE)?[0];
 
         match UnstakingTaprootTreeType::try_from(flags) {
-            Ok(UnstakingTaprootTreeType::CovenantOnly) => {
+            Ok(UnstakingTaprootTreeType::CustodianOnly) => {
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
                 return Ok(VaultReturnTxOutput {
                     tag: tag.try_into().unwrap(),
@@ -108,7 +108,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
 
                 // Read covenant_quorum
-                let covenant_quorum = read_bytes(bytes, &mut cursor, COVENANT_QUORUM_SIZE)?[0];
+                let covenant_quorum = read_bytes(bytes, &mut cursor, CUSTODIAN_QUORUM_SIZE)?[0];
 
                 // Read destination_chain_id
                 let destination_chain = read_bytes(bytes, &mut cursor, DEST_CHAIN_SIZE)?

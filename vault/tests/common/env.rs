@@ -27,7 +27,7 @@ pub struct Env {
     pub protocol_private_key: String,
 
     #[validate(length(equal = 5))]
-    pub covenant_private_keys: Vec<String>,
+    pub custodian_private_keys: Vec<String>,
 
     #[validate(length(equal = 16))]
     pub destination_chain: String,
@@ -39,7 +39,7 @@ pub struct Env {
     pub destination_recipient_address: String,
 
     #[validate(range(min = 0))]
-    pub covenant_quorum: u8,
+    pub custodian_quorum: u8,
 
     #[validate(length(min = 3))]
     pub network: String,
@@ -75,7 +75,7 @@ impl Env {
             bond_holder_wallet: env::var("BOND_HOLDER_WALLET")
                 .unwrap_or(default_env.bond_holder_wallet),
             protocol_private_key: env::var("PROTOCOL_PRIVATE_KEY").unwrap(),
-            covenant_private_keys: env::var("COVENANT_PRIVKEYS")
+            custodian_private_keys: env::var("CUSTODIAN_PRIVKEYS")
                 .unwrap()
                 .split(',')
                 .map(|s| s.to_string())
@@ -87,9 +87,9 @@ impl Env {
                 .unwrap_or(default_env.destination_token_address),
             destination_recipient_address: env::var("DESTINATION_RECIPIENT_ADDRESS")
                 .unwrap_or(default_env.destination_recipient_address),
-            covenant_quorum: env::var("COVENANT_QUORUM")
-                .map(|v| v.parse().unwrap_or(default_env.covenant_quorum))
-                .unwrap_or(default_env.covenant_quorum),
+            custodian_quorum: env::var("CUSTODIAN_QUORUM")
+                .map(|v| v.parse().unwrap_or(default_env.custodian_quorum))
+                .unwrap_or(default_env.custodian_quorum),
             network: env::var("NETWORK").unwrap_or(default_env.network),
             tag: env::var("TAG").unwrap_or(default_env.tag),
             version: env::var("VERSION")
@@ -116,11 +116,11 @@ impl Default for Env {
             bond_holder_address: "".to_string(),
             bond_holder_wallet: "legacy".to_string(),
             protocol_private_key: "".to_string(),
-            covenant_private_keys: vec![],
+            custodian_private_keys: vec![],
             destination_chain: "0100000000AA36A7".to_string(),
             destination_token_address: "".to_string(),
             destination_recipient_address: "".to_string(),
-            covenant_quorum: 3,
+            custodian_quorum: 3,
             network: "regtest".to_string(),
             tag: "".to_string(),
             version: 0,

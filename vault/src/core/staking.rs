@@ -1,10 +1,10 @@
-use bitcoin::{Amount, PublicKey, TxOut, XOnlyPublicKey};
-use validator::Validate;
+use bitcoin::{Amount, TxOut, XOnlyPublicKey};
 
 use super::{
-    manager, CoreError, DataScript, DataScriptParams, DataScriptParamsWithOnlyCovenants,
-    LockingScript, LockingScriptParams, LockingScriptWithOnlyCovenantsParams, Staking,
-    VaultManager, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE, DEST_TOKEN_ADDRESS_SIZE,
+    manager, CoreError, CustodianOnlyDataParams, CustodianOnlyLockingScriptParams,
+    CustodianOnlyStakingParams, DataScript, DataScriptParams, LockingScript, Staking,
+    UPCLockingScriptParams, UPCStakingParams, VaultManager, DEST_CHAIN_SIZE,
+    DEST_RECIPIENT_ADDRESS_SIZE, DEST_TOKEN_ADDRESS_SIZE,
 };
 
 /// Type alias for destination address
@@ -15,30 +15,6 @@ pub type DestinationRecipientAddress = [u8; DEST_RECIPIENT_ADDRESS_SIZE];
 
 /// Type alias for destination chain
 pub type DestinationChain = [u8; DEST_CHAIN_SIZE];
-
-// TODO: Add validate for params
-
-#[derive(Debug, Validate)]
-pub struct BuildStakingParams {
-    pub user_pub_key: PublicKey,
-    pub protocol_pub_key: PublicKey,
-    pub covenant_pub_keys: Vec<PublicKey>,
-    pub covenant_quorum: u8,
-    pub staking_amount: u64,
-    pub destination_chain: DestinationChain,
-    pub destination_token_address: DestinationTokenAddress,
-    pub destination_recipient_address: DestinationRecipientAddress,
-}
-
-#[derive(Debug, Validate)]
-pub struct BuildStakingWithOnlyCovenantsParams {
-    pub staking_amount: u64,
-    pub covenant_pub_keys: Vec<PublicKey>,
-    pub covenant_quorum: u8,
-    pub destination_chain: DestinationChain,
-    pub destination_token_address: DestinationTokenAddress,
-    pub destination_recipient_address: DestinationRecipientAddress,
-}
 
 #[derive(Debug)]
 pub struct StakingOutput {
@@ -77,30 +53,30 @@ impl StakingOutput {
 impl Staking for VaultManager {
     type Error = CoreError;
 
-    fn build(&self, params: &BuildStakingParams) -> Result<StakingOutput, Self::Error> {
-        // TODO: 0.validate params by use validator create
-        let x_only_keys = manager::VaultManager::convert_all_to_x_only_keys(
+    fn build_upc(&self, params: &UPCStakingParams) -> Result<StakingOutput, Self::Error> {
+        // TODO: validate params
+        let x_only_keys = manager::VaultManager::convert_upc_to_x_only_keys(
             &params.user_pub_key,
             &params.protocol_pub_key,
-            &params.covenant_pub_keys,
+            &params.custodian_pub_keys,
         );
 
-        let locking_script = LockingScript::new(
+        let locking_script = LockingScript::new_upc(
             self.secp(),
-            &LockingScriptParams {
+            &UPCLockingScriptParams {
                 user_pub_key: &x_only_keys.user,
                 protocol_pub_key: &x_only_keys.protocol,
-                covenant_pub_keys: &x_only_keys.covenants,
-                covenant_quorum: params.covenant_quorum,
+                custodian_pub_keys: &x_only_keys.custodians,
+                custodian_quorum: params.custodian_quorum,
             },
         )?;
 
-        let embedded_data_script = DataScript::new(&DataScriptParams {
+        let embedded_data_script = DataScript::new_upc(&DataScriptParams {
             tag: self.tag(),
             service_tag: self.service_tag(),
             version: self.version(),
             network_id: self.network_id(),
-            covenant_quorum: params.covenant_quorum,
+            custodian_quorum: params.custodian_quorum,
             destination_chain_id: &params.destination_chain,
             destination_token_address: &params.destination_token_address,
             destination_recipient_address: &params.destination_recipient_address,
@@ -113,35 +89,35 @@ impl Staking for VaultManager {
         ))
     }
 
-    fn build_with_only_covenants(
+    fn build_custodian_only(
         &self,
-        params: &BuildStakingWithOnlyCovenantsParams,
+        params: &CustodianOnlyStakingParams,
     ) -> Result<StakingOutput, Self::Error> {
-        let covenants_x_only: Vec<XOnlyPublicKey> = params
-            .covenant_pub_keys
+        // TODO: validate params
+        let custodians_x_only: Vec<XOnlyPublicKey> = params
+            .custodian_pub_keys
             .iter()
             .map(|pk| XOnlyPublicKey::from(*pk))
             .collect();
 
-        let locking_script = LockingScript::new_with_only_covenants(
+        let locking_script = LockingScript::new_custodian_only(
             self.secp(),
-            &LockingScriptWithOnlyCovenantsParams {
-                covenant_pub_keys: &covenants_x_only,
-                covenant_quorum: params.covenant_quorum,
+            &CustodianOnlyLockingScriptParams {
+                custodian_pub_keys: &custodians_x_only,
+                custodian_quorum: params.custodian_quorum,
             },
         )?;
 
-        let embedded_data_script =
-            DataScript::new_with_only_covenants(&DataScriptParamsWithOnlyCovenants {
-                tag: self.tag(),
-                version: self.version(),
-                network_id: self.network_id(),
-                service_tag: self.service_tag(),
-                covenant_quorum: params.covenant_quorum,
-                destination_chain_id: &params.destination_chain,
-                destination_token_address: &params.destination_token_address,
-                destination_recipient_address: &params.destination_recipient_address,
-            })?;
+        let embedded_data_script = DataScript::new_custodian_only(&CustodianOnlyDataParams {
+            tag: self.tag(),
+            version: self.version(),
+            network_id: self.network_id(),
+            service_tag: self.service_tag(),
+            custodian_quorum: params.custodian_quorum,
+            destination_chain_id: &params.destination_chain,
+            destination_token_address: &params.destination_token_address,
+            destination_recipient_address: &params.destination_recipient_address,
+        })?;
 
         Ok(StakingOutput::new(
             params.staking_amount,
