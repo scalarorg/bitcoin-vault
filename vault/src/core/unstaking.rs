@@ -72,19 +72,24 @@ impl Unstaking for VaultManager {
             UnstakingKeys::get_branch_and_keys_for_type(&x_only_keys, unstaking_type, &tree);
 
         let mut tx_builder = UnstakingTransactionBuilder::new(params.rbf);
+
         tx_builder.add_input(params.input.outpoint);
+
+        let indexed_output = self.create_indexed_output()?;
+        
+        tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
+
         tx_builder.add_output(Amount::ZERO, params.locking_script.clone());
 
         let mut unsigned_tx = tx_builder.build();
+        
         let fee = self.calculate_transaction_fee(
             unsigned_tx.output.len() as u64,
             unsigned_tx.input.len() as u64,
             params.fee_rate,
         );
 
-        println!("Unstaking Fee: {:?}", fee);
-
-        unsigned_tx.output[0].value = params.input.amount_in_sats - fee;
+        self.distribute_fee(&mut unsigned_tx, indexed_output.amount_in_sats, fee)?;
 
         let mut psbt =
             Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
