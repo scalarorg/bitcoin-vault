@@ -57,7 +57,7 @@ mod test_upc {
     fn test_custodian_user() {
         let suite = TestSuite::new();
 
-        let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::UPCBranch);
+        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::UPCBranch);
 
         let mut unstaked_psbt =
             suite.build_upc_unstaking_tx(&staking_tx, UnstakingType::CustodianUser);

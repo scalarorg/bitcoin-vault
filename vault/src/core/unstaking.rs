@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use crate::core::fee::FeeParams;
+
 use super::{
     manager, CoreError, CustodianOnlyUnstakingParams, DataScript, TaprootTree,
     UPCTaprootTreeParams, UPCUnstakingParams, Unstaking, UnstakingDataScriptParams,
@@ -53,21 +55,28 @@ impl Unstaking for VaultManager {
 
         tx_builder.add_input(params.input.outpoint);
 
+        // The order of the outputs:
+        // [0] indexed output
+        // [1] unstaking output
+
         let indexed_output = self.create_indexed_output()?;
 
         tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
 
-        tx_builder.add_output(Amount::ZERO, params.locking_script.clone());
+        // the user will receive the amount they staked in the previous staking tx
+        let total_output_value = params.input.amount_in_sats;
+
+        tx_builder.add_output(total_output_value, params.locking_script.clone());
 
         let mut unsigned_tx = tx_builder.build();
 
-        let fee = self.calculate_transaction_fee(
-            unsigned_tx.output.len() as u64,
-            unsigned_tx.input.len() as u64,
-            params.fee_rate,
-        );
+        let fee = self.calculate_transaction_fee(FeeParams {
+            n_inputs: unsigned_tx.input.len() as u64,
+            n_outputs: unsigned_tx.output.len() as u64,
+            fee_rate: params.fee_rate,
+        });
 
-        self.distribute_fee(&mut unsigned_tx, indexed_output.amount_in_sats, fee)?;
+        self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;
 
         let mut psbt =
             Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
@@ -95,7 +104,13 @@ impl Unstaking for VaultManager {
 
         self.add_inputs_to_builder(&mut tx_builder, &params.inputs);
 
+        // The order of the outputs:
+        // [0] indexed output
+        // [1 - n-2] unstaking outputs
+        // [n-1] change output
+
         let indexed_output = self.create_indexed_output()?;
+
         tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
 
         let total_output_value =
@@ -109,11 +124,11 @@ impl Unstaking for VaultManager {
 
         let mut unsigned_tx = tx_builder.build();
 
-        let fee = self.calculate_transaction_fee(
-            unsigned_tx.input.len() as u64,
-            unsigned_tx.output.len() as u64,
-            params.fee_rate,
-        );
+        let fee = self.calculate_transaction_fee(FeeParams {
+            n_inputs: unsigned_tx.input.len() as u64,
+            n_outputs: unsigned_tx.output.len() as u64,
+            fee_rate: params.fee_rate,
+        });
 
         self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;
 

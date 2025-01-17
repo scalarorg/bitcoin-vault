@@ -16,6 +16,7 @@ mod utxo;
 pub use branches::*;
 pub use constants::*;
 pub use errors::*;
+pub use fee::*;
 pub use manager::*;
 pub use params::*;
 pub use psbt::*;

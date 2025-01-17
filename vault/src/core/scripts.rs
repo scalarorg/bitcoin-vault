@@ -68,6 +68,11 @@ impl LockingScript {
         LockingScript::new_custodian_only(&secp, params)
     }
 
+    pub fn get_upc(params: &UPCLockingScriptParams) -> Result<Self, CoreError> {
+        let secp = Secp256k1::new();
+        LockingScript::new_upc(&secp, params)
+    }
+
     pub fn into_script(self) -> ScriptBuf {
         self.0
     }

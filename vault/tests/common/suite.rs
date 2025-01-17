@@ -10,7 +10,7 @@ use bitcoin::{AddressType, Amount, OutPoint};
 use bitcoin_vault::{
     CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, PreviousStakingUTXO, Signing,
     Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams, Unstaking, UnstakingOutput,
-    UnstakingType, VaultManager,
+    UnstakingType, VaultManager, FeeParams,
 };
 use bitcoincore_rpc::json::GetTransactionResult;
 
@@ -36,9 +36,7 @@ impl TestEnv {
         match std::env::var("TEST_ENV").as_deref() {
             Ok("regtest") => TestEnv::Regtest,
             Ok("testnet4") => TestEnv::Testnet4,
-            _ => {
-                panic!("Unknown test environment");
-            }
+            _ => TestEnv::Regtest,
         }
     }
 }
@@ -117,11 +115,11 @@ impl TestSuite {
             output: outputs,
         };
 
-        let fee = self.manager.calculate_transaction_fee(
-            unsigned_tx.input.len() as u64,
-            unsigned_tx.output.len() as u64,
-            get_fee_rate(),
-        );
+        let fee = self.manager.calculate_transaction_fee(FeeParams {
+            n_inputs: unsigned_tx.input.len() as u64,
+            n_outputs: unsigned_tx.output.len() as u64,
+            fee_rate: get_fee_rate(),
+        });
 
         println!("Staking Fee: {:?}", fee);
 
@@ -189,6 +187,13 @@ impl TestSuite {
 impl TestSuite {
     pub fn new() -> Self {
         let env: TestEnv = TestEnv::from_env();
+        println!("\n=================================================================");
+        println!(
+            "                     RUNNING TEST ON {:?}                     ",
+            env
+        );
+        println!("=================================================================\n");
+
         let env = match env {
             TestEnv::Regtest => Env::new(Some(".env.test.regtest")).unwrap(),
             TestEnv::Testnet4 => Env::new(Some(".env.test.testnet4")).unwrap(),
