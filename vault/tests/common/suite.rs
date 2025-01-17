@@ -36,9 +36,7 @@ impl TestEnv {
         match std::env::var("TEST_ENV").as_deref() {
             Ok("regtest") => TestEnv::Regtest,
             Ok("testnet4") => TestEnv::Testnet4,
-            _ => {
-                panic!("Unknown test environment");
-            }
+            _ => TestEnv::Regtest,
         }
     }
 }
@@ -189,6 +187,13 @@ impl TestSuite {
 impl TestSuite {
     pub fn new() -> Self {
         let env: TestEnv = TestEnv::from_env();
+        println!("\n=================================================================");
+        println!(
+            "                     RUNNING TEST ON {:?}                     ",
+            env
+        );
+        println!("=================================================================\n");
+
         let env = match env {
             TestEnv::Regtest => Env::new(Some(".env.test.regtest")).unwrap(),
             TestEnv::Testnet4 => Env::new(Some(".env.test.testnet4")).unwrap(),
