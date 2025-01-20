@@ -2,18 +2,19 @@ use bitcoin::{Amount, Transaction};
 
 use super::{CoreError, VaultManager};
 
+pub struct FeeParams {
+    pub n_inputs: u64,
+    pub n_outputs: u64,
+    pub fee_rate: u64,
+}
+
 impl VaultManager {
-    pub fn get_fee(n_inputs: u64, n_outputs: u64, fee_rate: u64) -> u64 {
-        (11 + (68 + 112) * n_inputs + 34 * n_outputs) * fee_rate
+    pub fn get_fee(params: FeeParams) -> u64 {
+        (11 + (68 + 112) * params.n_inputs + 34 * params.n_outputs) * params.fee_rate
     }
 
-    pub fn calculate_transaction_fee(
-        &self,
-        num_inputs: u64,
-        num_outputs: u64,
-        fee_rate: u64,
-    ) -> Amount {
-        bitcoin::Amount::from_sat(VaultManager::get_fee(num_inputs, num_outputs, fee_rate))
+    pub fn calculate_transaction_fee(&self, params: FeeParams) -> Amount {
+        bitcoin::Amount::from_sat(VaultManager::get_fee(params))
     }
 
     pub fn distribute_fee(

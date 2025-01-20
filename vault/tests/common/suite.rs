@@ -10,7 +10,7 @@ use bitcoin::{AddressType, Amount, OutPoint};
 use bitcoin_vault::{
     CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, PreviousStakingUTXO, Signing,
     Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams, Unstaking, UnstakingOutput,
-    UnstakingType, VaultManager,
+    UnstakingType, VaultManager, FeeParams,
 };
 use bitcoincore_rpc::json::GetTransactionResult;
 
@@ -115,11 +115,11 @@ impl TestSuite {
             output: outputs,
         };
 
-        let fee = self.manager.calculate_transaction_fee(
-            unsigned_tx.input.len() as u64,
-            unsigned_tx.output.len() as u64,
-            get_fee_rate(),
-        );
+        let fee = self.manager.calculate_transaction_fee(FeeParams {
+            n_inputs: unsigned_tx.input.len() as u64,
+            n_outputs: unsigned_tx.output.len() as u64,
+            fee_rate: get_fee_rate(),
+        });
 
         println!("Staking Fee: {:?}", fee);
 
