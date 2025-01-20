@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/scalarorg/bitcoin-vault/ffi/go-vault"
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
 func TestSignPsbtBySingleKey(t *testing.T) {
@@ -29,7 +30,7 @@ func TestSignPsbtBySingleKey(t *testing.T) {
 	signedPsbt, err := vault.SignPsbtBySingleKey(
 		psbtBytes,                // []byte containing PSBT
 		privkeyBytes,             // []byte containing private key
-		vault.NetworkKindTestnet, // TestNet
+		types.NetworkKindTestnet, // TestNet
 		true,                     // finalize
 	)
 	if err != nil {

@@ -21,9 +21,11 @@ void free_byte_buffer(ByteBuffer buffer);
 import "C"
 import (
 	"unsafe"
+
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func CustodiansOnlyLockingScript(custodianPubKeys []PublicKey, custodianQuorum uint8) ([]byte, error) {
+func CustodiansOnlyLockingScript(custodianPubKeys []types.PublicKey, custodianQuorum uint8) ([]byte, error) {
 	result := C.custodians_only_locking_script(
 		(*[33]C.uint8_t)(unsafe.Pointer(&custodianPubKeys[0])),
 		C.size_t(len(custodianPubKeys)),

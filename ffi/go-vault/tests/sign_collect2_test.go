@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/scalarorg/bitcoin-vault/ffi/go-vault"
+	go_utils "github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-var MockTapScriptSigs map[string][]vault.TapScriptSig = map[string][]vault.TapScriptSig{
+var MockTapScriptSigs map[string][]go_utils.TapScriptSig = map[string][]go_utils.TapScriptSig{
 	"1": {
 		{
 			KeyXOnly:  [32]byte{181, 158, 87, 92, 239, 135, 62, 169, 82, 115, 175, 213, 89, 86, 200, 69, 144, 80, 114, 0, 212, 16, 230, 147, 228, 176, 121, 164, 38, 204, 97, 2},

@@ -57,9 +57,11 @@ void free_byte_buffer(ByteBuffer buffer);
 import "C"
 import (
 	"unsafe"
+
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func convertInputsToFFI(inputs []PreviousStakingUTXO) ([]C.PreviousStakingUTXOFFI, []unsafe.Pointer) {
+func convertInputsToFFI(inputs []types.PreviousStakingUTXO) ([]C.PreviousStakingUTXOFFI, []unsafe.Pointer) {
 	inputsFFI := make([]C.PreviousStakingUTXOFFI, len(inputs))
 	ptrs := make([]unsafe.Pointer, len(inputs))
 
@@ -83,7 +85,7 @@ func convertInputsToFFI(inputs []PreviousStakingUTXO) ([]C.PreviousStakingUTXOFF
 	return inputsFFI, ptrs
 }
 
-func convertOutputsToFFI(outputs []UnstakingOutput) ([]C.UnstakingOutputFFI, []unsafe.Pointer) {
+func convertOutputsToFFI(outputs []types.UnstakingOutput) ([]C.UnstakingOutputFFI, []unsafe.Pointer) {
 	outputsFFI := make([]C.UnstakingOutputFFI, len(outputs))
 	ptrs := make([]unsafe.Pointer, len(outputs))
 
@@ -102,7 +104,7 @@ func convertOutputsToFFI(outputs []UnstakingOutput) ([]C.UnstakingOutputFFI, []u
 	return outputsFFI, ptrs
 }
 
-func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, network NetworkKind, inputs []PreviousStakingUTXO, outputs []UnstakingOutput, custodianPubKeys []PublicKey, custodianQuorum uint8, rbf bool, feeRate uint64) ([]byte, error) {
+func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, network types.NetworkKind, inputs []types.PreviousStakingUTXO, outputs []types.UnstakingOutput, custodianPubKeys []types.PublicKey, custodianQuorum uint8, rbf bool, feeRate uint64) ([]byte, error) {
 	if !network.Valid() {
 		return nil, ErrInvalidNetwork
 	}

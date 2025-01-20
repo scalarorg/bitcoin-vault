@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"github.com/scalarorg/bitcoin-vault/ffi/go-vault"
+	go_utils "github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-var EXPECTED_TAP_SCRIPT_SIGS []vault.TapScriptSig
+var EXPECTED_TAP_SCRIPT_SIGS []go_utils.TapScriptSig
 
 func Init() {
 	key1, _ := hex.DecodeString("e2d226cfdaec93903c3f3b81a01a81b19137627cb26e621a0afb7bcd6efbcfff")
@@ -19,7 +20,7 @@ func Init() {
 	leafHash2, _ := hex.DecodeString("5a10a5ec729629c6dd863dc28b7162e18f96b00dedd87f158b228428a298bccb")
 	sig2, _ := hex.DecodeString("029defef810497a362e01f8409dda52231ff355774fac9202d611538dccf4606068f8f10573efa8d15ad3443f77593eb08fb59aa47074ae2e140d0fe24576285")
 
-	EXPECTED_TAP_SCRIPT_SIGS = []vault.TapScriptSig{
+	EXPECTED_TAP_SCRIPT_SIGS = []go_utils.TapScriptSig{
 		{
 			Signature: *(*[64]byte)(sig1),
 			LeafHash:  *(*[32]byte)(leafHash1),
@@ -55,7 +56,7 @@ func TestSignPsbtAndCollectSigs(t *testing.T) {
 	tapScriptSigs, err := vault.SignPsbtAndCollectSigs(
 		psbtBytes,
 		privkeyBytes,
-		vault.NetworkKindTestnet,
+		go_utils.NetworkKindTestnet,
 	)
 	if err != nil {
 		t.Fatalf("SignPsbtAndCollectSigs failed: %v", err)

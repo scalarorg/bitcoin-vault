@@ -8,16 +8,17 @@ import (
 	"testing"
 
 	"github.com/scalarorg/bitcoin-vault/ffi/go-vault"
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
 func TestUnstaking(t *testing.T) {
 	tag := []byte("tsclr")
 	serviceTag := []byte("proto")
 	version := uint8(1)
-	network := vault.NetworkKindTestnet
-	inputs := []vault.PreviousStakingUTXO{
+	network := types.NetworkKindTestnet
+	inputs := []types.PreviousStakingUTXO{
 		{
-			OutPoint: vault.OutPoint{
+			OutPoint: types.OutPoint{
 				Txid: func() [32]byte {
 					var txid [32]byte
 					copy(txid[:], bytes.Repeat([]byte{0x01}, 32))
@@ -29,16 +30,16 @@ func TestUnstaking(t *testing.T) {
 			Script: []byte{0x01, 0x02, 0x03},
 		},
 	}
-	outputs := []vault.UnstakingOutput{
+	outputs := []types.UnstakingOutput{
 		{
 			LockingScript: []byte{0x01, 0x02, 0x03},
 			Amount:        10_000,
 		},
 	}
-	custodianPubKeys := []vault.PublicKey{}
+	custodianPubKeys := []types.PublicKey{}
 	for _, pubkey := range pubkeys {
 		pubkeyBytes, _ := hex.DecodeString(pubkey)
-		custodianPubKeys = append(custodianPubKeys, vault.PublicKey(pubkeyBytes))
+		custodianPubKeys = append(custodianPubKeys, types.PublicKey(pubkeyBytes))
 	}
 	custodianQuorum := uint8(1)
 	rbf := false

@@ -27,9 +27,11 @@ void free_byte_buffer(ByteBuffer buffer);
 import "C"
 import (
 	"unsafe"
+
+	go_utils "github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func AggregateTapScriptSigs(psbtBytes []byte, tapScriptSigs []TapScriptSig) ([]byte, error) {
+func AggregateTapScriptSigs(psbtBytes []byte, tapScriptSigs []go_utils.TapScriptSig) ([]byte, error) {
 	if len(psbtBytes) == 0 {
 		return nil, ErrInvalidPsbt
 	}

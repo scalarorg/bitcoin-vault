@@ -24,10 +24,11 @@ void free_byte_buffer(ByteBuffer buffer);
 import "C"
 import (
 	"unsafe"
+
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-
-func SignPsbtBySingleKey(psbt []byte, privkey []byte, network NetworkKind, finalize bool) ([]byte, error) {
+func SignPsbtBySingleKey(psbt []byte, privkey []byte, network types.NetworkKind, finalize bool) ([]byte, error) {
 	if !network.Valid() {
 		return nil, ErrInvalidNetwork
 	}

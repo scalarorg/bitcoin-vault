@@ -29,15 +29,11 @@ void free_tap_script_sig_array(TapScriptSigArray array);
 import "C"
 import (
 	"unsafe"
+
+	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-type TapScriptSig struct {
-	KeyXOnly  [32]byte
-	LeafHash  [32]byte
-	Signature [64]byte
-}
-
-func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network NetworkKind) ([]TapScriptSig, error) {
+func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network types.NetworkKind) ([]types.TapScriptSig, error) {
 	if !network.Valid() {
 		return nil, ErrInvalidNetwork
 	}
@@ -56,13 +52,13 @@ func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network NetworkKind) ([
 	}
 
 	length := int(result.len)
-	tapScriptSigs := make([]TapScriptSig, length)
+	tapScriptSigs := make([]types.TapScriptSig, length)
 
 	cSigs := unsafe.Slice(result.data, length)
 
 	// Copy data from C array to Go slice
 	for i := 0; i < length; i++ {
-		tapScriptSigs[i] = TapScriptSig{
+		tapScriptSigs[i] = types.TapScriptSig{
 			KeyXOnly:  *(*[32]byte)(unsafe.Pointer(&cSigs[i].key_x_only)),
 			LeafHash:  *(*[32]byte)(unsafe.Pointer(&cSigs[i].leaf_hash)),
 			Signature: *(*[64]byte)(unsafe.Pointer(&cSigs[i].signature)),

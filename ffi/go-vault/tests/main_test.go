@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/scalarorg/bitcoin-vault/ffi/go-vault"
+	go_utils "github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
 var pubkeys = []string{
@@ -16,12 +16,12 @@ var pubkeys = []string{
 	"03e2d226cfdaec93903c3f3b81a01a81b19137627cb26e621a0afb7bcd6efbcfff",
 }
 
-var custodianPubKeys = []vault.PublicKey{}
+var custodianPubKeys = []go_utils.PublicKey{}
 
 func TestMain(m *testing.M) {
 	for _, pubkey := range pubkeys {
 		p := mustDecodeHex(pubkey)
-		custodianPubKeys = append(custodianPubKeys, vault.PublicKey(p))
+		custodianPubKeys = append(custodianPubKeys, go_utils.PublicKey(p))
 	}
 
 	os.Exit(m.Run())
