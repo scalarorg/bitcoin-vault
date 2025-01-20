@@ -30,7 +30,7 @@ export const NetworkKind: Record<TNetwork, 0 | 1> = {
 export const isTestnet = (network: TNetwork) => NetworkKind[network] === 1;
 
 export class VaultUtils {
-  private wasm: VaultWasm | null = null;
+  private wasm: VaultWasm;
   private network: bitcoinLib.Network | null = null;
   public static NETWORK_KIND: Record<TNetwork, number> = {
     bitcoin: 0,
@@ -73,10 +73,6 @@ export class VaultUtils {
   }
 
   public buildUPCStakingPsbt = (params: TBuildUPCStakingPsbt) => {
-    if (!this.wasm) {
-      throw new Error("VaultWasm instance not initialized");
-    }
-
     if (!this.network) {
       throw new Error("Network not initialized");
     }
@@ -129,10 +125,6 @@ export class VaultUtils {
   public buildUPCUnstakingPsbt = (
     params: TBuildUPCUntakingPsbt
   ): Uint8Array => {
-    if (!this.wasm) {
-      throw new Error("VaultWasm instance not initialized");
-    }
-
     const input = new UnstakingInput(
       params.input.script_pubkey,
       hexToBytes(params.input.txid),
@@ -181,10 +173,6 @@ export class VaultUtils {
   public buildCustodianOnlyStakingPsbt = (
     params: TBuildCustodianOnlyStakingPsbt
   ) => {
-    if (!this.wasm) {
-      throw new Error("VaultWasm instance not initialized");
-    }
-
     if (!this.network) {
       throw new Error("Network not initialized");
     }
@@ -244,10 +232,6 @@ export class VaultUtils {
     wif: string;
     finalize: boolean;
   }) {
-    if (!this.wasm) {
-      throw new Error("VaultWasm instance not initialized");
-    }
-
     if (!this.network) {
       throw new Error("Network not initialized");
     }
@@ -267,10 +251,21 @@ export class VaultUtils {
     custodianPubkeys: Uint8Array;
     custodianQuorum: number;
   }) => {
-    if (!this.wasm) {
-      throw new Error("VaultWasm instance not initialized");
-    }
     return this.wasm.custodian_only_locking_script(
+      params.custodianPubkeys,
+      params.custodianQuorum
+    );
+  };
+
+  public upcLockingScript = (params: {
+    userPubkey: Uint8Array;
+    protocolPubkey: Uint8Array;
+    custodianPubkeys: Uint8Array;
+    custodianQuorum: number;
+  }) => {
+    return this.wasm.upc_locking_script(
+      params.userPubkey,
+      params.protocolPubkey,
       params.custodianPubkeys,
       params.custodianQuorum
     );

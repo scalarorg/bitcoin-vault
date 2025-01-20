@@ -6,7 +6,7 @@ use bitcoin::{Amount, NetworkKind, OutPoint, PublicKey, XOnlyPublicKey};
 use bitcoin_vault::{
     CustodianOnlyLockingScriptParams, CustodianOnlyStakingParams, DestinationChain,
     DestinationRecipientAddress, DestinationTokenAddress, LockingScript, PreviousStakingUTXO,
-    Signing, Staking, UPCStakingParams, UPCUnstakingParams, Unstaking,
+    Signing, Staking, UPCLockingScriptParams, UPCStakingParams, UPCUnstakingParams, Unstaking,
     UnstakingOutput as VaultUnstakingOutput, UnstakingType, VaultManager,
 };
 use wasm_bindgen::prelude::*;
@@ -377,6 +377,35 @@ impl VaultWasm {
             .collect::<Vec<_>>();
         let script = LockingScript::get_custodian_only(&CustodianOnlyLockingScriptParams {
             custodian_pub_keys: &custodian_x_only_pubkeys,
+            custodian_quorum,
+        })
+        .map_err(|e| JsValue::from(format!("{:?}", e)))?;
+        Ok(script.into_script().to_bytes())
+    }
+
+    #[wasm_bindgen]
+    pub fn upc_locking_script(
+        &self,
+        user_pub_key: &[u8],
+        protocol_pub_key: &[u8],
+        custodian_pub_keys: &[u8],
+        custodian_quorum: u8,
+    ) -> Result<Vec<u8>, JsValue> {
+        let user_pub_key = Decoder::decode_33bytes_pubkey(user_pub_key)?;
+        let protocol_pub_key = Decoder::decode_33bytes_pubkey(protocol_pub_key)?;
+        let custodian_pub_keys = Decoder::decode_33bytes_pubkey_list(custodian_pub_keys)?;
+
+        let user_pub_key = XOnlyPublicKey::from(user_pub_key);
+        let protocol_pub_key = XOnlyPublicKey::from(protocol_pub_key);
+        let custodian_pub_keys = custodian_pub_keys
+            .iter()
+            .map(|p| XOnlyPublicKey::from(*p))
+            .collect::<Vec<_>>();
+
+        let script = LockingScript::get_upc(&UPCLockingScriptParams {
+            user_pub_key: &user_pub_key,
+            protocol_pub_key: &protocol_pub_key,
+            custodian_pub_keys: &custodian_pub_keys,
             custodian_quorum,
         })
         .map_err(|e| JsValue::from(format!("{:?}", e)))?;

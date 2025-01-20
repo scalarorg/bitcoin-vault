@@ -73,38 +73,26 @@ describe("Vault-Unstaking", () => {
         throw new Error("protocolPubkey is not correct");
       }
 
-      const input = {
-        txid,
-        vout: 0,
-        value: BigInt(Math.floor(tx.vout[0].value * 1e8)),
-        script_pubkey: scriptPubkeyOfLocking,
-      };
-
-      const output = {
-        script: bitcoin.address.toOutputScript(
-          testSuite.stakerAddress,
-          testSuite.network
-        ),
-        value: input.value,
-      };
-
-      const feeRate = 1;
-      const estimatedFee = getEstimatedFee(feeRate, 1, 1);
-
-      output.value = BigInt(Number(output.value) - estimatedFee);
-
-      console.log("Staking Amount", StaticEnv.STAKING_AMOUNT);
-      console.log("estimatedFee", estimatedFee);
-      console.log("output.value", output.value);
-
+      // already calculated the fee in rust core
       const params: TBuildUPCUntakingPsbt = {
-        input,
-        output,
+        input: {
+          txid,
+          vout: 0,
+          value: BigInt(Math.floor(tx.vout[0].value * 1e8)),
+          script_pubkey: scriptPubkeyOfLocking,
+        },
+        output: {
+          script: bitcoin.address.toOutputScript(
+            testSuite.stakerAddress,
+            testSuite.network
+          ),
+          value: BigInt(Math.floor(tx.vout[0].value * 1e8)),
+        },
         stakerPubkey: testSuite.stakerPubKey,
         protocolPubkey: testSuite.protocolPubkey,
         custodianPubkeys: testSuite.custodialPubkeys,
         custodianQuorum: StaticEnv.CUSTODIAL_QUORUM,
-        feeRate: BigInt(feeRate),
+        feeRate: BigInt(1),
         rbf: true,
         type: "user_protocol",
       };
