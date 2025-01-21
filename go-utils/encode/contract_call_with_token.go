@@ -61,15 +61,15 @@ func DecodeContractCallWithTokenPayload(payload []byte) (*ContractCallWithTokenP
 	encodedPayload := payload[1:]
 	switch payloadType {
 	case ContractCallWithTokenPayloadType_CustodianOnly:
-		return decodeCustodianOnly(encodedPayload)
+		return DecodeCustodianOnly(encodedPayload)
 	case ContractCallWithTokenPayloadType_UPC:
-		return decodeUPC(encodedPayload)
+		return DecodeUPC(encodedPayload)
 	default:
 		return nil, fmt.Errorf("invalid payload type")
 	}
 }
 
-func decodeCustodianOnly(payload []byte) (*ContractCallWithTokenPayload, error) {
+func DecodeCustodianOnly(payload []byte) (*ContractCallWithTokenPayload, error) {
 	decoded, err := contractCallWithTokenCustodianOnly.Unpack(payload)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func decodeCustodianOnly(payload []byte) (*ContractCallWithTokenPayload, error) 
 	}, nil
 }
 
-func decodeUPC(payload []byte) (*ContractCallWithTokenPayload, error) {
+func DecodeUPC(payload []byte) (*ContractCallWithTokenPayload, error) {
 	decoded, err := contractCallWithTokenUPC.Unpack(payload)
 	if err != nil {
 		return nil, err
