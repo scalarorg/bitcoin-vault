@@ -12,15 +12,24 @@ type TapScriptSig struct {
 	Signature [64]byte `json:"signature"`
 }
 
-type TapScriptSigsMap = map[uint64]TapScriptSig
+// Define a new type for TapScriptSigsMap
+type TapScriptSigsMapType map[uint64][]TapScriptSig
 
-func (t TapScriptSig) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t)
+func (t TapScriptSigsMapType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[uint64][]TapScriptSig(t))
 }
 
-func (t *TapScriptSig) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, t)
+func (t *TapScriptSigsMapType) UnmarshalJSON(data []byte) error {
+	var tempMap map[uint64][]TapScriptSig
+	if err := json.Unmarshal(data, &tempMap); err != nil {
+		return err
+	}
+	*t = TapScriptSigsMapType(tempMap)
+	return nil
 }
+
+// Update the type alias
+type TapScriptSigsMap = TapScriptSigsMapType
 
 type NetworkKind uint8
 
