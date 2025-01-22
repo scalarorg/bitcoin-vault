@@ -7,9 +7,19 @@ import "encoding/json"
 type PublicKey [33]byte
 
 type TapScriptSig struct {
-	KeyXOnly  [32]byte
-	LeafHash  [32]byte
-	Signature [64]byte
+	KeyXOnly  [32]byte `json:"key_x_only"`
+	LeafHash  [32]byte `json:"leaf_hash"`
+	Signature [64]byte `json:"signature"`
+}
+
+type TapScriptSigsMap = map[uint64]TapScriptSig
+
+func (t TapScriptSig) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t)
+}
+
+func (t *TapScriptSig) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, t)
 }
 
 type NetworkKind uint8
