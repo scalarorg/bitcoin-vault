@@ -1,7 +1,7 @@
 use bitcoin::{Amount, TxOut, XOnlyPublicKey};
 
 use super::{
-    manager, CoreError, CustodianOnlyDataParams, CustodianOnlyLockingScriptParams,
+    get_global_secp, manager, CoreError, CustodianOnlyDataParams, CustodianOnlyLockingScriptParams,
     CustodianOnlyStakingParams, DataScript, DataScriptParams, LockingScript, Staking,
     UPCLockingScriptParams, UPCStakingParams, VaultManager, DEST_CHAIN_SIZE,
     DEST_RECIPIENT_ADDRESS_SIZE, DEST_TOKEN_ADDRESS_SIZE,
@@ -54,6 +54,7 @@ impl Staking for VaultManager {
     type Error = CoreError;
 
     fn build_upc(&self, params: &UPCStakingParams) -> Result<StakingOutput, Self::Error> {
+        let secp = get_global_secp();
         // TODO: validate params
         let x_only_keys = manager::VaultManager::convert_upc_to_x_only_keys(
             &params.user_pub_key,
@@ -62,7 +63,7 @@ impl Staking for VaultManager {
         );
 
         let locking_script = LockingScript::new_upc(
-            self.secp(),
+            secp,
             &UPCLockingScriptParams {
                 user_pub_key: &x_only_keys.user,
                 protocol_pub_key: &x_only_keys.protocol,
@@ -93,6 +94,7 @@ impl Staking for VaultManager {
         &self,
         params: &CustodianOnlyStakingParams,
     ) -> Result<StakingOutput, Self::Error> {
+        let secp = get_global_secp();
         // TODO: validate params
         let custodians_x_only: Vec<XOnlyPublicKey> = params
             .custodian_pub_keys
@@ -101,7 +103,7 @@ impl Staking for VaultManager {
             .collect();
 
         let locking_script = LockingScript::new_custodian_only(
-            self.secp(),
+            secp,
             &CustodianOnlyLockingScriptParams {
                 custodian_pub_keys: &custodians_x_only,
                 custodian_quorum: params.custodian_quorum,

@@ -1,8 +1,16 @@
 use bitcoin::{key::Secp256k1, secp256k1::All, PublicKey, XOnlyPublicKey};
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref SECP: Secp256k1<All> = Secp256k1::new();
+}
+
+pub fn get_global_secp() -> &'static Secp256k1<All> {
+    &SECP
+}
 
 #[derive(Debug)]
 pub struct VaultManager {
-    secp: Secp256k1<All>,
     tag: Vec<u8>,
     service_tag: Vec<u8>,
     version: u8,
@@ -18,18 +26,12 @@ pub struct XOnlyKeys {
 
 impl VaultManager {
     pub fn new(tag: Vec<u8>, service_tag: Vec<u8>, version: u8, network_id: u8) -> Self {
-        let secp = Secp256k1::new();
         Self {
-            secp,
             tag,
             service_tag,
             version,
             network_id,
         }
-    }
-
-    pub fn secp(&self) -> &Secp256k1<All> {
-        &self.secp
     }
 
     pub fn tag(&self) -> &Vec<u8> {
@@ -61,7 +63,7 @@ impl VaultManager {
         let protocol_x_only = Self::convert_pubkey_to_x_only_key(protocol_pub_key);
         let custodian_x_only = custodian_pub_keys
             .iter()
-            .map(|pk| Self::convert_pubkey_to_x_only_key(pk))
+            .map(Self::convert_pubkey_to_x_only_key)
             .collect();
 
         XOnlyKeys {

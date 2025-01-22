@@ -15,19 +15,6 @@ pub struct ByteBuffer {
 }
 
 #[repr(C)]
-pub struct TapScriptSigFFI {
-    pub key_x_only: [u8; 32],
-    pub leaf_hash: [u8; 32],
-    pub signature: [u8; 64],
-}
-
-#[repr(C)]
-pub struct TapScriptSigFFIArray {
-    pub data: *mut TapScriptSigFFI,
-    pub len: usize,
-}
-
-#[repr(C)]
 pub struct OutPointFFI {
     pub txid: [u8; 32], // Natural order
     pub vout: u32,
@@ -68,11 +55,11 @@ pub struct UnstakingOutputFFI {
     pub amount_in_sats: AmountFFI,
 }
 
-impl Into<UnstakingOutput> for &UnstakingOutputFFI {
-    fn into(self) -> UnstakingOutput {
+impl From<&UnstakingOutputFFI> for UnstakingOutput {
+    fn from(ffi: &UnstakingOutputFFI) -> UnstakingOutput {
         UnstakingOutput {
-            locking_script: ScriptBuf::from_bytes(self.locking_script.to_vec()),
-            amount_in_sats: Amount::from_sat(self.amount_in_sats),
+            locking_script: ScriptBuf::from_bytes(ffi.locking_script.to_vec()),
+            amount_in_sats: Amount::from_sat(ffi.amount_in_sats),
         }
     }
 }

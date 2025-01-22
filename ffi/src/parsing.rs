@@ -3,6 +3,10 @@ use std::slice;
 
 use crate::ByteBuffer;
 
+/// # Safety
+///
+/// This function is unsafe because it uses raw pointers and assumes that the caller has
+/// provided valid pointers and lengths for the inputs and outputs.
 #[no_mangle]
 pub unsafe extern "C" fn parse_vault_embedded_data(
     script_pubkey: *const u8,

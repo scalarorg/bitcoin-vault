@@ -1,14 +1,11 @@
 use bitcoin::Psbt;
-use bitcoin_vault::TapScriptSigSerialized;
-use bitcoin_vault::{Signing, TapScriptSig, VaultManager};
+use bitcoin_vault::TapScriptSigsMap;
+use bitcoin_vault::{Signing, VaultManager};
 use std::slice;
 
 use crate::create_null_buffer;
-use crate::create_null_tap_script_sig_array;
 use crate::network_from_byte;
 use crate::ByteBuffer;
-use crate::TapScriptSigFFI;
-use crate::TapScriptSigFFIArray;
 
 /// Signs a PSBT using a single private key
 ///
@@ -54,7 +51,7 @@ pub unsafe extern "C" fn sign_psbt_by_single_key(
     };
 
     // Sign PSBT
-    let signed_psbt = match VaultManager::sign_psbt_by_single_key(
+    let (signed_psbt, _) = match VaultManager::sign_psbt_by_single_key(
         &mut psbt,
         privkey_slice,
         network_kind,
@@ -90,10 +87,10 @@ pub unsafe extern "C" fn sign_psbt_and_collect_sigs(
     privkey_bytes: *const u8,
     privkey_len: usize,
     network: u8,
-) -> TapScriptSigFFIArray {
+) -> ByteBuffer {
     // Safety checks
     if psbt_bytes.is_null() || privkey_bytes.is_null() {
-        return create_null_tap_script_sig_array();
+        return create_null_buffer();
     }
 
     // Convert raw pointers to slices
@@ -104,13 +101,13 @@ pub unsafe extern "C" fn sign_psbt_and_collect_sigs(
     // Parse PSBT
     let mut psbt = match Psbt::deserialize(psbt_slice) {
         Ok(psbt) => psbt,
-        Err(_) => return create_null_tap_script_sig_array(),
+        Err(_) => return create_null_buffer(),
     };
 
     // Convert network byte
     let network_kind = match network_from_byte(network) {
         Some(n) => n,
-        None => return create_null_tap_script_sig_array(),
+        None => return create_null_buffer(),
     };
 
     // Sign and collect signatures
@@ -120,44 +117,49 @@ pub unsafe extern "C" fn sign_psbt_and_collect_sigs(
         network_kind,
     ) {
         Ok(sigs) => sigs,
-        Err(_) => return create_null_tap_script_sig_array(),
+        Err(_) => return create_null_buffer(),
     };
 
-    // Convert to FFI-safe format
-    let mut ffi_sigs = Vec::with_capacity(tap_script_sigs.len());
-    for tap_script_sig in tap_script_sigs {
-        let serialized = tap_script_sig.serialize().unwrap();
-        ffi_sigs.push(TapScriptSigFFI {
-            key_x_only: serialized.key,
-            leaf_hash: serialized.leaf_hash,
-            signature: serialized.signature,
-        });
-    }
+    let json = match serde_json::to_vec(&tap_script_sigs) {
+        Ok(json) => json,
+        Err(_) => {
+            return ByteBuffer {
+                data: std::ptr::null_mut(),
+                len: 0,
+            }
+        }
+    };
 
-    // Prepare return value
-    let mut boxed_slice = ffi_sigs.into_boxed_slice();
-    let data = boxed_slice.as_mut_ptr();
-    let len = boxed_slice.len();
-    std::mem::forget(boxed_slice);
-
-    TapScriptSigFFIArray { data, len }
+    let mut output = Vec::with_capacity(json.len());
+    output.extend_from_slice(&json);
+    let buffer = ByteBuffer {
+        data: output.as_mut_ptr(),
+        len: output.len(),
+    };
+    std::mem::forget(output);
+    buffer
 }
 
+/// # Safety
+///
+/// This function is unsafe because it uses raw pointers and assumes that the caller has
+/// provided valid pointers and lengths for the inputs and outputs.
 #[no_mangle]
 pub unsafe extern "C" fn aggregate_tap_script_sigs(
     psbt_bytes: *const u8,
     psbt_len: usize,
-    tap_script_sigs: *const TapScriptSigFFI,
-    tap_script_sigs_len: usize,
+    tap_script_sigs_map_bytes: *const u8,
+    tap_script_sigs_map_len: usize,
 ) -> ByteBuffer {
     // Safety checks for null pointers
-    if psbt_bytes.is_null() || tap_script_sigs.is_null() {
+    if psbt_bytes.is_null() || tap_script_sigs_map_bytes.is_null() {
         return create_null_buffer();
     }
 
     // Convert raw pointers to slices
     let psbt_slice = slice::from_raw_parts(psbt_bytes, psbt_len);
-    let tap_script_sigs_slice = slice::from_raw_parts(tap_script_sigs, tap_script_sigs_len);
+    let tap_script_sigs_map_slice =
+        slice::from_raw_parts(tap_script_sigs_map_bytes, tap_script_sigs_map_len);
 
     // Parse PSBT
     let mut psbt = match Psbt::deserialize(psbt_slice) {
@@ -166,24 +168,15 @@ pub unsafe extern "C" fn aggregate_tap_script_sigs(
     };
 
     // Convert FFI TapScriptSigs to internal TapScriptSig format
-    let tap_script_sigs: Vec<TapScriptSig> = tap_script_sigs_slice
-        .iter()
-        .map(|ffi_sig| {
-            TapScriptSig::from_serialized(TapScriptSigSerialized {
-                key: ffi_sig.key_x_only,
-                leaf_hash: ffi_sig.leaf_hash,
-                signature: ffi_sig.signature,
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap_or_default();
+    let tap_script_sigs_map: TapScriptSigsMap =
+        serde_json::from_slice(tap_script_sigs_map_slice).unwrap_or_default();
 
     // Aggregate signatures
-    if let Err(_) = VaultManager::aggregate_tap_script_sigs(&mut psbt, &tap_script_sigs) {
+    if VaultManager::aggregate_tap_script_sigs(&mut psbt, &tap_script_sigs_map).is_err() {
         return create_null_buffer();
     }
 
-    let psbt_hex = match VaultManager::aggregate_tap_script_sigs(&mut psbt, &tap_script_sigs) {
+    let psbt_hex = match VaultManager::aggregate_tap_script_sigs(&mut psbt, &tap_script_sigs_map) {
         Ok(psbt_hex) => psbt_hex,
         Err(_) => return create_null_buffer(),
     };
@@ -199,6 +192,10 @@ pub unsafe extern "C" fn aggregate_tap_script_sigs(
     buffer
 }
 
+/// # Safety
+///
+/// This function is unsafe because it uses raw pointers and assumes that the caller has
+/// provided valid pointers and lengths for the inputs and outputs.
 #[no_mangle]
 pub unsafe extern "C" fn finalize_psbt_and_extract_tx(
     psbt_bytes: *const u8,

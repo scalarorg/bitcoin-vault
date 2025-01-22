@@ -57,4 +57,8 @@ pub enum CoreError {
     InvalidPublicKey,
     #[error("Invalid leaf hash")]
     InvalidLeafHash,
+    #[error("Signing key map is empty")]
+    SigningKeyMapIsEmpty,
+    #[error("Failed to serialize")]
+    FailedToSerialize,
 }

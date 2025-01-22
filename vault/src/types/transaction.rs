@@ -91,7 +91,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         match UnstakingTaprootTreeType::try_from(flags) {
             Ok(UnstakingTaprootTreeType::CustodianOnly) => {
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
-                return Ok(VaultReturnTxOutput {
+                Ok(VaultReturnTxOutput {
                     tag: tag.try_into().unwrap(),
                     version,
                     network_id,
@@ -99,7 +99,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     service_tag: service_tag.try_into().unwrap(),
                     transaction_type: VaultReturnTxOutputType::Unstaking,
                     ..Default::default()
-                });
+                })
             }
             Err(_) => {
                 let tree_type =

@@ -38,8 +38,8 @@ impl LockingScript {
         let tree = TaprootTree::new_upc(
             secp,
             &UPCTaprootTreeParams {
-                user_pub_key: params.user_pub_key.clone(),
-                protocol_pub_key: params.protocol_pub_key.clone(),
+                user_pub_key: *params.user_pub_key,
+                protocol_pub_key: *params.protocol_pub_key,
                 custodian_pub_keys: params.custodian_pub_keys.to_vec(),
                 custodian_quorum: params.custodian_quorum,
             },

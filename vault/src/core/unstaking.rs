@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::core::fee::FeeParams;
 
 use super::{
-    manager, CoreError, CustodianOnlyUnstakingParams, DataScript, TaprootTree,
+    get_global_secp, manager, CoreError, CustodianOnlyUnstakingParams, DataScript, TaprootTree,
     UPCTaprootTreeParams, UPCUnstakingParams, Unstaking, UnstakingDataScriptParams,
     UnstakingOutput, VaultManager, XOnlyKeys,
 };
@@ -32,6 +32,8 @@ impl Unstaking for VaultManager {
         params: &UPCUnstakingParams,
         unstaking_type: UnstakingType,
     ) -> Result<Psbt, Self::Error> {
+        let secp = get_global_secp();
+
         let x_only_keys = manager::VaultManager::convert_upc_to_x_only_keys(
             &params.user_pub_key,
             &params.protocol_pub_key,
@@ -39,7 +41,7 @@ impl Unstaking for VaultManager {
         );
 
         let tree = TaprootTree::new_upc(
-            self.secp(),
+            secp,
             &UPCTaprootTreeParams {
                 user_pub_key: x_only_keys.user,
                 protocol_pub_key: x_only_keys.protocol,
@@ -90,15 +92,13 @@ impl Unstaking for VaultManager {
         &self,
         params: &CustodianOnlyUnstakingParams,
     ) -> Result<Psbt, Self::Error> {
+        let secp = get_global_secp();
         let x_only_pub_keys = self.convert_to_x_only_keys(&params.custodian_pub_keys);
 
-        let tree = TaprootTree::new_custodian_only(
-            self.secp(),
-            &x_only_pub_keys,
-            params.custodian_quorum,
-        )?;
+        let tree =
+            TaprootTree::new_custodian_only(secp, &x_only_pub_keys, params.custodian_quorum)?;
 
-        let custodian_only_script = tree.clone().into_script(self.secp());
+        let custodian_only_script = tree.clone().into_script(secp);
 
         let mut tx_builder = UnstakingTransactionBuilder::new(params.rbf);
 
@@ -376,12 +376,12 @@ impl UnstakingKeys {
             UnstakingType::CustodianProtocol => {
                 let mut keys = vec![x_only_keys.protocol];
                 keys.extend_from_slice(&x_only_keys.custodians);
-                (&tree.protocol_custodian_branch.as_ref().unwrap(), keys)
+                (tree.protocol_custodian_branch.as_ref().unwrap(), keys)
             }
             UnstakingType::CustodianUser => {
                 let mut keys = vec![x_only_keys.user];
                 keys.extend_from_slice(&x_only_keys.custodians);
-                (&tree.user_custodian_branch.as_ref().unwrap(), keys)
+                (tree.user_custodian_branch.as_ref().unwrap(), keys)
             }
         }
     }

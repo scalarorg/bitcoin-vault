@@ -4,6 +4,7 @@ mod common;
 #[cfg(test)]
 mod test_custodians {
     use bitcoin::hex::DisplayHex;
+    use bitcoin::key::Secp256k1;
     use bitcoin::{secp256k1::All, Amount, Psbt};
     use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, UnstakingOutput, VaultManager};
     use bitcoincore_rpc::jsonrpc::base64;
@@ -271,6 +272,8 @@ mod test_custodians {
 
     #[test]
     fn test_sign_wrong_pubkey() {
+        let secp = Secp256k1::new();
+        
         let suite = TestSuite::new();
         let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CustodianOnly);
 
@@ -294,7 +297,7 @@ mod test_custodians {
 
         let wif = "cNGbmJbymnzaFUPZ8XSLvQQxHEEcTkh1ojBMMpvg5vFX5V1afcmR";
 
-        let wrong_key = key_from_wif(wif, suite.manager.secp());
+        let wrong_key = key_from_wif(wif, &secp);
 
         println!("before signing_privkeys: {:?}", signing_privkeys);
 

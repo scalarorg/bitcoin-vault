@@ -12,6 +12,7 @@ mod taproot;
 mod traits;
 mod unstaking;
 mod utxo;
+mod types;
 
 pub use branches::*;
 pub use constants::*;
@@ -21,9 +22,9 @@ pub use manager::*;
 pub use params::*;
 pub use psbt::*;
 pub use scripts::*;
-pub use signing::*;
 pub use staking::*;
 pub use taproot::*;
 pub use traits::*;
 pub use unstaking::*;
 pub use utxo::*;
+pub use types::*;

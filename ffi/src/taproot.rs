@@ -5,6 +5,10 @@ use bitcoin_vault::{CustodianOnlyLockingScriptParams, LockingScript};
 
 use crate::{create_null_buffer, ByteBuffer, PublicKeyFFI};
 
+/// # Safety
+///
+/// This function is unsafe because it uses raw pointers and assumes that the caller has
+/// provided valid pointers and lengths for the inputs and outputs.
 #[no_mangle]
 pub unsafe extern "C" fn custodians_only_locking_script(
     custodian_pub_keys_ptr: *const PublicKeyFFI,
@@ -31,7 +35,7 @@ pub unsafe extern "C" fn custodians_only_locking_script(
     // Create parameters for the unstaking function
     let result = LockingScript::get_custodian_only(&CustodianOnlyLockingScriptParams {
         custodian_pub_keys: &custodian_x_only_pubkeys,
-        custodian_quorum: custodian_quorum,
+        custodian_quorum,
     });
 
     // Call the build_custodian_only function

@@ -5,18 +5,14 @@ package vault
 #include <stdlib.h>
 
 typedef struct {
-    uint8_t key_x_only[32];
-    uint8_t leaf_hash[32];
-    uint8_t signature[64];
-} TapScriptSigFFI;
-
-typedef struct {
-    TapScriptSigFFI* data;
+    uint8_t* data;
     size_t len;
-} TapScriptSigArray;
+} ByteBuffer;
+
+void free_byte_buffer(ByteBuffer buffer);
 
 // Function declarations
-TapScriptSigArray sign_psbt_and_collect_sigs(
+ByteBuffer sign_psbt_and_collect_sigs(
     const uint8_t* psbt_bytes,
     size_t psbt_len,
     const uint8_t* privkey_bytes,
@@ -24,16 +20,16 @@ TapScriptSigArray sign_psbt_and_collect_sigs(
     uint8_t network
 );
 
-void free_tap_script_sig_array(TapScriptSigArray array);
 */
 import "C"
 import (
+	"encoding/json"
 	"unsafe"
 
 	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network types.NetworkKind) ([]types.TapScriptSig, error) {
+func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network types.NetworkKind) (types.TapScriptSigsMapType, error) {
 	if !network.Valid() {
 		return nil, ErrInvalidNetwork
 	}
@@ -45,25 +41,22 @@ func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network types.NetworkKi
 		C.size_t(len(privkey)),
 		C.uint8_t(network),
 	)
-	defer C.free_tap_script_sig_array(result)
+	defer C.free_byte_buffer(result)
 
 	if result.data == nil || result.len == 0 {
 		return nil, ErrFailedToSignAndCollectSigs
 	}
 
-	length := int(result.len)
-	tapScriptSigs := make([]types.TapScriptSig, length)
+	goBytes := C.GoBytes(unsafe.Pointer(result.data), C.int(result.len))
 
-	cSigs := unsafe.Slice(result.data, length)
-
-	// Copy data from C array to Go slice
-	for i := 0; i < length; i++ {
-		tapScriptSigs[i] = types.TapScriptSig{
-			KeyXOnly:  *(*[32]byte)(unsafe.Pointer(&cSigs[i].key_x_only)),
-			LeafHash:  *(*[32]byte)(unsafe.Pointer(&cSigs[i].leaf_hash)),
-			Signature: *(*[64]byte)(unsafe.Pointer(&cSigs[i].signature)),
-		}
+	var output types.TapScriptSigsMapType
+	if err := json.Unmarshal(goBytes, &output); err != nil {
+		return nil, err
 	}
 
-	return tapScriptSigs, nil
+	if len(output) == 0 {
+		return nil, ErrNoTapScriptSigs
+	}
+
+	return output, nil
 }

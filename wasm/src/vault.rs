@@ -322,7 +322,7 @@ impl VaultWasm {
         } else {
             NetworkKind::Main
         };
-        let signed_psbt =
+        let (signed_psbt, _) =
             VaultManager::sign_psbt_by_single_key(&mut psbt, privkey, network_kind, finalize)
                 .map_err(|e| VaultABIError::DecodingError(format!("{}", e)))?;
         Ok(signed_psbt)

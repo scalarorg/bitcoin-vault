@@ -34,6 +34,13 @@ impl SigningKeyMap {
         let x_only_pubkey = privkey.public_key(secp).into();
         Ok(Self(BTreeMap::from([(x_only_pubkey, privkey)])))
     }
+
+    pub fn get_x_only_pubkey(&self) -> Option<&XOnlyPublicKey> {
+        if let Some((x_only_pubkey, _)) = self.inner().first_key_value() {
+            return Some(x_only_pubkey);
+        }
+        None
+    }
 }
 
 impl GetKey for SigningKeyMap {

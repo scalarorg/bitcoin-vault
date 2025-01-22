@@ -9,7 +9,7 @@ import (
 	go_utils "github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-var EXPECTED_TAP_SCRIPT_SIGS []go_utils.TapScriptSig
+var EXPECTED_TAP_SCRIPT_SIGS_MAP go_utils.TapScriptSigsMap
 
 func Init() {
 	key1, _ := hex.DecodeString("e2d226cfdaec93903c3f3b81a01a81b19137627cb26e621a0afb7bcd6efbcfff")
@@ -20,16 +20,20 @@ func Init() {
 	leafHash2, _ := hex.DecodeString("5a10a5ec729629c6dd863dc28b7162e18f96b00dedd87f158b228428a298bccb")
 	sig2, _ := hex.DecodeString("029defef810497a362e01f8409dda52231ff355774fac9202d611538dccf4606068f8f10573efa8d15ad3443f77593eb08fb59aa47074ae2e140d0fe24576285")
 
-	EXPECTED_TAP_SCRIPT_SIGS = []go_utils.TapScriptSig{
-		{
-			Signature: *(*[64]byte)(sig1),
-			LeafHash:  *(*[32]byte)(leafHash1),
-			KeyXOnly:  *(*[32]byte)(key1),
+	EXPECTED_TAP_SCRIPT_SIGS_MAP = go_utils.TapScriptSigsMap{
+		0: []go_utils.TapScriptSig{
+			{
+				Signature: *(*[64]byte)(sig1),
+				LeafHash:  *(*[32]byte)(leafHash1),
+				KeyXOnly:  *(*[32]byte)(key1),
+			},
 		},
-		{
-			Signature: *(*[64]byte)(sig2),
-			LeafHash:  *(*[32]byte)(leafHash2),
-			KeyXOnly:  *(*[32]byte)(key2),
+		1: []go_utils.TapScriptSig{
+			{
+				Signature: *(*[64]byte)(sig2),
+				LeafHash:  *(*[32]byte)(leafHash2),
+				KeyXOnly:  *(*[32]byte)(key2),
+			},
 		},
 	}
 }
@@ -53,7 +57,7 @@ func TestSignPsbtAndCollectSigs(t *testing.T) {
 	privkeyBytes := mustDecodeHex(PRIVKEY_HEX)
 
 	// Execute the function being tested
-	tapScriptSigs, err := vault.SignPsbtAndCollectSigs(
+	tapScriptSigsMap, err := vault.SignPsbtAndCollectSigs(
 		psbtBytes,
 		privkeyBytes,
 		go_utils.NetworkKindTestnet,
@@ -63,15 +67,15 @@ func TestSignPsbtAndCollectSigs(t *testing.T) {
 	}
 
 	// Verify results
-	if len(tapScriptSigs) != len(EXPECTED_TAP_SCRIPT_SIGS) {
-		t.Errorf("Expected %d signatures, got %d", len(EXPECTED_TAP_SCRIPT_SIGS), len(tapScriptSigs))
+	if len(tapScriptSigsMap) != len(EXPECTED_TAP_SCRIPT_SIGS_MAP) {
+		t.Errorf("Expected %d signatures, got %d", len(EXPECTED_TAP_SCRIPT_SIGS_MAP), len(tapScriptSigsMap))
 	}
 
-	for i, actual := range tapScriptSigs {
-		expected := EXPECTED_TAP_SCRIPT_SIGS[i]
-		if actual.Signature != expected.Signature {
-			t.Errorf("TapScriptSig Signature mismatch at index %d\nexpected: %x\ngot: %x",
-				i, expected.Signature, actual.Signature)
+	for i, actual := range tapScriptSigsMap {
+		expected := EXPECTED_TAP_SCRIPT_SIGS_MAP[i]
+		if len(actual) != len(expected) {
+			t.Errorf("TapScriptSig mismatch at index %d\nexpected: %d\ngot: %d",
+				i, len(expected), len(actual))
 		}
 	}
 
@@ -79,7 +83,7 @@ func TestSignPsbtAndCollectSigs(t *testing.T) {
 
 	psbtBytes, err = vault.AggregateTapScriptSigs(
 		psbtBytes,
-		tapScriptSigs,
+		tapScriptSigsMap,
 	)
 
 	if err != nil {

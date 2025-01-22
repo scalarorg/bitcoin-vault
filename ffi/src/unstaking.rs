@@ -11,6 +11,10 @@ use crate::{
     create_null_buffer, ByteBuffer, PreviousStakingUTXOFFI, PublicKeyFFI, UnstakingOutputFFI,
 };
 
+/// # Safety
+///
+/// This function is unsafe because it uses raw pointers and assumes that the caller has
+/// provided valid pointers and lengths for the inputs and outputs.
 #[no_mangle]
 pub unsafe extern "C" fn build_custodian_only(
     tag: *const u8,
@@ -60,7 +64,7 @@ pub unsafe extern "C" fn build_custodian_only(
         inputs: inputs.to_vec(),
         unstaking_outputs: outputs.to_vec(),
         custodian_pub_keys: custodian_pub_keys.to_vec(),
-        custodian_quorum: custodian_quorum,
+        custodian_quorum,
         rbf,
         fee_rate,
     };

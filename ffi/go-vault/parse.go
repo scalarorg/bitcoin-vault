@@ -19,7 +19,6 @@ void free_byte_buffer(ByteBuffer buffer);
 import "C"
 import (
 	"encoding/json"
-	"fmt"
 	"unsafe"
 
 	"github.com/scalarorg/bitcoin-vault/go-utils/types"
@@ -43,8 +42,6 @@ func ParseVaultEmbeddedData(scriptPubkey []byte) (*types.VaultReturnTxOutput, er
 
 	// Convert the C buffer to Go slice
 	goBytes := C.GoBytes(unsafe.Pointer(result.data), C.int(result.len))
-
-	fmt.Printf("goBytes: %s\n", goBytes)
 
 	// Parse JSON into VaultReturnTxOutput
 	var output types.VaultReturnTxOutput

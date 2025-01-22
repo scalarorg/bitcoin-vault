@@ -5,46 +5,47 @@ package vault
 #include <stdlib.h>
 
 typedef struct {
-    uint8_t key_x_only[32];
-    uint8_t leaf_hash[32];
-    uint8_t signature[64];
-} TapScriptSigFFI;
-
-typedef struct {
     uint8_t* data;
     size_t len;
 } ByteBuffer;
 
+void free_byte_buffer(ByteBuffer buffer);
+
 ByteBuffer aggregate_tap_script_sigs(
     const uint8_t* psbt_bytes,
     size_t psbt_len,
-    const TapScriptSigFFI* tap_script_sigs,
-    size_t tap_script_sigs_len
+    const uint8_t* tap_script_sigs_map_bytes,
+    size_t tap_script_sigs_map_len
 );
 
-void free_byte_buffer(ByteBuffer buffer);
 */
 import "C"
 import (
+	"encoding/json"
 	"unsafe"
 
 	go_utils "github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func AggregateTapScriptSigs(psbtBytes []byte, tapScriptSigs []go_utils.TapScriptSig) ([]byte, error) {
+func AggregateTapScriptSigs(psbtBytes []byte, tapScriptSigsMap go_utils.TapScriptSigsMap) ([]byte, error) {
 	if len(psbtBytes) == 0 {
 		return nil, ErrInvalidPsbt
 	}
 
-	if len(tapScriptSigs) == 0 {
+	if len(tapScriptSigsMap) == 0 {
 		return nil, ErrNoTapScriptSigs
 	}
 
+	jsonOutput, err := json.Marshal(tapScriptSigsMap)
+	if err != nil {
+		return nil, err
+	}
+
 	result := C.aggregate_tap_script_sigs(
-		(*C.uchar)(unsafe.Pointer(&psbtBytes[0])),
+		(*C.uint8_t)(unsafe.Pointer(&psbtBytes[0])),
 		C.size_t(len(psbtBytes)),
-		(*C.TapScriptSigFFI)(unsafe.Pointer(&tapScriptSigs[0])),
-		C.size_t(len(tapScriptSigs)),
+		(*C.uint8_t)(unsafe.Pointer(&jsonOutput[0])),
+		C.size_t(len(jsonOutput)),
 	)
 	defer C.free_byte_buffer(result)
 
