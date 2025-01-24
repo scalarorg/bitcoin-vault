@@ -71,26 +71,6 @@ pub struct Env {
     pub service_tag: String,
 }
 
-impl Env {
-    pub fn new(path: Option<&str>) -> Result<Self, ValidationError> {
-        // Load environment variables from .env file
-        let current_dir = env::current_dir().unwrap();
-        if let Some(path) = path {
-            from_path(current_dir.join(path)).ok();
-        } else {
-            from_path(current_dir.join(".env")).ok();
-        }
-
-        let env = Env::load_from_env();
-
-        if let Err(err) = env.validate() {
-            panic!("Validation error: {:?}", err);
-        }
-
-        Ok(env)
-    }
-}
-
 impl Default for Env {
     fn default() -> Self {
         Env {
@@ -111,6 +91,28 @@ impl Default for Env {
             version: 0,
             service_tag: "".to_string(),
         }
+    }
+}
+
+impl Env {
+    pub fn new(path: Option<&str>) -> Result<Self, ValidationError> {
+        // Load environment variables from .env file
+        let current_dir = env::current_dir().unwrap();
+        if let Some(path) = path {
+            from_path(current_dir.join(path)).ok();
+        } else {
+            from_path(current_dir.join(".env")).ok();
+        }
+
+        let env = Env::load_from_env();
+
+        println!("{:?}", env);
+
+        if let Err(err) = env.validate() {
+            panic!("Validation error: {:?}", err);
+        }
+
+        Ok(env)
     }
 }
 

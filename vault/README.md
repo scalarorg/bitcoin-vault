@@ -160,7 +160,7 @@ let psbt = vault_manager.build(
 2. Run the tests:
 
 ```sh
-./test.sh <test_file> <test_name>
+./scripts/test.sh <test_file> <test_name>
 ```
 
 - `test_file`: The name of the test file to run.

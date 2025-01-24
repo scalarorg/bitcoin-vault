@@ -1,18 +1,11 @@
 #[cfg(test)]
-mod common;
-
-#[cfg(test)]
-use crate::common::helper::log_tx_result;
-#[cfg(test)]
-use crate::common::TestSuite;
-
-#[cfg(test)]
 mod test_upc {
 
     use bitcoin::{secp256k1::All, Psbt};
-    use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, UnstakingType, VaultManager};
-
-    use super::*;
+    use bitcoin_vault::{
+        helper::log_tx_result, SignByKeyMap, Signing, TaprootTreeType, TestSuite, UnstakingType,
+        VaultManager,
+    };
 
     #[test]
     fn test_staking() {
@@ -71,6 +64,9 @@ mod test_upc {
         )
         .unwrap();
 
+        let unstaked_psbt_hex = hex::encode(unstaked_psbt.serialize());
+        println!("unstaked_psbt_hex: {}", unstaked_psbt_hex);
+
         let signing_privkeys = suite.pick_random_custodian_privkeys();
 
         for privkey in signing_privkeys {
@@ -85,8 +81,6 @@ mod test_upc {
 
         // // Finalize the PSBT
         <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
-
-        // println!("\n\n === unstaked_psbt====\n\n{:?}", unstaked_psbt);
 
         // // Extract and send
         let result = suite.send_psbt_by_rpc(unstaked_psbt).unwrap();
@@ -204,7 +198,6 @@ mod test_upc {
             )
             .unwrap();
         }
-
 
         let psbt_bytes = final_psbt.serialize();
         let psbt_hex = hex::encode(psbt_bytes.clone());

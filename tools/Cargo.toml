@@ -1,0 +1,11 @@
+[package]
+name = "tools"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tvl"
+path = "src/bin/tvl.rs"
+
+[dependencies]
+bitcoin-vault = { package = "bitcoin-vault", path = "../vault" }

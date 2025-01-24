@@ -50,20 +50,19 @@ pub fn env_load_derive(input: TokenStream) -> TokenStream {
                 let parse_code = if field_type == &syn::parse_quote!(u8) {
                     quote! {
                         #field_name: std::env::var(#env_key)
-                            .map(|v| v.parse().unwrap_or(Default::default()))
-                            .unwrap_or(Default::default())
+                            .map(|v| v.parse().unwrap_or_else(|_| default.#field_name))
+                            .unwrap_or_else(|_| default.#field_name)
                     }
                 } else if field_type == &syn::parse_quote!(Vec<String>) {
                     quote! {
                         #field_name: std::env::var(#env_key)
-                            .unwrap_or_default()
-                            .split(',')
-                            .map(|s| s.to_string())
-                            .collect()
+                        .map(|v| v.split(',').map(|s| s.to_string()).collect())
+                        .unwrap_or_else(|_| default.#field_name.clone())
                     }
                 } else {
                     quote! {
-                        #field_name: std::env::var(#env_key).unwrap_or_else(|_| Default::default())
+                        #field_name: std::env::var(#env_key)
+                            .unwrap_or_else(|_| default.#field_name.clone())
                     }
                 };
 
@@ -77,6 +76,7 @@ pub fn env_load_derive(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         impl #struct_name {
             pub fn load_from_env() -> Self {
+                let default = Self::default();
                 Self {
                     #(#field_initializers),*
                 }

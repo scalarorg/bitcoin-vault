@@ -1,16 +1,12 @@
 #[cfg(test)]
-mod common;
-
-#[cfg(test)]
 mod test_custodians {
-    use bitcoin::hex::DisplayHex;
     use bitcoin::key::Secp256k1;
     use bitcoin::{secp256k1::All, Amount, Psbt};
-    use bitcoin_vault::{SignByKeyMap, Signing, TaprootTreeType, UnstakingOutput, VaultManager};
+    use bitcoin_vault::helper::{get_adress, key_from_wif, log_tx_result};
+    use bitcoin_vault::{
+        SignByKeyMap, Signing, TaprootTreeType, TestSuite, UnstakingOutput, VaultManager,
+    };
     use bitcoincore_rpc::jsonrpc::base64;
-
-    use crate::common::helper::{get_adress, key_from_wif, log_tx_result};
-    use crate::common::TestSuite;
 
     #[test]
     fn test_staking() {
@@ -216,7 +212,6 @@ mod test_custodians {
             let network_id = suite.network_id();
 
             let handle = thread::spawn(move || {
-                println!("privkey: {:?}", privkey.to_lower_hex_string());
                 // Extract signatures for each input
                 let input_tap_script_sigs =
                     <VaultManager as Signing>::sign_psbt_and_collect_tap_script_sigs(
@@ -273,7 +268,7 @@ mod test_custodians {
     #[test]
     fn test_sign_wrong_pubkey() {
         let secp = Secp256k1::new();
-        
+
         let suite = TestSuite::new();
         let staking_tx = suite.prepare_staking_tx(100000, TaprootTreeType::CustodianOnly);
 

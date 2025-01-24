@@ -2,7 +2,7 @@
 run() {
     PRIVKEY=${1:-}
     NAME=${2:-"bitcoin-regtest"}
-    docker rm -f ${NAME}
+    docker rm -f ${NAME} || true
     validate_wif "$PRIVKEY"
     while [ $? -eq 0 ]; do
         echo "Invalid private key"
