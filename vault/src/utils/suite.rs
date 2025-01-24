@@ -1,3 +1,8 @@
+use crate::{
+    CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, FeeParams, PreviousStakingUTXO,
+    Signing, Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams, Unstaking,
+    UnstakingOutput, UnstakingType, VaultManager,
+};
 use bitcoin::bip32::DerivationPath;
 use bitcoin::hex::DisplayHex;
 use bitcoin::key::rand;
@@ -7,11 +12,6 @@ use bitcoin::{
     PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
 };
 use bitcoin::{AddressType, Amount, OutPoint};
-use bitcoin_vault::{
-    CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, PreviousStakingUTXO, Signing,
-    Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams, Unstaking, UnstakingOutput,
-    UnstakingType, VaultManager, FeeParams,
-};
 use bitcoincore_rpc::json::GetTransactionResult;
 
 use std::collections::BTreeMap;
@@ -20,17 +20,19 @@ use bitcoin::secp256k1::rand::prelude::SliceRandom;
 use bitcoincore_rpc::Client;
 use bitcoincore_rpc::RpcApi;
 
-use crate::common::env::*;
-use crate::common::helper::*;
+use crate::helper::{
+    create_rpc, get_adress, get_approvable_utxos, get_network_id_from_str, key_from_wif,
+};
 
-#[cfg(test)]
+use super::helper::{get_fee_rate, hex_to_vec};
+use super::Env;
+
 #[derive(Debug, Clone, Copy)]
 pub enum TestEnv {
     Regtest,
     Testnet4,
 }
 
-#[cfg(test)]
 impl TestEnv {
     pub fn from_env() -> Self {
         match std::env::var("TEST_ENV").as_deref() {
@@ -186,7 +188,7 @@ impl TestSuite {
 
 impl TestSuite {
     pub fn new() -> Self {
-        let env: TestEnv = TestEnv::from_env();
+        let env = TestEnv::from_env();
         println!("\n=================================================================");
         println!(
             "                     RUNNING TEST ON {:?}                     ",
@@ -243,7 +245,6 @@ impl TestSuite {
         }
     }
 
-    #[allow(dead_code)]
     pub fn build_upc_unstaking_tx(
         &self,
         staking_tx: &Transaction,
