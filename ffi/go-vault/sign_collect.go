@@ -24,6 +24,7 @@ ByteBuffer sign_psbt_and_collect_sigs(
 import "C"
 import (
 	"encoding/json"
+	"fmt"
 	"unsafe"
 
 	"github.com/scalarorg/bitcoin-vault/go-utils/types"
@@ -51,7 +52,7 @@ func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network types.NetworkKi
 
 	var output types.TapScriptSigsMapType
 	if err := json.Unmarshal(goBytes, &output); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal tap script sigs: %w, got bytes: %s, raw bytes: %v", err, string(goBytes), goBytes)
 	}
 
 	if len(output) == 0 {
