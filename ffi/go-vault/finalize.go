@@ -27,7 +27,7 @@ func FinalizePsbtAndExtractTx(psbtBytes []byte) ([]byte, error) {
 	}
 
 	result := C.finalize_psbt_and_extract_tx(
-		(*C.uchar)(unsafe.Pointer(&psbtBytes[0])),
+		(*C.uint8_t)(unsafe.Pointer(&psbtBytes[0])),
 		C.size_t(len(psbtBytes)),
 	)
 	defer C.free_byte_buffer(result)

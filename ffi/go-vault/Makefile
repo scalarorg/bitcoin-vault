@@ -1,11 +1,14 @@
 LIBRARY_PATH := $(shell pwd)/../../target/release
 ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 LIB_DIR := $(ROOT_DIR)/lib
+$(info ROOT_DIR: $(ROOT_DIR))
 
 .PHONY: test copy clean debug test-linux
 
+
+
 test-linux:
-	@docker build -f docker/test.dockerfile -t bitcoin-vault-ffi $(ROOT_DIR)/../../
+	@docker build --build-arg TEST_PATTERN=$(t) -f docker/test.dockerfile -t bitcoin-vault-ffi ../../
 	@docker run --rm -it bitcoin-vault-ffi
 
 # Usage: `make test TestSignPsbtAndCollectSigs`
@@ -15,7 +18,7 @@ test:
 	@if [ -n "$(t)" ]; then \
 		CGO_LDFLAGS="-L$(LIB_DIR) -lbitcoin_vault_ffi" CGO_CFLAGS="-I$(LIB_DIR)" go test ./tests/... -v -cover -count=1 -run "^$(t)$$"; \
 	else \
-		CGO_LDFLAGS="-L$(LIB_DIR) -lbitcoin_vault_ffi" CGO_CFLAGS="-I$(LIB_DIR)" go test ./tests/... -v -cover -count=1; \
+		CGO_LDFLAGS="-L$(LIB_DIR) -lbitcoin_vault_ffi" CGO_CFLAGS="-I$(LIB_DIR)" go test ./tests/... -v -cover -count=1 -run "."; \
 	fi
 
 

@@ -1,32 +1,49 @@
-FROM rust:1.82.0-slim as builder
+# syntax=docker/dockerfile:experimental
 
-ENV ROOT_DIR /app/ffi/go-psbt
+FROM rust:1.82-alpine3.20 as libbuilder
+RUN apk add --no-cache git libc-dev
+# Build bitcoin-vault lib
+# Todo: select a specific feature, eg ffi
+# WORKDIR /bitcoin-vault
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    pkg-config \
-    libssl-dev \
-    golang \
-    git
+# WORKDIR /scalar
+# RUN git clone https://github.com/scalarorg/bitcoin-vault.git
 
-# Set working directory
-WORKDIR /app
+WORKDIR /scalar/bitcoin-vault
 
-# Copy the entire project
+COPY ffi ./ffi
+COPY macros ./macros
+COPY vault ./vault
+COPY wasm ./wasm
+COPY tools ./tools
+COPY Cargo.toml .
+COPY Cargo.lock .
+
+RUN cd ffi && cargo build --release
+
+FROM golang:1.23.3-alpine3.20 as build
+
+RUN apk add --no-cache --update \
+    ca-certificates \
+    git \
+    make \
+    build-base \
+    linux-headers
+
+# Copy the bitcoin-vault lib
+COPY --from=libbuilder /scalar/bitcoin-vault/target/release/libbitcoin_vault_ffi.* /usr/lib/
+
+WORKDIR /scalar/bitcoin-vault/
+
 COPY . .
 
-# Build Rust library
-RUN cargo build --release
+WORKDIR /scalar/bitcoin-vault/ffi/go-vault
 
-# Build Go binary with rpath
-RUN cd $(ROOT_DIR) && \
-    mkdir -p lib/linux && \
-    cp ../../target/release/libbitcoin_vault_ffi.* ./lib/linux
+RUN go mod download
 
-CMD cd $(ROOT_DIR) && \
-    LD_LIBRARY_PATH=$(pwd)/lib/linux:$LD_LIBRARY_PATH \
-    CGO_LDFLAGS="-L$(pwd)/lib/linux -lbitcoin_vault_ffi" \
-    CGO_CFLAGS="-I$(pwd)/lib/linux" \
-        go test ./tests/... -v -cover -count=1 && \
-    echo "Tests completed"
+ARG TEST_PATTERN=.
+ENV TEST_PATTERN=${TEST_PATTERN}
+
+CMD CGO_LDFLAGS="-L/usr/lib -lbitcoin_vault_ffi" \
+    CGO_CFLAGS="-I/usr/lib" \
+    go test ./tests/... -v -cover -count=1 -run "${TEST_PATTERN}"
