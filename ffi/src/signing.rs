@@ -1,5 +1,5 @@
 use bitcoin::Psbt;
-use bitcoin_vault::TapScriptSigsMap;
+use bitcoin_vault::{PsbtTapScriptSigs, TapScriptSigsMap};
 use bitcoin_vault::{Signing, VaultManager};
 use std::slice;
 
@@ -109,7 +109,13 @@ pub unsafe extern "C" fn sign_psbt_and_collect_sigs(
         Some(n) => n,
         None => return create_null_buffer(),
     };
-
+    println!("psbt_slice: {:?} with len {}", psbt_slice, psbt_slice.len());
+    println!(
+        "privkey_slice: {:?} with len {}",
+        privkey_slice,
+        privkey_slice.len()
+    );
+    println!("network_kind: {:?}", network_kind);
     // Sign and collect signatures
     let tap_script_sigs = match VaultManager::sign_psbt_and_collect_tap_script_sigs(
         &mut psbt,
@@ -119,7 +125,7 @@ pub unsafe extern "C" fn sign_psbt_and_collect_sigs(
         Ok(sigs) => sigs,
         Err(_) => return create_null_buffer(),
     };
-
+    println!("tap_script_sigs: {:?}", tap_script_sigs);
     let json = match serde_json::to_vec(&tap_script_sigs) {
         Ok(json) => json,
         Err(_) => {
@@ -168,15 +174,16 @@ pub unsafe extern "C" fn aggregate_tap_script_sigs(
     };
 
     // Convert FFI TapScriptSigs to internal TapScriptSig format
-    let tap_script_sigs_map: TapScriptSigsMap =
+    // let tap_script_sigs_map: TapScriptSigsMap =
+    //     serde_json::from_slice(tap_script_sigs_map_slice).unwrap_or_default();
+    let psbt_tap_script_sigs: PsbtTapScriptSigs =
         serde_json::from_slice(tap_script_sigs_map_slice).unwrap_or_default();
-
     // Aggregate signatures
-    if VaultManager::aggregate_tap_script_sigs(&mut psbt, &tap_script_sigs_map).is_err() {
+    if VaultManager::aggregate_tap_script_sigs(&mut psbt, &psbt_tap_script_sigs).is_err() {
         return create_null_buffer();
     }
 
-    let psbt_hex = match VaultManager::aggregate_tap_script_sigs(&mut psbt, &tap_script_sigs_map) {
+    let psbt_hex = match VaultManager::aggregate_tap_script_sigs(&mut psbt, &psbt_tap_script_sigs) {
         Ok(psbt_hex) => psbt_hex,
         Err(_) => return create_null_buffer(),
     };

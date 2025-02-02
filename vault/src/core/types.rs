@@ -71,8 +71,8 @@ impl TapScriptSig {
     }
 
     pub fn from_serialized(serialized: TapScriptSigSerialized) -> Result<Self, CoreError> {
-        let key =
-            XOnlyPublicKey::from_slice(&serialized.key_x_only).map_err(|_| CoreError::InvalidPublicKey)?;
+        let key = XOnlyPublicKey::from_slice(&serialized.key_x_only)
+            .map_err(|_| CoreError::InvalidPublicKey)?;
         let leaf_hash = TapLeafHash::from_slice(&serialized.leaf_hash)
             .map_err(|_| CoreError::InvalidLeafHash)?;
         let sig = taproot::Signature::from_slice(&serialized.signature)
@@ -131,6 +131,7 @@ impl<'de> Deserialize<'de> for TapScriptSig {
 }
 
 pub type InputIndex = u64;
+pub type PsbtTapScriptSigs = Vec<Vec<TapScriptSig>>;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TapScriptSigsMap(BTreeMap<InputIndex, Vec<TapScriptSig>>);

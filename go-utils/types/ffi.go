@@ -31,6 +31,24 @@ func (t *TapScriptSigsMapType) UnmarshalJSON(data []byte) error {
 // Update the type alias
 type TapScriptSigsMap = TapScriptSigsMapType
 
+// Define a new type for PsbtTapScriptSigs
+type PsbtTapScriptSigsType [][]TapScriptSig
+
+func (t PsbtTapScriptSigsType) MarshalJSON() ([]byte, error) {
+	return json.Marshal([][]TapScriptSig(t))
+}
+
+func (t *PsbtTapScriptSigsType) UnmarshalJSON(data []byte) error {
+	var tempBuffer [][]TapScriptSig
+	if err := json.Unmarshal(data, &tempBuffer); err != nil {
+		return err
+	}
+	*t = PsbtTapScriptSigs(tempBuffer)
+	return nil
+}
+
+type PsbtTapScriptSigs = PsbtTapScriptSigsType
+
 type NetworkKind uint8
 
 const (

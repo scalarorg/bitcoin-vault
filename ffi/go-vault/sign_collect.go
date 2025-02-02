@@ -30,7 +30,7 @@ import (
 	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network types.NetworkKind) (types.TapScriptSigsMapType, error) {
+func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network types.NetworkKind) (types.PsbtTapScriptSigs, error) {
 	if !network.Valid() {
 		return nil, ErrInvalidNetwork
 	}
@@ -47,10 +47,11 @@ func SignPsbtAndCollectSigs(psbt []byte, privkey []byte, network types.NetworkKi
 	if result.data == nil || result.len == 0 {
 		return nil, ErrFailedToSignAndCollectSigs
 	}
-
+	fmt.Println("result.data", result.data)
+	fmt.Println("result.len", result.len)
 	goBytes := C.GoBytes(unsafe.Pointer(result.data), C.int(result.len))
 
-	var output types.TapScriptSigsMapType
+	var output types.PsbtTapScriptSigs
 	if err := json.Unmarshal(goBytes, &output); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal tap script sigs: %w, got bytes: %s, raw bytes: %v", err, string(goBytes), goBytes)
 	}

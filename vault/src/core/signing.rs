@@ -1,4 +1,4 @@
-use super::{get_global_secp, SignByKeyMap, TapScriptSig, TapScriptSigsMap};
+use super::{get_global_secp, PsbtTapScriptSigs, SignByKeyMap, TapScriptSig};
 use bitcoin::{consensus::serialize, secp256k1::All, NetworkKind, Psbt};
 
 use super::{CoreError, Signing, SigningKeyMap, VaultManager};
@@ -35,12 +35,13 @@ impl Signing for VaultManager {
             .map_err(|_| CoreError::FailedToExtractTx)?;
         Ok((serialize(&tx), key_map))
     }
-
+    // Each psbt's input has a list of tap script sigs
+    // This function will sign the psbt and collect the tap script sigs into a map by input index
     fn sign_psbt_and_collect_tap_script_sigs(
         psbt: &mut Psbt,
         privkey: &[u8],
         network_kind: NetworkKind,
-    ) -> Result<TapScriptSigsMap, CoreError> {
+    ) -> Result<PsbtTapScriptSigs, CoreError> {
         let (_, key_map) =
             <VaultManager as Signing>::sign_psbt_by_single_key(psbt, privkey, network_kind, false)?;
 
@@ -48,8 +49,8 @@ impl Signing for VaultManager {
             .get_x_only_pubkey()
             .ok_or(CoreError::SigningKeyMapIsEmpty)?;
 
-        let mut tap_script_sigs: TapScriptSigsMap = TapScriptSigsMap::default();
-
+        //let mut tap_script_sigs: TapScriptSigsMap = TapScriptSigsMap::default();
+        let mut psbt_tap_script_sigs: PsbtTapScriptSigs = vec![];
         for (index, input) in psbt.inputs.iter().enumerate() {
             let mut tap_script_sig_vec: Vec<TapScriptSig> = vec![];
 
@@ -58,22 +59,22 @@ impl Signing for VaultManager {
                     tap_script_sig_vec.push(TapScriptSig::new((*key, *leaf_hash), *sig));
                 }
             }
-            tap_script_sigs.insert(index as u64, tap_script_sig_vec);
+            psbt_tap_script_sigs.push(tap_script_sig_vec);
         }
 
-        Ok(tap_script_sigs)
+        Ok(psbt_tap_script_sigs)
     }
 
     fn aggregate_tap_script_sigs(
         psbt: &mut Psbt,
-        tap_script_sigs: &TapScriptSigsMap,
+        psbt_tap_script_sigs: &PsbtTapScriptSigs,
     ) -> Result<Self::PsbtHex, CoreError> {
-        if psbt.inputs.len() != tap_script_sigs.len() {
+        if psbt.inputs.len() != psbt_tap_script_sigs.len() {
             return Err(CoreError::MismatchBetweenNumberOfInputsAndTapScriptSigs);
         }
 
         for (index, input) in psbt.inputs.iter_mut().enumerate() {
-            if let Some(sigs) = tap_script_sigs.get(index as u64) {
+            if let Some(sigs) = psbt_tap_script_sigs.get(index) {
                 for tap_script_sig in sigs {
                     input
                         .tap_script_sigs

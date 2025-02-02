@@ -27,7 +27,7 @@ import (
 	go_utils "github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func AggregateTapScriptSigs(psbtBytes []byte, tapScriptSigsMap go_utils.TapScriptSigsMap) ([]byte, error) {
+func AggregateTapScriptSigs(psbtBytes []byte, tapScriptSigsMap go_utils.PsbtTapScriptSigs) ([]byte, error) {
 	if len(psbtBytes) == 0 {
 		return nil, ErrInvalidPsbt
 	}

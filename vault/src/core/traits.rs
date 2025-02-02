@@ -1,8 +1,8 @@
 use bitcoin::{NetworkKind, Psbt, XOnlyPublicKey};
 
 use super::{
-    CoreError, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, SigningKeyMap,
-    StakingOutput, TapScriptSigsMap, UPCStakingParams, UPCUnstakingParams, UnstakingType,
+    CoreError, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, PsbtTapScriptSigs,
+    SigningKeyMap, StakingOutput, UPCStakingParams, UPCUnstakingParams, UnstakingType,
 };
 
 pub trait Staking {
@@ -47,11 +47,11 @@ pub trait Signing {
         psbt: &mut Psbt,
         privkey: &[u8],
         network_kind: NetworkKind,
-    ) -> Result<TapScriptSigsMap, CoreError>;
+    ) -> Result<PsbtTapScriptSigs, CoreError>;
 
     fn aggregate_tap_script_sigs(
         psbt: &mut Psbt,
-        tap_script_sigs: &TapScriptSigsMap,
+        tap_script_sigs: &PsbtTapScriptSigs,
     ) -> Result<Self::PsbtHex, CoreError>;
 
     fn finalize_psbt_and_extract_tx(psbt: &mut Psbt) -> Result<Self::TxHex, CoreError>;
