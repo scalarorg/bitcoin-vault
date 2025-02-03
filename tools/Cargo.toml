@@ -5,7 +5,7 @@ edition = "2021"
 
 [[bin]]
 name = "tvl"
-path = "src/bin/tvl.rs"
+path = "src/cmd/tvl.rs"
 
 [dependencies]
 bitcoin-vault = { package = "bitcoin-vault", path = "../vault" }

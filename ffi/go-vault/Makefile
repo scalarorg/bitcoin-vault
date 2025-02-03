@@ -5,11 +5,14 @@ $(info ROOT_DIR: $(ROOT_DIR))
 
 .PHONY: test copy clean debug test-linux
 
-
-
 test-linux:
 	@docker build --build-arg TEST_PATTERN=$(t) -f docker/test.dockerfile -t bitcoin-vault-ffi ../../
 	@docker run --rm -it bitcoin-vault-ffi
+
+.PHONY: test-alpine
+test-alpine:
+	@docker build -f docker/test.alpine.dockerfile -t bitcoin-vault-ffi-alpine ../../
+	@docker run --rm -it bitcoin-vault-ffi-alpine
 
 # Usage: `make test TestSignPsbtAndCollectSigs`
 # Or: `make test` to run all tests
