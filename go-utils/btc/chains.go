@@ -59,3 +59,12 @@ func (b *Records) GetDisplayedName(chainID uint64) string {
 	}
 	return name
 }
+
+func (b *Records) GetChainParamsByID(chainID uint64) *chaincfg.Params {
+	for _, chain := range chains {
+		if chain.ID == chainID {
+			return chain.Params
+		}
+	}
+	return nil
+}
