@@ -10,6 +10,5 @@ COPY vault ./vault
 COPY wasm ./wasm
 COPY tools ./tools
 COPY Cargo.toml .
-COPY Cargo.lock .
 
 RUN cargo build --release
