@@ -160,7 +160,7 @@ let psbt = vault_manager.build(
 2. Run the tests:
 
 ```sh
-./scripts/test.sh <test_file> <test_name>
+TEST_ENV=regtest ./scripts/test.sh <test_file> <test_name>
 ```
 
 - `test_file`: The name of the test file to run.
@@ -185,3 +185,11 @@ BOND_HOLDER_WALLET=
 ```sh
 TEST_ENV=testnet4 ./test.sh <test_file> <test_name>
 ```
+
+- `test_file`: The name of the test file to run.
+- `test_name`: The name of the test to run.
+
+### Custom
+
+1. If `TEST_ENV` is not set, it will use your `.env` file.
+2. If `TEST_ENV` is set, it will use the `TEST_ENV` as the env path

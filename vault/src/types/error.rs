@@ -27,14 +27,14 @@ pub enum ParserError {
     InvalidEmbeddedData,
     #[error("Invalid control block")]
     InvalidControlBlock,
-    #[error("Invalid script")]
-    InvalidScript,
+    #[error("Invalid script: {0}")]
+    InvalidScript(String),
     #[error("No embedded data")]
     NoEmbeddedData,
 }
 
 impl From<bitcoin::script::Error> for ParserError {
     fn from(_err: bitcoin::script::Error) -> Self {
-        ParserError::InvalidScript
+        ParserError::InvalidScript(format!("{}", _err))
     }
 }

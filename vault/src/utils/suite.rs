@@ -27,10 +27,11 @@ use crate::helper::{
 use super::helper::{get_fee_rate, hex_to_vec};
 use super::Env;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum TestEnv {
     Regtest,
     Testnet4,
+    Custom(String),
 }
 
 impl TestEnv {
@@ -38,7 +39,11 @@ impl TestEnv {
         match std::env::var("TEST_ENV").as_deref() {
             Ok("regtest") => TestEnv::Regtest,
             Ok("testnet4") => TestEnv::Testnet4,
-            _ => TestEnv::Regtest,
+            Ok(custom_env) => TestEnv::Custom(custom_env.to_string()),
+            Err(_) => {
+                println!("TEST_ENV is not set, using .env file");
+                TestEnv::Custom(".env".to_string())
+            }
         }
     }
 }
@@ -55,7 +60,68 @@ pub struct TestSuite {
     network_id: NetworkKind,
 }
 
+impl TestSuite {}
+
 impl TestSuite {
+    pub fn new() -> Self {
+        let env = TestEnv::from_env();
+        println!("\n=================================================================");
+        println!(
+            "                     RUNNING TEST ON {:?}                     ",
+            env
+        );
+        println!("=================================================================\n");
+
+        let env = match env {
+            TestEnv::Regtest => Env::new(Some(".env.test.regtest")).unwrap(),
+            TestEnv::Testnet4 => Env::new(Some(".env.test.testnet4")).unwrap(),
+            TestEnv::Custom(custom_env) => Env::new(Some(&custom_env)).unwrap(),
+        };
+
+        let cloned_env = env.clone();
+
+        let secp = Secp256k1::new();
+
+        let rpc = create_rpc(
+            &env.btc_node_address,
+            &env.btc_node_user,
+            &env.btc_node_password,
+            &env.bond_holder_wallet,
+        );
+
+        let user_address = get_adress(&env.network, &env.bond_holder_address);
+
+        let mut custodian_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)> = BTreeMap::new();
+
+        for (_, s) in env.custodian_private_keys.iter().enumerate() {
+            let (privkey, pubkey) = key_from_wif(s, &secp);
+            custodian_pairs.insert(pubkey, (privkey, pubkey));
+        }
+
+        let network_id = get_network_id_from_str(&env.network);
+
+        let manager = VaultManager::new(
+            env.tag.as_bytes().to_vec(),
+            env.service_tag.as_bytes().to_vec(),
+            env.version,
+            network_id as u8,
+        );
+
+        let holder_privkey = env.bond_holder_private_key;
+        let protocol_privkey = env.protocol_private_key;
+
+        Self {
+            rpc,
+            env: cloned_env,
+            user_pair: key_from_wif(&holder_privkey, &secp),
+            protocol_pair: key_from_wif(&protocol_privkey, &secp),
+            custodian_pairs,
+            user_address,
+            manager,
+            network_id,
+        }
+    }
+
     pub fn prepare_staking_tx(
         &self,
         amount: u64,
@@ -183,66 +249,6 @@ impl TestSuite {
         println!("\nSTAKING TXID: {:?}", staking_tx.compute_txid());
 
         staking_tx
-    }
-}
-
-impl TestSuite {
-    pub fn new() -> Self {
-        let env = TestEnv::from_env();
-        println!("\n=================================================================");
-        println!(
-            "                     RUNNING TEST ON {:?}                     ",
-            env
-        );
-        println!("=================================================================\n");
-
-        let env = match env {
-            TestEnv::Regtest => Env::new(Some(".env.test.regtest")).unwrap(),
-            TestEnv::Testnet4 => Env::new(Some(".env.test.testnet4")).unwrap(),
-        };
-
-        let cloned_env = env.clone();
-
-        let secp = Secp256k1::new();
-
-        let rpc = create_rpc(
-            &env.btc_node_address,
-            &env.btc_node_user,
-            &env.btc_node_password,
-            &env.bond_holder_wallet,
-        );
-
-        let user_address = get_adress(&env.network, &env.bond_holder_address);
-
-        let mut custodian_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)> = BTreeMap::new();
-
-        for (_, s) in env.custodian_private_keys.iter().enumerate() {
-            let (privkey, pubkey) = key_from_wif(s, &secp);
-            custodian_pairs.insert(pubkey, (privkey, pubkey));
-        }
-
-        let network_id = get_network_id_from_str(&env.network);
-
-        let manager = VaultManager::new(
-            env.tag.as_bytes().to_vec(),
-            env.service_tag.as_bytes().to_vec(),
-            env.version,
-            network_id as u8,
-        );
-
-        let holder_privkey = env.bond_holder_private_key;
-        let protocol_privkey = env.protocol_private_key;
-
-        Self {
-            rpc,
-            env: cloned_env,
-            user_pair: key_from_wif(&holder_privkey, &secp),
-            protocol_pair: key_from_wif(&protocol_privkey, &secp),
-            custodian_pairs,
-            user_address,
-            manager,
-            network_id,
-        }
     }
 
     pub fn build_upc_unstaking_tx(

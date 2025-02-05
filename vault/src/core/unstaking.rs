@@ -5,7 +5,7 @@ use crate::core::fee::FeeParams;
 use super::{
     get_global_secp, manager, CoreError, CustodianOnlyUnstakingParams, DataScript, TaprootTree,
     UPCTaprootTreeParams, UPCUnstakingParams, Unstaking, UnstakingDataScriptParams,
-    UnstakingOutput, VaultManager, XOnlyKeys,
+    UnstakingOutput, UnstakingTaprootTreeType, VaultManager, XOnlyKeys,
 };
 
 use super::PreviousStakingUTXO;
@@ -61,7 +61,7 @@ impl Unstaking for VaultManager {
         // [0] indexed output
         // [1] unstaking output
 
-        let indexed_output = self.create_indexed_output()?;
+        let indexed_output = self.create_indexed_output(UnstakingTaprootTreeType::UPCBranch)?;
 
         tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
 
@@ -109,7 +109,7 @@ impl Unstaking for VaultManager {
         // [1 - n-2] unstaking outputs
         // [n-1] change output
 
-        let indexed_output = self.create_indexed_output()?;
+        let indexed_output = self.create_indexed_output(UnstakingTaprootTreeType::CustodianOnly)?;
 
         tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
 
@@ -254,12 +254,16 @@ impl VaultManager {
         }
     }
 
-    fn create_indexed_output(&self) -> Result<UnstakingOutput, CoreError> {
+    fn create_indexed_output(
+        &self,
+        flags: UnstakingTaprootTreeType,
+    ) -> Result<UnstakingOutput, CoreError> {
         let unstaking_script = DataScript::new_unstaking(&UnstakingDataScriptParams {
             tag: self.tag(),
             version: self.version(),
             network_id: self.network_id(),
             service_tag: self.service_tag(),
+            flags,
         })?;
         Ok(UnstakingOutput {
             amount_in_sats: Amount::ZERO,

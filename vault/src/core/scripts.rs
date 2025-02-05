@@ -109,6 +109,7 @@ pub struct UnstakingDataScriptParams<'a> {
     pub version: u8,
     pub network_id: u8,
     pub service_tag: &'a Vec<u8>,
+    pub flags: UnstakingTaprootTreeType,
 }
 
 #[derive(Debug)]
@@ -139,6 +140,7 @@ pub enum TaprootTreeType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum UnstakingTaprootTreeType {
     CustodianOnly = 0b01000001,
+    UPCBranch = 0b10000001,
 }
 
 impl TryFrom<u8> for TaprootTreeType {
@@ -160,6 +162,7 @@ impl TryFrom<u8> for UnstakingTaprootTreeType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0b01000001 => Ok(Self::CustodianOnly),
+            0b10000001 => Ok(Self::UPCBranch),
             _ => Err(CoreError::InvalidTaprootTreeType),
         }
     }
@@ -229,13 +232,11 @@ impl DataScript {
         let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
         let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
 
-        let flags = UnstakingTaprootTreeType::CustodianOnly as u8;
-
         let mut data = Vec::<u8>::with_capacity(UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE);
         data.extend_from_slice(&tag_hash);
         data.push(params.version);
         data.push(params.network_id);
-        data.push(flags);
+        data.push(params.flags as u8);
         data.extend_from_slice(&service_tag_hash);
         let data_slice: &[u8; UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE] = data
             .as_slice()
