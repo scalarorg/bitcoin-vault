@@ -39,12 +39,12 @@ impl StakingOutput {
     pub fn into_tx_outs(self) -> Vec<TxOut> {
         vec![
             TxOut {
-                value: Amount::from_sat(self.staking_amount),
-                script_pubkey: self.locking_script.into_script(),
-            },
-            TxOut {
                 value: Amount::from_sat(0),
                 script_pubkey: self.embedded_data_script.into_script(),
+            },
+            TxOut {
+                value: Amount::from_sat(self.staking_amount),
+                script_pubkey: self.locking_script.into_script(),
             },
         ]
     }
