@@ -88,9 +88,6 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         // Read flags
         let flags = read_bytes(bytes, &mut cursor, FLAGS_SIZE)?[0];
 
-        println!("Flags: {:?}", flags);
-        println!("Flags bits: {:08b}", flags);
-
         match UnstakingTaprootTreeType::try_from(flags) {
             Ok(UnstakingTaprootTreeType::CustodianOnly | UnstakingTaprootTreeType::UPCBranch) => {
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
