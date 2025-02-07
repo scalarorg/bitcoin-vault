@@ -34,6 +34,8 @@ pub enum TestEnv {
     Custom(String),
 }
 
+const VOUT: usize = 1;
+
 impl TestEnv {
     pub fn from_env() -> Self {
         match std::env::var("TEST_ENV").as_deref() {
@@ -273,15 +275,13 @@ impl TestSuite {
         staking_tx: &Transaction,
         unstaking_type: UnstakingType,
     ) -> Psbt {
-        let vout: usize = 0;
-
         <VaultManager as Unstaking>::build_upc(
             &self.manager,
             &UPCUnstakingParams {
                 input: PreviousStakingUTXO {
-                    outpoint: OutPoint::new(staking_tx.compute_txid(), vout as u32),
-                    amount_in_sats: staking_tx.output[vout].value,
-                    script_pubkey: staking_tx.output[vout].script_pubkey.clone(),
+                    outpoint: OutPoint::new(staking_tx.compute_txid(), VOUT as u32),
+                    amount_in_sats: staking_tx.output[VOUT].value,
+                    script_pubkey: staking_tx.output[VOUT].script_pubkey.clone(),
                 },
                 locking_script: self.user_address().script_pubkey(),
                 user_pub_key: self.user_pubkey(),
@@ -302,16 +302,15 @@ impl TestSuite {
         staking_txs: &[Transaction],
         unstaking_outputs: Vec<UnstakingOutput>,
     ) -> Psbt {
-        let vout: usize = 0;
         <VaultManager as Unstaking>::build_custodian_only(
             &self.manager,
             &CustodianOnlyUnstakingParams {
                 inputs: staking_txs
                     .iter()
                     .map(|t| PreviousStakingUTXO {
-                        outpoint: OutPoint::new(t.compute_txid(), vout as u32),
-                        amount_in_sats: t.output[vout].value,
-                        script_pubkey: t.output[vout].script_pubkey.clone(),
+                        outpoint: OutPoint::new(t.compute_txid(), VOUT as u32),
+                        amount_in_sats: t.output[VOUT].value,
+                        script_pubkey: t.output[VOUT].script_pubkey.clone(),
                     })
                     .collect(),
                 unstaking_outputs,
