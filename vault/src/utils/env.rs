@@ -18,17 +18,9 @@ pub struct Env {
     #[env_var(key = "BTC_NODE_PASSWORD")]
     pub btc_node_password: String,
 
-    #[validate(length(equal = 52))]
-    #[env_var(key = "BOND_HOLDER_PRIVATE_KEY")]
-    pub bond_holder_private_key: String,
-
-    #[validate(length(min = 20))]
-    #[env_var(key = "BOND_HOLDER_ADDRESS")]
-    pub bond_holder_address: String,
-
     #[validate(length(min = 1))]
-    #[env_var(key = "BOND_HOLDER_WALLET")]
-    pub bond_holder_wallet: String,
+    #[env_var(key = "BTC_NODE_WALLET")]
+    pub btc_node_wallet: String,
 
     #[validate(length(min = 52))]
     #[env_var(key = "PROTOCOL_PRIVATE_KEY")]
@@ -77,9 +69,7 @@ impl Default for Env {
             btc_node_address: "localhost:18332".to_string(),
             btc_node_user: "user".to_string(),
             btc_node_password: "password".to_string(),
-            bond_holder_private_key: "".to_string(),
-            bond_holder_address: "".to_string(),
-            bond_holder_wallet: "legacy".to_string(),
+            btc_node_wallet: "staker".to_string(),
             protocol_private_key: "".to_string(),
             custodian_private_keys: vec![],
             destination_chain: "0100000000AA36A7".to_string(),
@@ -130,21 +120,7 @@ impl Debug for Env {
         write!(f, "{:<40}{}\n", "TAG:", self.tag)?;
         write!(f, "{:<40}{}\n", "VERSION:", self.version)?;
         write!(f, "{:<40}{}\n", "SERVICE_TAG:", self.service_tag)?;
-        write!(
-            f,
-            "{:<40}{}\n",
-            "BOND_HOLDER_PRIVATE_KEY:", self.bond_holder_private_key
-        )?;
-        write!(
-            f,
-            "{:<40}{}\n",
-            "BOND_HOLDER_ADDRESS:", self.bond_holder_address
-        )?;
-        write!(
-            f,
-            "{:<40}{}\n",
-            "BOND_HOLDER_WALLET:", self.bond_holder_wallet
-        )?;
+        write!(f, "{:<40}{}\n", "BTC_NODE_WALLET:", self.btc_node_wallet)?;
         write!(
             f,
             "{:<40}{}\n",

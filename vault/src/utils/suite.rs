@@ -8,8 +8,8 @@ use bitcoin::hex::DisplayHex;
 use bitcoin::key::rand;
 use bitcoin::psbt::Input;
 use bitcoin::{
-    absolute, address::NetworkChecked, key::Secp256k1, transaction, Address, NetworkKind,
-    PrivateKey, Psbt, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
+    absolute, key::Secp256k1, transaction, NetworkKind, PrivateKey, Psbt, PublicKey, ScriptBuf,
+    Sequence, Transaction, TxIn, TxOut, Witness,
 };
 use bitcoin::{AddressType, Amount, OutPoint};
 use bitcoincore_rpc::json::GetTransactionResult;
@@ -20,12 +20,10 @@ use bitcoin::secp256k1::rand::prelude::SliceRandom;
 use bitcoincore_rpc::Client;
 use bitcoincore_rpc::RpcApi;
 
-use crate::helper::{
-    create_rpc, get_adress, get_approvable_utxos, get_network_id_from_str, key_from_wif,
-};
+use crate::helper::{create_rpc, get_approvable_utxos, get_network_id_from_str, key_from_wif};
 
 use super::helper::{get_fee_rate, hex_to_vec};
-use super::Env;
+use super::{Env, SuiteAccount};
 
 #[derive(Debug, Clone)]
 pub enum TestEnv {
@@ -52,14 +50,13 @@ impl TestEnv {
 
 #[derive(Debug)]
 pub struct TestSuite {
+    manager: VaultManager,
+    env: Env,
     rpc: Client,
-    pub env: Env,
-    user_pair: (PrivateKey, PublicKey),
     protocol_pair: (PrivateKey, PublicKey),
     custodian_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)>,
-    user_address: Address<NetworkChecked>,
-    pub manager: VaultManager,
     network_id: NetworkKind,
+    env_path: String,
 }
 
 impl TestSuite {}
@@ -74,11 +71,13 @@ impl TestSuite {
         );
         println!("=================================================================\n");
 
-        let env = match env {
-            TestEnv::Regtest => Env::new(Some(".env.test.regtest")).unwrap(),
-            TestEnv::Testnet4 => Env::new(Some(".env.test.testnet4")).unwrap(),
-            TestEnv::Custom(custom_env) => Env::new(Some(&custom_env)).unwrap(),
+        let path = match env {
+            TestEnv::Regtest => ".env.test.regtest".to_string(),
+            TestEnv::Testnet4 => ".env.test.testnet4".to_string(),
+            TestEnv::Custom(custom_env) => custom_env,
         };
+
+        let env = Env::new(Some(&path)).unwrap();
 
         let cloned_env = env.clone();
 
@@ -88,10 +87,8 @@ impl TestSuite {
             &env.btc_node_address,
             &env.btc_node_user,
             &env.btc_node_password,
-            &env.bond_holder_wallet,
+            &env.btc_node_wallet,
         );
-
-        let user_address = get_adress(&env.network, &env.bond_holder_address);
 
         let mut custodian_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)> = BTreeMap::new();
 
@@ -109,28 +106,24 @@ impl TestSuite {
             network_id as u8,
         );
 
-        let holder_privkey = env.bond_holder_private_key;
         let protocol_privkey = env.protocol_private_key;
 
         Self {
             rpc,
             env: cloned_env,
-            user_pair: key_from_wif(&holder_privkey, &secp),
             protocol_pair: key_from_wif(&protocol_privkey, &secp),
             custodian_pairs,
-            user_address,
             manager,
             network_id,
+            env_path: path,
         }
     }
 
-    pub fn prepare_staking_tx_for_user(
+    pub fn prepare_staking_tx(
         &self,
         amount: u64,
         taproot_tree_type: TaprootTreeType,
-        user_priv_key: PrivateKey,
-        user_pub_key: PublicKey,
-        user_address: Address<NetworkChecked>,
+        account: SuiteAccount,
     ) -> Transaction {
         let destination_chain = self.hex_to_destination(&self.env.destination_chain);
         let destination_token_address =
@@ -158,7 +151,7 @@ impl TestSuite {
             TaprootTreeType::UPCBranch => <VaultManager as Staking>::build_upc(
                 &self.manager,
                 &UPCStakingParams {
-                    user_pub_key: user_pub_key,
+                    user_pub_key: account.public_key(),
                     protocol_pub_key: self.protocol_pubkey(),
                     custodian_pub_keys: self.custodian_pubkeys(),
                     custodian_quorum: self.env.custodian_quorum,
@@ -174,7 +167,7 @@ impl TestSuite {
             .into_tx_outs(),
         };
 
-        let utxo = get_approvable_utxos(&self.rpc, &user_address, amount);
+        let utxo = get_approvable_utxos(&self.rpc, &account.address(), amount);
 
         let mut unsigned_tx = Transaction {
             version: transaction::Version::TWO,
@@ -207,7 +200,7 @@ impl TestSuite {
         if change > Amount::ZERO {
             unsigned_tx.output.push(TxOut {
                 value: change,
-                script_pubkey: user_address.script_pubkey(),
+                script_pubkey: account.address().script_pubkey(),
             });
         }
 
@@ -221,15 +214,15 @@ impl TestSuite {
 
             // TODO: fix this, taproot address: leaf hash, no key origin
             // TODO: fix this, segwit address: no leaf hash, key origin
-            tap_internal_key: match user_address.address_type() {
-                Some(AddressType::P2tr) => Some(user_pub_key.inner.x_only_public_key().0),
+            tap_internal_key: match account.address().address_type() {
+                Some(AddressType::P2tr) => Some(account.public_key().inner.x_only_public_key().0),
                 _ => None,
             },
             tap_key_origins: {
                 let mut map = BTreeMap::new();
                 // Note: no need leaf hash when staking
                 map.insert(
-                    user_pub_key.inner.x_only_public_key().0,
+                    account.public_key().inner.x_only_public_key().0,
                     (vec![], ([0u8; 4].into(), DerivationPath::default())),
                 );
                 map
@@ -239,7 +232,7 @@ impl TestSuite {
 
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut psbt,
-            &user_priv_key.to_bytes(),
+            &account.private_key().to_bytes(),
             self.network_id,
             true,
         )
@@ -256,24 +249,11 @@ impl TestSuite {
         staking_tx
     }
 
-    pub fn prepare_staking_tx(
-        &self,
-        amount: u64,
-        taproot_tree_type: TaprootTreeType,
-    ) -> Transaction {
-        self.prepare_staking_tx_for_user(
-            amount,
-            taproot_tree_type,
-            self.user_privkey(),
-            self.user_pubkey(),
-            self.user_address(),
-        )
-    }
-
     pub fn build_upc_unstaking_tx(
         &self,
         staking_tx: &Transaction,
         unstaking_type: UnstakingType,
+        account: SuiteAccount,
     ) -> Psbt {
         <VaultManager as Unstaking>::build_upc(
             &self.manager,
@@ -283,8 +263,8 @@ impl TestSuite {
                     amount_in_sats: staking_tx.output[VOUT].value,
                     script_pubkey: staking_tx.output[VOUT].script_pubkey.clone(),
                 },
-                locking_script: self.user_address().script_pubkey(),
-                user_pub_key: self.user_pubkey(),
+                locking_script: account.address().script_pubkey(),
+                user_pub_key: account.public_key(),
                 protocol_pub_key: self.protocol_pubkey(),
                 custodian_pub_keys: self.custodian_pubkeys(),
                 custodian_quorum: self.env.custodian_quorum,
@@ -359,12 +339,16 @@ impl TestSuite {
 }
 
 impl TestSuite {
-    pub fn user_pubkey(&self) -> PublicKey {
-        self.user_pair.1
+    pub fn manager(&self) -> &VaultManager {
+        &self.manager
     }
 
-    pub fn user_privkey(&self) -> PrivateKey {
-        self.user_pair.0
+    pub fn env(&self) -> &Env {
+        &self.env
+    }
+
+    pub fn env_path(&self) -> &str {
+        &self.env_path
     }
 
     pub fn protocol_pubkey(&self) -> PublicKey {
@@ -385,10 +369,6 @@ impl TestSuite {
             .values()
             .map(|p| p.0.to_bytes())
             .collect()
-    }
-
-    pub fn user_address(&self) -> Address<NetworkChecked> {
-        self.user_address.clone()
     }
 
     fn hex_to_destination<T: TryFrom<Vec<u8>>>(&self, hex_str: &str) -> T

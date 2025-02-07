@@ -1,65 +1,77 @@
 #[cfg(test)]
 mod test_upc {
-
     use bitcoin::{secp256k1::All, Psbt};
     use bitcoin_vault::{
-        helper::log_tx_result, SignByKeyMap, Signing, TaprootTreeType, TestSuite, UnstakingType,
-        VaultManager,
+        helper::log_tx_result, AccountEnv, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType,
+        TestSuite, UnstakingType, VaultManager,
     };
+
+    use lazy_static::lazy_static;
+
+    lazy_static! {
+        static ref TEST_SUITE: TestSuite = TestSuite::new();
+        static ref TEST_ACCOUNT: SuiteAccount =
+            SuiteAccount::new(AccountEnv::new(Some(TEST_SUITE.env_path())).unwrap());
+    }
 
     #[test]
     fn test_staking() {
-        let suite = TestSuite::new();
-        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::UPCBranch);
+        let staking_tx =
+            TEST_SUITE.prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
         println!("tx_id: {:?}", staking_tx.compute_txid());
     }
 
     #[test]
     fn test_user_protocol() {
-        let suite = TestSuite::new();
-        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::UPCBranch);
+        let staking_tx =
+            TEST_SUITE.prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
 
         // prepare unstaking tx
-        let mut unstaked_psbt =
-            suite.build_upc_unstaking_tx(&staking_tx, UnstakingType::UserProtocol);
+        let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
+            &staking_tx,
+            UnstakingType::UserProtocol,
+            TEST_ACCOUNT.clone(),
+        );
 
         // sign unstaking psbt
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &suite.user_privkey().to_bytes(),
-            suite.network_id(),
+            &TEST_SUITE.protocol_privkey().to_bytes(),
+            TEST_SUITE.network_id(),
             false,
         )
         .unwrap();
 
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &suite.protocol_privkey().to_bytes(),
-            suite.network_id(),
+            &TEST_SUITE.protocol_privkey().to_bytes(),
+            TEST_SUITE.network_id(),
             true,
         )
         .unwrap();
 
         //  send unstaking tx
-        let result = suite.send_psbt_by_rpc(unstaked_psbt).unwrap();
+        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
 
         log_tx_result(&result);
     }
 
     #[test]
     fn test_custodian_user() {
-        let suite = TestSuite::new();
+        let staking_tx =
+            TEST_SUITE.prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
 
-        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::UPCBranch);
-
-        let mut unstaked_psbt =
-            suite.build_upc_unstaking_tx(&staking_tx, UnstakingType::CustodianUser);
+        let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
+            &staking_tx,
+            UnstakingType::CustodianUser,
+            TEST_ACCOUNT.clone(),
+        );
 
         // Sign with user key first
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &suite.user_privkey().to_bytes(),
-            suite.network_id(),
+            &TEST_ACCOUNT.private_key().to_bytes(),
+            TEST_SUITE.network_id(),
             false,
         )
         .unwrap();
@@ -67,13 +79,13 @@ mod test_upc {
         let unstaked_psbt_hex = hex::encode(unstaked_psbt.serialize());
         println!("unstaked_psbt_hex: {}", unstaked_psbt_hex);
 
-        let signing_privkeys = suite.pick_random_custodian_privkeys();
+        let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
 
         for privkey in signing_privkeys {
             <VaultManager as Signing>::sign_psbt_by_single_key(
                 &mut unstaked_psbt,
                 privkey.as_slice(),
-                suite.network_id(),
+                TEST_SUITE.network_id(),
                 false,
             )
             .unwrap();
@@ -83,28 +95,32 @@ mod test_upc {
         <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
         // // Extract and send
-        let result = suite.send_psbt_by_rpc(unstaked_psbt).unwrap();
+        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
         log_tx_result(&result);
     }
 
     // cargo test --package bitcoin-vault --test test_upc -- test_upc::test_custodian_protocol --exact --show-output
     #[test]
     fn test_custodian_protocol() {
-        let suite = TestSuite::new();
-        let staking_tx = suite.prepare_staking_tx(10000, TaprootTreeType::UPCBranch);
-        let mut unstaked_psbt =
-            suite.build_upc_unstaking_tx(&staking_tx, UnstakingType::CustodianProtocol);
+        let staking_tx =
+            TEST_SUITE.prepare_staking_tx(10000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
+
+        let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
+            &staking_tx,
+            UnstakingType::CustodianProtocol,
+            TEST_ACCOUNT.clone(),
+        );
 
         // Sign with user key first
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut unstaked_psbt,
-            &suite.protocol_privkey().to_bytes(),
-            suite.network_id(),
+            &TEST_SUITE.protocol_privkey().to_bytes(),
+            TEST_SUITE.network_id(),
             false,
         )
         .unwrap();
 
-        let signing_privkeys = suite.pick_random_custodian_privkeys();
+        let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
 
         println!("signing_privkeys: {:?}", signing_privkeys.len());
 
@@ -113,7 +129,7 @@ mod test_upc {
             <VaultManager as Signing>::sign_psbt_by_single_key(
                 &mut unstaked_psbt,
                 privkey_bytes.as_slice(),
-                suite.network_id(),
+                TEST_SUITE.network_id(),
                 false,
             )
             .unwrap();
@@ -123,7 +139,7 @@ mod test_upc {
         <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
         // Extract and send
-        let result = suite.send_psbt_by_rpc(unstaked_psbt).unwrap();
+        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
         log_tx_result(&result);
     }
 
@@ -132,23 +148,25 @@ mod test_upc {
         use std::sync::mpsc;
         use std::thread;
 
-        let suite = TestSuite::new();
+        let staking_tx =
+            TEST_SUITE.prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
 
-        let staking_tx = suite.prepare_staking_tx(1000, TaprootTreeType::UPCBranch);
-
-        let mut original_psbt =
-            suite.build_upc_unstaking_tx(&staking_tx, UnstakingType::CustodianUser);
+        let mut original_psbt = TEST_SUITE.build_upc_unstaking_tx(
+            &staking_tx,
+            UnstakingType::CustodianUser,
+            TEST_ACCOUNT.clone(),
+        );
 
         // Sign with user key first
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut original_psbt,
-            &suite.user_privkey().to_bytes(),
-            suite.network_id(),
+            &TEST_SUITE.protocol_privkey().to_bytes(),
+            TEST_SUITE.network_id(),
             false,
         )
         .unwrap();
         // Get signing keys
-        let signing_privkeys = suite.pick_random_custodian_privkeys();
+        let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
 
         // Channel for collecting signatures
         let (tx, rx) = mpsc::channel();
@@ -163,7 +181,7 @@ mod test_upc {
             let mut psbt_clone = original_psbt.clone();
             let privkey = privkey.clone();
             let tx = tx.clone();
-            let network_id = suite.network_id();
+            let network_id = TEST_SUITE.network_id();
 
             let handle = thread::spawn(move || {
                 // Extract signatures for each input
@@ -205,7 +223,7 @@ mod test_upc {
 
         // Finalize and send
         <Psbt as SignByKeyMap<All>>::finalize(&mut final_psbt);
-        let result = suite.send_psbt_by_rpc(final_psbt).unwrap();
+        let result = TEST_SUITE.send_psbt_by_rpc(final_psbt).unwrap();
         log_tx_result(&result);
         println!("🚀 ==== DONE ==== 🚀");
     }
