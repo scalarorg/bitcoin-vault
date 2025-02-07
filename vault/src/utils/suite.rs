@@ -122,10 +122,13 @@ impl TestSuite {
         }
     }
 
-    pub fn prepare_staking_tx(
+    pub fn prepare_staking_tx_for_user(
         &self,
         amount: u64,
         taproot_tree_type: TaprootTreeType,
+        user_priv_key: PrivateKey,
+        user_pub_key: PublicKey,
+        user_address: Address<NetworkChecked>,
     ) -> Transaction {
         let destination_chain = self.hex_to_destination(&self.env.destination_chain);
         let destination_token_address =
@@ -153,7 +156,7 @@ impl TestSuite {
             TaprootTreeType::UPCBranch => <VaultManager as Staking>::build_upc(
                 &self.manager,
                 &UPCStakingParams {
-                    user_pub_key: self.user_pubkey(),
+                    user_pub_key: user_pub_key,
                     protocol_pub_key: self.protocol_pubkey(),
                     custodian_pub_keys: self.custodian_pubkeys(),
                     custodian_quorum: self.env.custodian_quorum,
@@ -169,7 +172,7 @@ impl TestSuite {
             .into_tx_outs(),
         };
 
-        let utxo = get_approvable_utxos(&self.rpc, &self.user_address, amount);
+        let utxo = get_approvable_utxos(&self.rpc, &user_address, amount);
 
         let mut unsigned_tx = Transaction {
             version: transaction::Version::TWO,
@@ -202,7 +205,7 @@ impl TestSuite {
         if change > Amount::ZERO {
             unsigned_tx.output.push(TxOut {
                 value: change,
-                script_pubkey: self.user_address().script_pubkey(),
+                script_pubkey: user_address.script_pubkey(),
             });
         }
 
@@ -216,15 +219,15 @@ impl TestSuite {
 
             // TODO: fix this, taproot address: leaf hash, no key origin
             // TODO: fix this, segwit address: no leaf hash, key origin
-            tap_internal_key: match self.user_address.address_type() {
-                Some(AddressType::P2tr) => Some(self.user_pubkey().inner.x_only_public_key().0),
+            tap_internal_key: match user_address.address_type() {
+                Some(AddressType::P2tr) => Some(user_pub_key.inner.x_only_public_key().0),
                 _ => None,
             },
             tap_key_origins: {
                 let mut map = BTreeMap::new();
                 // Note: no need leaf hash when staking
                 map.insert(
-                    self.user_pubkey().inner.x_only_public_key().0,
+                    user_pub_key.inner.x_only_public_key().0,
                     (vec![], ([0u8; 4].into(), DerivationPath::default())),
                 );
                 map
@@ -234,7 +237,7 @@ impl TestSuite {
 
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut psbt,
-            &self.user_privkey().to_bytes(),
+            &user_priv_key.to_bytes(),
             self.network_id,
             true,
         )
@@ -249,6 +252,20 @@ impl TestSuite {
         println!("\nSTAKING TXID: {:?}", staking_tx.compute_txid());
 
         staking_tx
+    }
+
+    pub fn prepare_staking_tx(
+        &self,
+        amount: u64,
+        taproot_tree_type: TaprootTreeType,
+    ) -> Transaction {
+        self.prepare_staking_tx_for_user(
+            amount,
+            taproot_tree_type,
+            self.user_privkey(),
+            self.user_pubkey(),
+            self.user_address(),
+        )
     }
 
     pub fn build_upc_unstaking_tx(

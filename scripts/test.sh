@@ -12,18 +12,16 @@ test() {
     echo "Running tests for: ${test_file}"
 
     if [ -z "$2" ]; then
-        cargo test --package bitcoin-vault --test "$test_file" -- --exact --show-output || {
+        RUST_BACKTRACE=1 cargo test --package bitcoin-vault --test "$test_file" -- --exact --show-output || {
             echo "Tests failed with exit code $?" >&2
             exit 1
         }
     else
-        cargo test --package bitcoin-vault --test "$test_file" -- "$test_file::$2" --exact --show-output || {
+        RUST_BACKTRACE=1 cargo test --package bitcoin-vault --test "$test_file" -- "$test_file::$2" --exact --show-output || {
             echo "Tests failed with exit code $?" >&2
             exit 1
         }
     fi
 }
-
-
 
 test "$@"
