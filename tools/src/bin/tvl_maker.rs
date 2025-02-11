@@ -1,6 +1,6 @@
 use bitcoin_vault::TestSuite;
 use clap::{Parser, Subcommand};
-use commands::{StakeCommands, TvlCommand};
+use commands::{BridgeCommands, SendTokenCommand, TvlCommand};
 use rusqlite::Connection;
 
 mod commands;
@@ -21,10 +21,9 @@ struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Staking related commands
-    Stake(StakeCommands),
-    // /// Unstaking related commands
-    // Unstake(UnstakeCommands),
-
+    Bridge(BridgeCommands),
+    /// Send token related commands
+    SendToken(SendTokenCommand),
     // /// Monitoring and status commands
     // Monitor(MonitorCommands),
 }
@@ -51,7 +50,8 @@ impl TvlMaker {
 impl Commands {
     fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
         match self {
-            Commands::Stake(stake_cmd) => stake_cmd.execute(tvl_maker),
+            Commands::Bridge(stake_cmd) => stake_cmd.execute(tvl_maker),
+            Commands::SendToken(send_token_cmd) => send_token_cmd.execute(tvl_maker),
         }
     }
 }

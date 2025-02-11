@@ -71,7 +71,7 @@ pub fn get_approvable_utxos(
         .list_unspent(
             Some(0),
             None,
-            Some(&[&user_address]),
+            Some(&[user_address]),
             Some(true),
             Some(ListUnspentQueryOptions {
                 minimum_amount: Some(Amount::from_sat(btc_amount)),

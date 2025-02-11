@@ -2,8 +2,8 @@
 mod test_upc {
     use bitcoin::{secp256k1::All, Psbt};
     use bitcoin_vault::{
-        helper::log_tx_result, AccountEnv, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType,
-        TestSuite, UnstakingType, VaultManager,
+        helper::log_tx_result, AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap,
+        Signing, SuiteAccount, TaprootTreeType, TestSuite, UnstakingType, VaultManager,
     };
 
     use lazy_static::lazy_static;
@@ -12,12 +12,19 @@ mod test_upc {
         static ref TEST_SUITE: TestSuite = TestSuite::new();
         static ref TEST_ACCOUNT: SuiteAccount =
             SuiteAccount::new(AccountEnv::new(Some(TEST_SUITE.env_path())).unwrap());
+        static ref TEST_DESTINATION_INFO: DestinationInfo =
+            DestinationInfo::new(DestinationInfoEnv::new(Some(TEST_SUITE.env_path())).unwrap());
     }
 
     #[test]
     fn test_staking() {
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                1000,
+                TaprootTreeType::UPCBranch,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
         println!("tx_id: {:?}", staking_tx.compute_txid());
     }
@@ -25,7 +32,12 @@ mod test_upc {
     #[test]
     fn test_user_protocol() {
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                1000,
+                TaprootTreeType::UPCBranch,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         // prepare unstaking tx
@@ -61,7 +73,12 @@ mod test_upc {
     #[test]
     fn test_custodian_user() {
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                1000,
+                TaprootTreeType::UPCBranch,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
@@ -106,7 +123,12 @@ mod test_upc {
     #[test]
     fn test_custodian_protocol() {
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(10000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                10000,
+                TaprootTreeType::UPCBranch,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
@@ -153,7 +175,12 @@ mod test_upc {
         use std::thread;
 
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                1000,
+                TaprootTreeType::UPCBranch,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let mut original_psbt = TEST_SUITE.build_upc_unstaking_tx(

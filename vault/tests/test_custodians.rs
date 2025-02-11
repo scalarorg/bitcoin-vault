@@ -4,8 +4,8 @@ mod test_custodians {
     use bitcoin::{secp256k1::All, Amount, Psbt};
     use bitcoin_vault::helper::{get_adress, key_from_wif, log_tx_result};
     use bitcoin_vault::{
-        AccountEnv, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType, TestSuite,
-        UnstakingOutput, VaultManager,
+        AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap, Signing, SuiteAccount,
+        TaprootTreeType, TestSuite, UnstakingOutput, VaultManager,
     };
     use bitcoincore_rpc::jsonrpc::base64;
 
@@ -15,6 +15,8 @@ mod test_custodians {
         static ref TEST_SUITE: TestSuite = TestSuite::new();
         static ref TEST_ACCOUNT: SuiteAccount =
             SuiteAccount::new(AccountEnv::new(Some(TEST_SUITE.env_path())).unwrap());
+        static ref TEST_DESTINATION_INFO: DestinationInfo =
+            DestinationInfo::new(DestinationInfoEnv::new(Some(TEST_SUITE.env_path())).unwrap());
     }
 
     #[test]
@@ -23,6 +25,7 @@ mod test_custodians {
             1000,
             TaprootTreeType::CustodianOnly,
             TEST_ACCOUNT.clone(),
+            TEST_DESTINATION_INFO.clone(),
         );
         println!("tx_id: {:?}", staking_tx.unwrap().compute_txid());
     }
@@ -30,7 +33,12 @@ mod test_custodians {
     #[test]
     fn test_basic_flow() {
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(10000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                10000,
+                TaprootTreeType::CustodianOnly,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
@@ -72,7 +80,12 @@ mod test_custodians {
     #[test]
     fn test_partial_unstaking() {
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                100000,
+                TaprootTreeType::CustodianOnly,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
@@ -120,11 +133,21 @@ mod test_custodians {
     #[test]
     fn test_partial_unstaking_multiple_utxos() {
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                100000,
+                TaprootTreeType::CustodianOnly,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let staking_tx2 = TEST_SUITE
-            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                100000,
+                TaprootTreeType::CustodianOnly,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
@@ -186,6 +209,7 @@ mod test_custodians {
                         100000,
                         TaprootTreeType::CustodianOnly,
                         TEST_ACCOUNT.clone(),
+                        TEST_DESTINATION_INFO.clone(),
                     )
                     .unwrap()
             })
@@ -293,11 +317,21 @@ mod test_custodians {
         let secp = Secp256k1::new();
 
         let staking_tx = TEST_SUITE
-            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                100000,
+                TaprootTreeType::CustodianOnly,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let staking_tx2 = TEST_SUITE
-            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .prepare_staking_tx(
+                100000,
+                TaprootTreeType::CustodianOnly,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+            )
             .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(

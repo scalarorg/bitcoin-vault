@@ -47,7 +47,7 @@ pub fn env_load_derive(input: TokenStream) -> TokenStream {
                     .unwrap_or_else(|| field_name.to_string().to_uppercase());
 
                 let field_type = &field.ty;
-                let parse_code = if field_type == &syn::parse_quote!(u8) {
+                if field_type == &syn::parse_quote!(u8) {
                     quote! {
                         #field_name: std::env::var(#env_key)
                             .map(|v| v.parse().unwrap_or_else(|_| default.#field_name))
@@ -64,9 +64,7 @@ pub fn env_load_derive(input: TokenStream) -> TokenStream {
                         #field_name: std::env::var(#env_key)
                             .unwrap_or_else(|_| default.#field_name.clone())
                     }
-                };
-
-                parse_code
+                }
             })
             .collect::<Vec<_>>(),
         Fields::Unnamed(_) | Fields::Unit => {

@@ -34,10 +34,10 @@ impl Default for AccountEnv {
 
 impl Debug for AccountEnv {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "======== ACCOUNT ========\n")?;
-        write!(f, "{:<40}{}\n", "PRIVATE KEY:", self.private_key)?;
-        write!(f, "{:<40}{}\n", "ADDRESS:", self.address)?;
-        write!(f, "======== ACCOUNT ========\n")?;
+        writeln!(f, "======== ACCOUNT ========")?;
+        writeln!(f, "{:<40}{}", "PRIVATE KEY:", self.private_key)?;
+        writeln!(f, "{:<40}{}", "ADDRESS:", self.address)?;
+        writeln!(f, "======== ACCOUNT ========")?;
         Ok(())
     }
 }

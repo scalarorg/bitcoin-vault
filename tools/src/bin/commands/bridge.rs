@@ -5,58 +5,70 @@ use serde::{Deserialize, Serialize};
 use crate::{
     commands::{CommandResult, CommandStatus},
     db::{CommandHistory, DbOperations},
-    executors::StakingExecutor,
+    executors::BridgeExecutor,
     TvlMaker,
 };
 
 use super::TvlCommand;
 
 #[derive(Parser, Debug)]
-pub struct StakeCommands {
+pub struct BridgeCommands {
     #[command(subcommand)]
-    command: StakeSubCommands,
+    command: BridgeSubCommands,
 }
 
 #[derive(Subcommand, Debug)]
-enum StakeSubCommands {
+enum BridgeSubCommands {
     /// Run staking bitcoin traction based on user-protocol-custodial model
-    Upc(StakingCmdParams),
+    Upc(BridgeCmdParams),
     /// Run staking bitcoin traction based on custodial model
-    CustodianOnly(StakingCmdParams),
+    CustodianOnly(BridgeCmdParams),
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize)]
-pub struct StakingCmdParams {
+pub struct BridgeCmdParams {
     /// Amount of BTC to stake
-    #[arg(short, long)]
+    #[arg(short = 'a', long)]
     pub amount: u64,
 
     /// Wallet address
-    #[arg(short, long)]
-    pub address: String,
+    #[arg(short = 'w', long)]
+    pub wallet_address: String,
 
     /// Wallet private key
-    #[arg(short, long)]
+    #[arg(short = 'k', long)]
     pub private_key: String,
+
+    /// Destination chain
+    #[arg(short = 'c', long)]
+    pub destination_chain: String,
+
+    /// Destination token address
+    #[arg(short = 't', long)]
+    pub destination_token_address: String,
+
+    /// Destination recipient address
+    #[arg(short = 'r', long)]
+    pub destination_recipient_address: String,
 }
 
-impl TvlCommand for StakeCommands {
+impl TvlCommand for BridgeCommands {
     fn name(&self) -> String {
-        "stake".to_string()
+        "bridge".to_string()
     }
 
     fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
         // Extract params and tree type from command variant
         let (params, tree_type) = match &self.command {
-            StakeSubCommands::Upc(params) => (params, TaprootTreeType::UPCBranch),
-            StakeSubCommands::CustodianOnly(params) => (params, TaprootTreeType::CustodianOnly),
+            BridgeSubCommands::Upc(params) => (params, TaprootTreeType::UPCBranch),
+            BridgeSubCommands::CustodianOnly(params) => (params, TaprootTreeType::CustodianOnly),
         };
 
         // Serialize params once for command history
         let command_history_params = serde_json::to_string(params)?;
 
         // Execute staking operation
-        let result = StakingExecutor::execute_staking(
+        let result = BridgeExecutor::execute_bridge(
             &tvl_maker.suite,
             tvl_maker.suite.env().network.to_string(),
             params,
@@ -74,10 +86,10 @@ impl TvlCommand for StakeCommands {
         // Create and store command history
         let command_history = CommandHistory::new(
             match &self.command {
-                StakeSubCommands::Upc(_) => self.name().to_owned() + "_upc",
-                StakeSubCommands::CustodianOnly(_) => self.name().to_owned() + "_custodian",
+                BridgeSubCommands::Upc(_) => self.name().to_owned() + "_upc",
+                BridgeSubCommands::CustodianOnly(_) => self.name().to_owned() + "_custodian",
             },
-            Some(self.suite_env_json(&tvl_maker.suite.env())),
+            Some(self.suite_env_json(tvl_maker.suite.env())),
             Some(command_history_params),
             Some(serde_json::to_string(&result)?),
         );
@@ -90,7 +102,7 @@ impl TvlCommand for StakeCommands {
         match result.txid {
             Some(txid) => {
                 println!("Command history id: {}", id);
-                println!("Staking transaction sent with txid: {}", txid);
+                println!("Bridge transaction sent with txid: {}", txid);
                 Ok(())
             }
             None => anyhow::bail!("Failed to get transaction ID from result"),

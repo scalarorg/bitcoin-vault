@@ -22,8 +22,8 @@ use bitcoincore_rpc::RpcApi;
 
 use crate::helper::{create_rpc, get_approvable_utxos, get_network_id_from_str, key_from_wif};
 
-use super::helper::{get_fee_rate, hex_to_vec};
-use super::{Env, SuiteAccount};
+use super::helper::get_fee_rate;
+use super::{DestinationInfo, Env, SuiteAccount};
 
 #[derive(Debug, Clone)]
 pub enum TestEnv {
@@ -93,7 +93,7 @@ impl TestSuite {
 
         let mut custodian_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)> = BTreeMap::new();
 
-        for (_, s) in env.custodian_private_keys.iter().enumerate() {
+        for s in env.custodian_private_keys.iter() {
             let (privkey, pubkey) = key_from_wif(s, &secp);
             custodian_pairs.insert(pubkey, (privkey, pubkey));
         }
@@ -125,13 +125,8 @@ impl TestSuite {
         amount: u64,
         taproot_tree_type: TaprootTreeType,
         account: SuiteAccount,
+        dest: DestinationInfo,
     ) -> Result<Transaction, String> {
-        let destination_chain = self.hex_to_destination(&self.env.destination_chain);
-        let destination_token_address =
-            self.hex_to_destination(&self.env.destination_token_address);
-        let destination_recipient_address =
-            self.hex_to_destination(&self.env.destination_recipient_address);
-
         let outputs: Vec<TxOut> = match taproot_tree_type {
             TaprootTreeType::OnlyKeys => {
                 panic!("not implemented");
@@ -142,9 +137,9 @@ impl TestSuite {
                     custodian_pub_keys: self.custodian_pubkeys(),
                     custodian_quorum: self.env.custodian_quorum,
                     staking_amount: amount,
-                    destination_chain,
-                    destination_token_address,
-                    destination_recipient_address,
+                    destination_chain: dest.destination_chain,
+                    destination_token_address: dest.destination_token_address,
+                    destination_recipient_address: dest.destination_recipient_address,
                 },
             )
             .map_err(|e| e.to_string())?
@@ -157,18 +152,16 @@ impl TestSuite {
                     custodian_pub_keys: self.custodian_pubkeys(),
                     custodian_quorum: self.env.custodian_quorum,
                     staking_amount: amount,
-                    destination_chain: self.hex_to_destination(&self.env.destination_chain),
-                    destination_token_address: self
-                        .hex_to_destination(&self.env.destination_token_address),
-                    destination_recipient_address: self
-                        .hex_to_destination(&self.env.destination_recipient_address),
+                    destination_chain: dest.destination_chain,
+                    destination_token_address: dest.destination_token_address,
+                    destination_recipient_address: dest.destination_recipient_address,
                 },
             )
             .map_err(|e| e.to_string())?
             .into_tx_outs(),
         };
 
-        let utxo = get_approvable_utxos(&self.rpc, &account.address(), amount);
+        let utxo = get_approvable_utxos(&self.rpc, account.address(), amount);
 
         let mut unsigned_tx = Transaction {
             version: transaction::Version::TWO,
@@ -373,13 +366,6 @@ impl TestSuite {
             .collect()
     }
 
-    fn hex_to_destination<T: TryFrom<Vec<u8>>>(&self, hex_str: &str) -> T
-    where
-        T::Error: std::fmt::Debug,
-    {
-        hex_to_vec(hex_str).try_into().unwrap()
-    }
-
     pub fn network_id(&self) -> NetworkKind {
         self.network_id
     }
@@ -398,5 +384,11 @@ impl TestSuite {
             .take(self.env.custodian_quorum as usize)
             .map(|i| custodian_privkeys[i].clone())
             .collect()
+    }
+}
+
+impl Default for TestSuite {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -1,3 +1,3 @@
-mod stake;
+mod bridge;
 
-pub use stake::*;
+pub use bridge::*;

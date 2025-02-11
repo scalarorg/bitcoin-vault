@@ -30,18 +30,6 @@ pub struct Env {
     #[env_var(key = "CUSTODIAN_PRIVKEYS")]
     pub custodian_private_keys: Vec<String>,
 
-    #[validate(length(equal = 16))]
-    #[env_var(key = "DESTINATION_CHAIN")]
-    pub destination_chain: String,
-
-    #[validate(length(equal = 40))]
-    #[env_var(key = "DESTINATION_TOKEN_ADDRESS")]
-    pub destination_token_address: String,
-
-    #[validate(length(equal = 40))]
-    #[env_var(key = "DESTINATION_RECIPIENT_ADDRESS")]
-    pub destination_recipient_address: String,
-
     #[validate(range(min = 1))]
     #[env_var(key = "CUSTODIAN_QUORUM")]
     pub custodian_quorum: u8,
@@ -72,9 +60,6 @@ impl Default for Env {
             btc_node_wallet: "staker".to_string(),
             protocol_private_key: "".to_string(),
             custodian_private_keys: vec![],
-            destination_chain: "0100000000AA36A7".to_string(),
-            destination_token_address: "".to_string(),
-            destination_recipient_address: "".to_string(),
             custodian_quorum: 3,
             network: "regtest".to_string(),
             tag: "".to_string(),
@@ -108,50 +93,31 @@ impl Env {
 
 impl Debug for Env {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "======== ENVIRONMENT VARIABLES ========\n")?;
-        write!(f, "{:<40}{}\n", "BTC_NODE_ADDRESS:", self.btc_node_address)?;
-        write!(f, "{:<40}{}\n", "BTC_NODE_USER:", self.btc_node_user)?;
-        write!(
+        writeln!(f, "======== ENVIRONMENT VARIABLES ========")?;
+        writeln!(f, "{:<40}{}", "BTC_NODE_ADDRESS:", self.btc_node_address)?;
+        writeln!(f, "{:<40}{}", "BTC_NODE_USER:", self.btc_node_user)?;
+        writeln!(f, "{:<40}{}", "BTC_NODE_PASSWORD:", self.btc_node_password)?;
+        writeln!(f, "{:<40}{}", "NETWORK:", self.network)?;
+        writeln!(f, "{:<40}{}", "TAG:", self.tag)?;
+        writeln!(f, "{:<40}{}", "VERSION:", self.version)?;
+        writeln!(f, "{:<40}{}", "SERVICE_TAG:", self.service_tag)?;
+        writeln!(f, "{:<40}{}", "BTC_NODE_WALLET:", self.btc_node_wallet)?;
+        writeln!(
             f,
-            "{:<40}{}\n",
-            "BTC_NODE_PASSWORD:", self.btc_node_password
-        )?;
-        write!(f, "{:<40}{}\n", "NETWORK:", self.network)?;
-        write!(f, "{:<40}{}\n", "TAG:", self.tag)?;
-        write!(f, "{:<40}{}\n", "VERSION:", self.version)?;
-        write!(f, "{:<40}{}\n", "SERVICE_TAG:", self.service_tag)?;
-        write!(f, "{:<40}{}\n", "BTC_NODE_WALLET:", self.btc_node_wallet)?;
-        write!(
-            f,
-            "{:<40}{}\n",
+            "{:<40}{}",
             "PROTOCOL_PRIVATE_KEY:", self.protocol_private_key
         )?;
         write!(f, "{:<40}", "CUSTODIAN_PRIVKEYS:")?;
         for (i, key) in self.custodian_private_keys.iter().enumerate() {
             if i == 0 {
-                write!(f, "{}\n", key)?;
+                writeln!(f, "{}", key)?;
             } else {
-                write!(f, "{:<40}{}\n", "", key)?;
+                writeln!(f, "{:<40}{}", "", key)?;
             }
         }
-        write!(
-            f,
-            "{:<40}{}\n",
-            "DESTINATION_CHAIN:", self.destination_chain
-        )?;
-        write!(
-            f,
-            "{:<40}{}\n",
-            "DESTINATION_TOKEN_ADDRESS:", self.destination_token_address
-        )?;
-        write!(
-            f,
-            "{:<40}{}\n",
-            "DESTINATION_RECIPIENT_ADDRESS:", self.destination_recipient_address
-        )?;
-        write!(f, "{:<40}{}\n", "CUSTODIAN_QUORUM:", self.custodian_quorum)?;
+        writeln!(f, "{:<40}{}", "CUSTODIAN_QUORUM:", self.custodian_quorum)?;
 
-        write!(f, "======== ENVIRONMENT VARIABLES ========\n")?;
+        writeln!(f, "======== ENVIRONMENT VARIABLES ========")?;
 
         Ok(())
     }
