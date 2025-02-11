@@ -24,16 +24,14 @@ mod test_custodians {
             TaprootTreeType::CustodianOnly,
             TEST_ACCOUNT.clone(),
         );
-        println!("tx_id: {:?}", staking_tx.compute_txid());
+        println!("tx_id: {:?}", staking_tx.unwrap().compute_txid());
     }
 
     #[test]
     fn test_basic_flow() {
-        let staking_tx = TEST_SUITE.prepare_staking_tx(
-            10000,
-            TaprootTreeType::CustodianOnly,
-            TEST_ACCOUNT.clone(),
-        );
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(10000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx],
@@ -73,11 +71,9 @@ mod test_custodians {
 
     #[test]
     fn test_partial_unstaking() {
-        let staking_tx = TEST_SUITE.prepare_staking_tx(
-            100000,
-            TaprootTreeType::CustodianOnly,
-            TEST_ACCOUNT.clone(),
-        );
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx],
@@ -123,17 +119,13 @@ mod test_custodians {
 
     #[test]
     fn test_partial_unstaking_multiple_utxos() {
-        let staking_tx = TEST_SUITE.prepare_staking_tx(
-            100000,
-            TaprootTreeType::CustodianOnly,
-            TEST_ACCOUNT.clone(),
-        );
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .unwrap();
 
-        let staking_tx2 = TEST_SUITE.prepare_staking_tx(
-            100000,
-            TaprootTreeType::CustodianOnly,
-            TEST_ACCOUNT.clone(),
-        );
+        let staking_tx2 = TEST_SUITE
+            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx, staking_tx2],
@@ -189,11 +181,13 @@ mod test_custodians {
         // Create multiple staking transactions (inputs)
         let staking_txs: Vec<_> = (0..2)
             .map(|_| {
-                TEST_SUITE.prepare_staking_tx(
-                    100000,
-                    TaprootTreeType::CustodianOnly,
-                    TEST_ACCOUNT.clone(),
-                )
+                TEST_SUITE
+                    .prepare_staking_tx(
+                        100000,
+                        TaprootTreeType::CustodianOnly,
+                        TEST_ACCOUNT.clone(),
+                    )
+                    .unwrap()
             })
             .collect();
 
@@ -298,17 +292,13 @@ mod test_custodians {
     fn test_sign_wrong_pubkey() {
         let secp = Secp256k1::new();
 
-        let staking_tx = TEST_SUITE.prepare_staking_tx(
-            100000,
-            TaprootTreeType::CustodianOnly,
-            TEST_ACCOUNT.clone(),
-        );
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .unwrap();
 
-        let staking_tx2 = TEST_SUITE.prepare_staking_tx(
-            100000,
-            TaprootTreeType::CustodianOnly,
-            TEST_ACCOUNT.clone(),
-        );
+        let staking_tx2 = TEST_SUITE
+            .prepare_staking_tx(100000, TaprootTreeType::CustodianOnly, TEST_ACCOUNT.clone())
+            .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx, staking_tx2],

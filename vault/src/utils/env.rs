@@ -1,10 +1,10 @@
 use dotenv::from_path;
 use macros::EnvLoad;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{env, fmt::Debug};
 use validator::{Validate, ValidationError};
 
-#[derive(Clone, Deserialize, Validate, EnvLoad)]
+#[derive(Clone, Deserialize, Serialize, Validate, EnvLoad)]
 pub struct Env {
     #[validate(length(min = 10))]
     #[env_var(key = "BTC_NODE_ADDRESS")]

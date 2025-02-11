@@ -16,15 +16,17 @@ mod test_upc {
 
     #[test]
     fn test_staking() {
-        let staking_tx =
-            TEST_SUITE.prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .unwrap();
         println!("tx_id: {:?}", staking_tx.compute_txid());
     }
 
     #[test]
     fn test_user_protocol() {
-        let staking_tx =
-            TEST_SUITE.prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .unwrap();
 
         // prepare unstaking tx
         let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
@@ -58,8 +60,9 @@ mod test_upc {
 
     #[test]
     fn test_custodian_user() {
-        let staking_tx =
-            TEST_SUITE.prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
             &staking_tx,
@@ -102,8 +105,9 @@ mod test_upc {
     // cargo test --package bitcoin-vault --test test_upc -- test_upc::test_custodian_protocol --exact --show-output
     #[test]
     fn test_custodian_protocol() {
-        let staking_tx =
-            TEST_SUITE.prepare_staking_tx(10000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(10000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .unwrap();
 
         let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
             &staking_tx,
@@ -148,8 +152,9 @@ mod test_upc {
         use std::sync::mpsc;
         use std::thread;
 
-        let staking_tx =
-            TEST_SUITE.prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone());
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(1000, TaprootTreeType::UPCBranch, TEST_ACCOUNT.clone())
+            .unwrap();
 
         let mut original_psbt = TEST_SUITE.build_upc_unstaking_tx(
             &staking_tx,

@@ -36,6 +36,7 @@ const VOUT: usize = 1;
 
 impl TestEnv {
     pub fn from_env() -> Self {
+        println!("TEST_ENV: {:?}", std::env::var("TEST_ENV"));
         match std::env::var("TEST_ENV").as_deref() {
             Ok("regtest") => TestEnv::Regtest,
             Ok("testnet4") => TestEnv::Testnet4,
@@ -124,7 +125,7 @@ impl TestSuite {
         amount: u64,
         taproot_tree_type: TaprootTreeType,
         account: SuiteAccount,
-    ) -> Transaction {
+    ) -> Result<Transaction, String> {
         let destination_chain = self.hex_to_destination(&self.env.destination_chain);
         let destination_token_address =
             self.hex_to_destination(&self.env.destination_token_address);
@@ -146,7 +147,7 @@ impl TestSuite {
                     destination_recipient_address,
                 },
             )
-            .unwrap()
+            .map_err(|e| e.to_string())?
             .into_tx_outs(),
             TaprootTreeType::UPCBranch => <VaultManager as Staking>::build_upc(
                 &self.manager,
@@ -163,7 +164,7 @@ impl TestSuite {
                         .hex_to_destination(&self.env.destination_recipient_address),
                 },
             )
-            .unwrap()
+            .map_err(|e| e.to_string())?
             .into_tx_outs(),
         };
 
@@ -204,7 +205,7 @@ impl TestSuite {
             });
         }
 
-        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
+        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).map_err(|e| e.to_string())?;
 
         psbt.inputs[0] = Input {
             witness_utxo: Some(TxOut {
@@ -236,17 +237,18 @@ impl TestSuite {
             self.network_id,
             true,
         )
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
-        let result = Self::send_psbt(&self.rpc, psbt).unwrap();
+        let result = Self::send_psbt(&self.rpc, psbt).ok_or("Failed to send PSBT")?;
 
         let staking_tx_hex = result.hex;
 
-        let staking_tx: Transaction = bitcoin::consensus::deserialize(&staking_tx_hex).unwrap();
+        let staking_tx: Transaction =
+            bitcoin::consensus::deserialize(&staking_tx_hex).map_err(|e| e.to_string())?;
 
         println!("\nSTAKING TXID: {:?}", staking_tx.compute_txid());
 
-        staking_tx
+        Ok(staking_tx)
     }
 
     pub fn build_upc_unstaking_tx(
