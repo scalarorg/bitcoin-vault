@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil v1.1.5
-	github.com/ethereum/go-ethereum v1.14.12
+	github.com/ethereum/go-ethereum v1.14.13
 	github.com/gogo/protobuf v1.3.2
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.31.0
