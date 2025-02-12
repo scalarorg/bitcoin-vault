@@ -1,6 +1,6 @@
 use alloy::{
     contract::{ContractInstance, Interface},
-    dyn_abi::{abi::Token, DynSolValue, DynToken},
+    dyn_abi::DynSolValue,
     network::EthereumWallet,
     primitives::{Address, Uint, U8},
     providers::ProviderBuilder,
@@ -8,7 +8,6 @@ use alloy::{
         k256::ecdsa::SigningKey,
         local::{LocalSigner, PrivateKeySigner},
     },
-    sol,
 };
 
 mod bridge;
@@ -139,7 +138,16 @@ impl EvmExecutor {
     }
 }
 
-// contractCallWithTokenCustodianOnly = abi.Arguments{{Type: uint8Type}, {Type: boolType}, {Type: bytesType}}
+// sol!(
+//     #[allow(missing_docs)]
+//     function swapExactTokensForTokens(
+//         uint256 amountIn,
+//         uint256 amountOutMin,
+//         address[] calldata path,
+//         address to,
+//         uint256 deadline
+//       ) external returns (uint256[] memory amounts);
+// );
 
 #[derive(Debug)]
 pub struct ContractCallWithTokenPayload {
@@ -186,13 +194,29 @@ fn encode_custodian_only_payload(
         DynSolValue::Bytes(recipient_chain_id),
     ]);
 
-    Ok(encoded_payload.abi_encode())
+    let encoded_payload = encoded_payload.abi_encode_sequence();
+
+    if let None = encoded_payload {
+        return Err("Failed to encode payload".to_string());
+    }
+
+    let encoded_payload = encoded_payload.unwrap();
+
+    Ok(encoded_payload)
 }
 
 fn encode_upc_payload(psbt: Vec<u8>) -> Result<Vec<u8>, String> {
     let encoded_payload = DynSolValue::Bytes(psbt);
 
-    Ok(encoded_payload.abi_encode())
+    let encoded_payload = encoded_payload.abi_encode_sequence();
+
+    if let None = encoded_payload {
+        return Err("Failed to encode payload".to_string());
+    }
+
+    let encoded_payload = encoded_payload.unwrap();
+
+    Ok(encoded_payload)
 }
 
 fn append_payload(payload_type: &UnstakingTaprootTreeType, encoded_payload: &[u8]) -> Vec<u8> {

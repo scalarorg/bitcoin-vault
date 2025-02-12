@@ -67,12 +67,12 @@ impl TvlCommand for RedeemCommands {
 
     #[tokio::main]
     async fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
-        if let RedeemSubCommands::Upc(params) = &self.command {
-            return Ok(());
-        }
-
         let (params, command_name) = match &self.command {
-            RedeemSubCommands::Upc(params) => (params, "upc"),
+            RedeemSubCommands::Upc(params) => {
+                // TODO: UPC implementation will be added in the future
+                println!("UPC redeem implementation pending");
+                return Ok(());
+            }
             RedeemSubCommands::CustodianOnly(params) => (params, "custodian_only"),
         };
 
@@ -120,7 +120,7 @@ impl TvlCommand for RedeemCommands {
         let command_history_params = serde_json::to_string(&params)?;
 
         let command_history = CommandHistory::new(
-            self.name().to_owned() + " " + &command_name,
+            self.name().to_owned() + "_" + &command_name,
             Some(self.suite_env_json(tvl_maker.suite.env())),
             Some(command_history_params),
             Some(serde_json::to_string(&command_result)?),
