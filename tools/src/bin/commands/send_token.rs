@@ -1,15 +1,17 @@
-use alloy::{
-    network::EthereumWallet, primitives::Address, providers::ProviderBuilder,
-    signers::local::PrivateKeySigner,
-};
-use bitcoin_vault::hex_to_vec;
+use alloy::primitives::Address;
 use clap::Parser;
+use serde::{Deserialize, Serialize};
 
-use crate::{executors::SendTokenExecutor, TvlMaker};
+use crate::{
+    commands::CommandStatus,
+    db::{CommandHistory, DbOperations},
+    executors::SendTokenExecutor,
+    TvlMaker,
+};
 
-use super::TvlCommand;
+use super::{CommandResult, TvlCommand};
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize, Deserialize)]
 pub struct SendTokenCommand {
     /// Amount of token to send
     #[arg(short = 'a', long)]
@@ -46,18 +48,60 @@ impl TvlCommand for SendTokenCommand {
     }
 
     #[tokio::main]
-    async fn execute(&self, _tvl_maker: Option<&TvlMaker>) -> anyhow::Result<()> {
+    async fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
         let executor = setup(
             &self.rpc_url,
             &self.private_key,
             &self.token_address,
             &self.gateway_address,
         )?;
-        let result = executor.send_token(self.amount).await;
-        match result {
-            Ok(_) => println!("Token sent successfully"),
-            Err(e) => println!("Error sending token: {}", e),
-        }
+
+        let result = executor
+            .send_token(
+                self.destination_chain.clone(),
+                self.destination_recipient_address.clone(),
+                self.amount,
+            )
+            .await;
+
+        let command_result = match result {
+            Ok(Some(tx_hash)) => {
+                println!("Token sent successfully: {}", tx_hash);
+                CommandResult {
+                    txid: Some(tx_hash),
+                    status: CommandStatus::Success,
+                    error: None,
+                }
+            }
+            Ok(None) => CommandResult {
+                txid: None,
+                status: CommandStatus::Error,
+                error: None,
+            },
+            Err(e) => CommandResult {
+                txid: None,
+                status: CommandStatus::Error,
+                error: Some(e.to_string()),
+            },
+        };
+
+        println!("Result: {:?}", command_result);
+
+        let command_history_params = serde_json::to_string(&self)?;
+
+        let command_history = CommandHistory::new(
+            self.name(),
+            Some(self.suite_env_json(tvl_maker.suite.env())),
+            Some(command_history_params),
+            Some(serde_json::to_string(&command_result)?),
+        );
+
+        let id =
+            <dyn DbOperations<CommandHistory>>::create(&tvl_maker.db_querier, &command_history)
+                .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
+
+        println!("Command history created: {:?}", id);
+
         Ok(())
     }
 }

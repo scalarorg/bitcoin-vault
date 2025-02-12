@@ -57,8 +57,7 @@ impl TvlCommand for BridgeCommands {
         "bridge".to_string()
     }
 
-    fn execute(&self, tvl_maker: Option<&TvlMaker>) -> anyhow::Result<()> {
-        let tvl_maker = tvl_maker.unwrap();
+    fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
         // Extract params and tree type from command variant
         let (params, tree_type) = match &self.command {
             BridgeSubCommands::Upc(params) => (params, TaprootTreeType::UPCBranch),

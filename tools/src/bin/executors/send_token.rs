@@ -1,10 +1,9 @@
 use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
-    network::{Ethereum, EthereumWallet, TransactionBuilder},
-    primitives::{address, Address, Uint, U256},
-    providers::{Provider, ProviderBuilder},
-    rpc::types::request::TransactionRequest,
+    network::EthereumWallet,
+    primitives::{Address, Uint},
+    providers::ProviderBuilder,
     signers::{
         k256::ecdsa::SigningKey,
         local::{LocalSigner, PrivateKeySigner},
@@ -12,15 +11,14 @@ use alloy::{
 };
 
 use bitcoin_vault::hex_to_vec;
-use bitcoin_vault_tools::{IGateway::IGatewayInstance, IERC20::IERC20Instance};
+use bitcoin_vault_tools::{IERC20_ABI, IGATEWAY_ABI};
 
-use super::AlloyProvider;
+use super::AlloyContract;
 
 pub struct SendTokenExecutor {
     pub user_signer: LocalSigner<SigningKey>,
-    pub token_contract: IERC20Instance<(), AlloyProvider, Ethereum>,
-    pub gateway_contract: IGatewayInstance<(), AlloyProvider, Ethereum>,
-    pub provider: AlloyProvider,
+    pub token_contract: AlloyContract,
+    pub gateway_contract: AlloyContract,
 }
 
 impl SendTokenExecutor {
@@ -38,26 +36,44 @@ impl SendTokenExecutor {
             .wallet(wallet)
             .on_http(rpc_url.parse().unwrap());
 
-        let token_contract = IERC20Instance::new(token_address, provider.clone());
-        let gateway_contract = IGatewayInstance::new(gateway_address, provider.clone());
+        let token_contract = ContractInstance::new(
+            token_address,
+            provider.clone(),
+            Interface::new(IERC20_ABI.clone()),
+        );
+        let gateway_contract = ContractInstance::new(
+            gateway_address,
+            provider.clone(),
+            Interface::new(IGATEWAY_ABI.clone()),
+        );
 
         Self {
+            user_signer,
             token_contract,
             gateway_contract,
-            user_signer,
-            provider,
         }
     }
 
-    pub async fn send_token(&self, amount: u64) -> Result<(), String> {
+    pub async fn send_token(
+        &self,
+        destination_chain: String,
+        destination_recipient_address: String,
+        amount: u64,
+    ) -> Result<Option<String>, String> {
         let balance = self
             .token_contract
-            .balanceOf(self.user_signer.address())
+            .function(
+                "balanceOf",
+                &[DynSolValue::from(self.user_signer.address())],
+            )
+            .unwrap()
             .call()
             .await
             .map_err(|e| e.to_string())?;
 
-        let balance = balance._0;
+        let balance = balance[0].as_uint().unwrap();
+
+        let balance = balance.0;
 
         let amount = Uint::from(amount);
 
@@ -65,31 +81,31 @@ impl SendTokenExecutor {
             return Err("Insufficient balance".to_string());
         }
 
-        // self.handle_token_approval(amount).await?;
+        let approve_tx_hash = self.handle_token_approval(amount).await?;
 
-        let path = std::env::current_dir().unwrap().join("abi/IERC20.json");
+        println!("approve tx_hash: {:?}", approve_tx_hash);
 
-        let artifact = std::fs::read(path).expect("Failed to read artifact");
-        let abi_value: serde_json::Value = serde_json::from_slice(&artifact).unwrap();
+        let token_symbol = self
+            .token_contract
+            .function("symbol", &[])
+            .unwrap()
+            .call()
+            .await
+            .unwrap();
 
-        let abi = serde_json::from_str(&abi_value.to_string()).unwrap();
+        let token_symbol = token_symbol[0].as_str().unwrap();
 
-        // Create a new `ContractInstance` of the `Counter` contract from the abi
-        let contract = ContractInstance::new(
-            *self.token_contract.address(),
-            self.provider.clone(),
-            Interface::new(abi),
-        );
+        println!("token_symbol: {:?}", token_symbol);
 
-        let vitalik = address!("72d3Fa31e9FdD2f2Ce195Bdf9aBA8393a717fe01");
-        let amount = U256::from(100);
-
-        let tx_hash = contract
+        let tx_hash = self
+            .gateway_contract
             .function(
-                "approve",
+                "sendToken",
                 &[
-                    DynSolValue::from(vitalik),
-                    DynSolValue::from(U256::from(100)),
+                    DynSolValue::from(destination_chain),
+                    DynSolValue::from(destination_recipient_address),
+                    DynSolValue::from(token_symbol.to_string()),
+                    DynSolValue::from(amount),
                 ],
             )
             .unwrap()
@@ -100,37 +116,54 @@ impl SendTokenExecutor {
             .await
             .unwrap();
 
-        println!("tx_hash: {:?}", tx_hash);
-
-        Ok(())
+        Ok(Some(tx_hash.to_string()))
     }
 
-    pub async fn handle_token_approval(&self, amount: Uint<256, 4>) -> Result<(), String> {
-        // Build an EIP-1559 type transaction to send 100 wei to Vitalik.
-        let vitalik = address!("72d3Fa31e9FdD2f2Ce195Bdf9aBA8393a717fe01");
-
+    pub async fn handle_token_approval(
+        &self,
+        amount: Uint<256, 4>,
+    ) -> Result<Option<String>, String> {
         let allowance = self
             .token_contract
-            .allowance(self.user_signer.address(), vitalik)
+            .function(
+                "allowance",
+                &[
+                    DynSolValue::from(self.user_signer.address()),
+                    DynSolValue::from(*self.gateway_contract.address()),
+                ],
+            )
+            .unwrap()
             .call()
             .await
-            .map_err(|e| e.to_string())?;
+            .unwrap();
 
-        println!("allowance: {:?}", allowance._0);
+        let allowance = allowance[0].as_uint().unwrap();
 
-        // if allowance < amount {
-        // Create approval transaction
-        let approve_data = self
+        let allowance = allowance.0;
+
+        println!("allowance: {:?}", allowance);
+
+        if allowance >= amount {
+            return Ok(None);
+        }
+
+        let tx_hash = self
             .token_contract
-            .approve(vitalik, amount)
-            .call()
+            .function(
+                "approve",
+                &[
+                    DynSolValue::from(*self.gateway_contract.address()),
+                    DynSolValue::from(amount),
+                ],
+            )
+            .unwrap()
+            .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .unwrap()
+            .watch()
+            .await
+            .unwrap();
 
-        let approve_data = approve_data._0;
-
-        println!("approve_data: {:?}", approve_data);
-
-        Ok(())
+        Ok(Some(tx_hash.to_string()))
     }
 }

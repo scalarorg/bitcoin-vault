@@ -1,6 +1,20 @@
 [
   {
     "type": "function",
+    "name": "name",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "symbol",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "allowance",
     "inputs": [
       { "name": "owner", "type": "address", "internalType": "address" },

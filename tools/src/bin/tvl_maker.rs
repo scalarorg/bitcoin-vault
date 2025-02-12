@@ -50,8 +50,8 @@ impl TvlMaker {
 impl Commands {
     fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
         match self {
-            Commands::Bridge(stake_cmd) => stake_cmd.execute(Some(tvl_maker)),
-            Commands::SendToken(send_token_cmd) => send_token_cmd.execute(None),
+            Commands::Bridge(stake_cmd) => stake_cmd.execute(tvl_maker),
+            Commands::SendToken(send_token_cmd) => send_token_cmd.execute(tvl_maker),
         }
     }
 }
