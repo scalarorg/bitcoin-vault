@@ -1,7 +1,7 @@
 use std::slice;
 
 use bitcoin::{PublicKey, XOnlyPublicKey};
-use bitcoin_vault::{CustodianOnlyLockingScriptParams, LockingScript};
+use vault::{CustodianOnlyLockingScriptParams, LockingScript};
 
 use crate::{create_null_buffer, ByteBuffer, PublicKeyFFI};
 

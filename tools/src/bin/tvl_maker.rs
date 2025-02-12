@@ -1,4 +1,4 @@
-use bitcoin_vault::TestSuite;
+use vault::TestSuite;
 use clap::{Parser, Subcommand};
 use commands::{BridgeCommands, RedeemCommands, SendTokenCommand, TvlCommand};
 use rusqlite::Connection;

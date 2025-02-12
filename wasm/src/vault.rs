@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use crate::errors::VaultABIError;
 use crate::{decoder::Decoder, encoder::Encoder};
 use bitcoin::{Amount, NetworkKind, OutPoint, PublicKey, XOnlyPublicKey};
-use bitcoin_vault::{
+use vault::{
     CustodianOnlyLockingScriptParams, CustodianOnlyStakingParams, DestinationChain,
     DestinationRecipientAddress, DestinationTokenAddress, LockingScript, PreviousStakingUTXO,
     Signing, Staking, UPCLockingScriptParams, UPCStakingParams, UPCUnstakingParams, Unstaking,

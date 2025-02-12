@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test_upc {
     use bitcoin::{secp256k1::All, Psbt};
-    use bitcoin_vault::{
+    use vault::{
         helper::log_tx_result, AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap,
         Signing, SuiteAccount, TaprootTreeType, TestSuite, UnstakingType, VaultManager,
     };

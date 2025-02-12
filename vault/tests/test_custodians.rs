@@ -2,8 +2,8 @@
 mod test_custodians {
     use bitcoin::key::Secp256k1;
     use bitcoin::{secp256k1::All, Amount, Psbt};
-    use bitcoin_vault::helper::{get_adress, key_from_wif, log_tx_result};
-    use bitcoin_vault::{
+    use vault::helper::{get_adress, key_from_wif, log_tx_result};
+    use vault::{
         AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap, Signing, SuiteAccount,
         TaprootTreeType, TestSuite, UnstakingOutput, VaultManager,
     };

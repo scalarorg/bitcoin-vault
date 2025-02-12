@@ -1,10 +1,10 @@
 [package]
-name = "bitcoin-vault-ffi"
+name = "ffi"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "bitcoin_vault_ffi"
+name = "ffi"
 path = "src/lib.rs"
 #crate-type = [
 #    "lib",        # Rust library (default)
@@ -21,7 +21,7 @@ crate-type = ["cdylib", "staticlib"]
 
 
 [dependencies]
-bitcoin-vault = { package = "bitcoin-vault", path = "../vault" }
+vault = { package = "vault", path = "../vault" }
 bitcoin = { version = "0.32.3", features = ["serde"] }
 serde_json = "1.0.132"
 thiserror = "2.0.3"

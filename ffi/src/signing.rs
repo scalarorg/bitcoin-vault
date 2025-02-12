@@ -1,7 +1,7 @@
 use bitcoin::Psbt;
-use bitcoin_vault::TapScriptSigsMap;
-use bitcoin_vault::{Signing, VaultManager};
 use std::slice;
+use vault::TapScriptSigsMap;
+use vault::{Signing, VaultManager};
 
 use crate::create_null_buffer;
 use crate::network_from_byte;

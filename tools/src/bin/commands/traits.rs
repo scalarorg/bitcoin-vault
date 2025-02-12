@@ -1,4 +1,4 @@
-use bitcoin_vault::Env;
+use vault::Env;
 
 use crate::TvlMaker;
 

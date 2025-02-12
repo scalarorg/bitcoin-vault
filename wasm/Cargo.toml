@@ -1,5 +1,5 @@
 [package]
-name = "bitcoin-vault-wasm"
+name = "wasm"
 version = "0.1.0"
 authors = ["Scalar Team <dev@scalar.org>"]
 edition = "2018"
@@ -12,7 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 bitcoin = { version = "0.32.3", features = ["serde"] }
-bitcoin-vault = { package = "bitcoin-vault", path = "../vault" }
+vault = { package = "vault", path = "../vault" }
 getrandom = { version = "0.2", features = ["js"] }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

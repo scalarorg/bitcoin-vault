@@ -1,5 +1,5 @@
 [package]
-name = "bitcoin-vault-tools"
+name = "tools"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,11 +8,11 @@ name = "tvl_maker"
 path = "src/bin/tvl_maker.rs"
 
 [lib]
-name = "bitcoin_vault_tools"
+name = "tools"
 path = "src/lib.rs"
 
 [dependencies]
-bitcoin-vault = { package = "bitcoin-vault", path = "../vault" }
+vault = { package = "vault", path = "../vault" }
 bitcoin = { package = "bitcoin", version = "0.32.4" }
 clap = { version = "4.5.10", features = ["derive"] }
 serde = { version = "1.0.213", features = ["derive"] }

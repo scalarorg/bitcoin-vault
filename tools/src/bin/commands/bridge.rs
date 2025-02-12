@@ -1,4 +1,4 @@
-use bitcoin_vault::TaprootTreeType;
+use vault::TaprootTreeType;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 

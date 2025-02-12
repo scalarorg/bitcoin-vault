@@ -1,5 +1,5 @@
 [package]
-name = "bitcoin-vault"
+name = "vault"
 version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/scalarorg/bitcoin-vault/"
@@ -11,7 +11,7 @@ rust-version = "1.82.0"
 exclude = ["tests"]
 
 [lib]
-name = "bitcoin_vault"
+name = "vault"
 path = "src/lib.rs"
 
 [dependencies]

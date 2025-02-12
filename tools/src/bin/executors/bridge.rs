@@ -1,5 +1,5 @@
 use bitcoin::Transaction;
-use bitcoin_vault::{
+use vault::{
     AccountEnv, DestinationInfo, DestinationInfoEnv, SuiteAccount, TaprootTreeType, TestSuite,
 };
 

@@ -1,11 +1,9 @@
 use std::slice;
 
 use bitcoin::PublicKey;
-use bitcoin_vault::{
-    CustodianOnlyUnstakingParams, PreviousStakingUTXO, UnstakingOutput, VaultManager,
-};
+use vault::{CustodianOnlyUnstakingParams, PreviousStakingUTXO, UnstakingOutput, VaultManager};
 
-use bitcoin_vault::Unstaking;
+use vault::Unstaking;
 
 use crate::{
     create_null_buffer, ByteBuffer, PreviousStakingUTXOFFI, PublicKeyFFI, UnstakingOutputFFI,

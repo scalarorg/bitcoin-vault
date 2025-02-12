@@ -1,5 +1,5 @@
-use bitcoin_vault::types::VaultReturnTxOutput;
 use std::slice;
+use vault::types::VaultReturnTxOutput;
 
 use crate::ByteBuffer;
 

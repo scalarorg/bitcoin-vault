@@ -10,8 +10,8 @@ use alloy::{
     },
 };
 
-use bitcoin_vault::hex_to_vec;
-use bitcoin_vault_tools::{IERC20_ABI, IGATEWAY_ABI};
+use tools::{IERC20_ABI, IGATEWAY_ABI};
+use vault::hex_to_vec;
 
 use super::AlloyContract;
 

@@ -1,5 +1,5 @@
 use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, Txid};
-use bitcoin_vault::{PreviousStakingUTXO, UnstakingOutput};
+use vault::{PreviousStakingUTXO, UnstakingOutput};
 use std::slice;
 
 use crate::FFIError;
