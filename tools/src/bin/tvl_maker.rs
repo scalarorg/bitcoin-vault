@@ -1,6 +1,6 @@
 use bitcoin_vault::TestSuite;
 use clap::{Parser, Subcommand};
-use commands::{BridgeCommands, SendTokenCommand, TvlCommand};
+use commands::{BridgeCommands, RedeemCommands, SendTokenCommand, TvlCommand};
 use rusqlite::Connection;
 
 mod commands;
@@ -24,6 +24,8 @@ enum Commands {
     Bridge(BridgeCommands),
     /// Send token related commands
     SendToken(SendTokenCommand),
+    /// Redeem related commands
+    Redeem(RedeemCommands),
     // /// Monitoring and status commands
     // Monitor(MonitorCommands),
 }
@@ -52,6 +54,7 @@ impl Commands {
         match self {
             Commands::Bridge(stake_cmd) => stake_cmd.execute(tvl_maker),
             Commands::SendToken(send_token_cmd) => send_token_cmd.execute(tvl_maker),
+            Commands::Redeem(redeem_cmd) => redeem_cmd.execute(tvl_maker),
         }
     }
 }
