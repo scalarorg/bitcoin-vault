@@ -1,7 +1,7 @@
-use vault::TestSuite;
 use clap::{Parser, Subcommand};
 use commands::{BridgeCommands, RedeemCommands, SendTokenCommand, TvlCommand};
 use rusqlite::Connection;
+use vault::TestSuite;
 
 mod commands;
 mod db;
@@ -14,6 +14,9 @@ struct Cli {
     /// Test environment to use (regtest, testnet4 or custom to the env file)
     #[arg(short, long, default_value = ".env")]
     test_env: String,
+    /// Service tag
+    #[arg(short = 'x', long)]
+    service_tag: String,
     #[command(subcommand)]
     command: Commands,
 }
@@ -36,11 +39,11 @@ struct TvlMaker {
 }
 
 impl TvlMaker {
-    fn new(test_env: &str) -> Self {
+    fn new(test_env: &str, service_tag: &str) -> Self {
         unsafe {
             std::env::set_var("TEST_ENV", test_env);
         }
-        let suite = TestSuite::new();
+        let suite = TestSuite::new(service_tag);
 
         let db_conn = Connection::open("tvl_maker.db").expect("Failed to open database");
         let db_querier = db::Querier::new(db_conn);
@@ -61,7 +64,7 @@ impl Commands {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let mut tvl_maker = TvlMaker::new(cli.test_env.as_str());
+    let mut tvl_maker = TvlMaker::new(cli.test_env.as_str(), cli.service_tag.as_str());
 
     tvl_maker.db_querier.run_migrations();
     cli.command.execute(&tvl_maker)

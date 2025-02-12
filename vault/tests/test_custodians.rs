@@ -2,17 +2,17 @@
 mod test_custodians {
     use bitcoin::key::Secp256k1;
     use bitcoin::{secp256k1::All, Amount, Psbt};
+    use bitcoincore_rpc::jsonrpc::base64;
     use vault::helper::{get_adress, key_from_wif, log_tx_result};
     use vault::{
         AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap, Signing, SuiteAccount,
         TaprootTreeType, TestSuite, UnstakingOutput, VaultManager,
     };
-    use bitcoincore_rpc::jsonrpc::base64;
 
     use lazy_static::lazy_static;
 
     lazy_static! {
-        static ref TEST_SUITE: TestSuite = TestSuite::new();
+        static ref TEST_SUITE: TestSuite = TestSuite::new("PEPE");
         static ref TEST_ACCOUNT: SuiteAccount =
             SuiteAccount::new(AccountEnv::new(Some(TEST_SUITE.env_path())).unwrap());
         static ref TEST_DESTINATION_INFO: DestinationInfo =

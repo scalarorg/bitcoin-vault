@@ -45,10 +45,6 @@ pub struct Env {
     #[validate(range(min = 0))]
     #[env_var(key = "VERSION")]
     pub version: u8,
-
-    #[validate(length(min = 3))]
-    #[env_var(key = "SERVICE_TAG")]
-    pub service_tag: String,
 }
 
 impl Default for Env {
@@ -64,7 +60,6 @@ impl Default for Env {
             network: "regtest".to_string(),
             tag: "".to_string(),
             version: 0,
-            service_tag: "".to_string(),
         }
     }
 }
@@ -100,7 +95,6 @@ impl Debug for Env {
         writeln!(f, "{:<40}{}", "NETWORK:", self.network)?;
         writeln!(f, "{:<40}{}", "TAG:", self.tag)?;
         writeln!(f, "{:<40}{}", "VERSION:", self.version)?;
-        writeln!(f, "{:<40}{}", "SERVICE_TAG:", self.service_tag)?;
         writeln!(f, "{:<40}{}", "BTC_NODE_WALLET:", self.btc_node_wallet)?;
         writeln!(
             f,

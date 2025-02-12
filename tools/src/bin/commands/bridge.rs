@@ -1,6 +1,6 @@
-use vault::TaprootTreeType;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
+use vault::TaprootTreeType;
 
 use crate::{
     commands::{CommandResult, CommandStatus},

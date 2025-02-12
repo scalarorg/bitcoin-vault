@@ -9,7 +9,7 @@ mod test_upc {
     use lazy_static::lazy_static;
 
     lazy_static! {
-        static ref TEST_SUITE: TestSuite = TestSuite::new();
+        static ref TEST_SUITE: TestSuite = TestSuite::new("PEPE");
         static ref TEST_ACCOUNT: SuiteAccount =
             SuiteAccount::new(AccountEnv::new(Some(TEST_SUITE.env_path())).unwrap());
         static ref TEST_DESTINATION_INFO: DestinationInfo =

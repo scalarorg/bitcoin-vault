@@ -63,7 +63,7 @@ pub struct TestSuite {
 impl TestSuite {}
 
 impl TestSuite {
-    pub fn new() -> Self {
+    pub fn new(service_tag: &str) -> Self {
         let env = TestEnv::from_env();
         println!("\n=================================================================");
         println!(
@@ -102,7 +102,7 @@ impl TestSuite {
 
         let manager = VaultManager::new(
             env.tag.as_bytes().to_vec(),
-            env.service_tag.as_bytes().to_vec(),
+            service_tag.as_bytes().to_vec(),
             env.version,
             network_id as u8,
         );
@@ -387,8 +387,8 @@ impl TestSuite {
     }
 }
 
-impl Default for TestSuite {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// impl Default for TestSuite {
+//     fn default() -> Self {
+//         Self::new("".to_string())
+//     }
+// }

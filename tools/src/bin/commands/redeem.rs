@@ -1,11 +1,11 @@
-use vault::TaprootTreeType;
+use alloy::primitives::Address;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     commands::{CommandResult, CommandStatus},
     db::{CommandHistory, DbOperations},
-    executors::BridgeExecutor,
+    executors::RedeemExecutor,
     TvlMaker,
 };
 
@@ -20,7 +20,7 @@ pub struct RedeemCommands {
 #[derive(Subcommand, Debug)]
 enum RedeemSubCommands {
     /// Run redeem bitcoin traction based on user-protocol-custodial model
-    // Upc(RedeemCmdParams),
+    Upc(RedeemCmdParams),
     /// Run redeem bitcoin traction based on custodial model
     CustodianOnly(RedeemCmdParams),
 }
@@ -51,9 +51,9 @@ pub struct RedeemCmdParams {
     #[arg(short = 'c', long)]
     pub destination_chain: String,
 
-    /// Destination recipient address
-    #[arg(short = 'r', long)]
-    pub destination_recipient_address: String,
+    /// BTC locking script
+    #[arg(short = 'l', long)]
+    pub locking_script: String,
 
     /// Destination token address
     #[arg(short = 'u', long)]
@@ -65,56 +65,92 @@ impl TvlCommand for RedeemCommands {
         "redeem".to_string()
     }
 
-    fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
-        // Extract params and tree type from command variant
-        // let (params, tree_type) = match &self.command {
-        //     // RedeemSubCommands::Upc(params) => (params, TaprootTreeType::UPCBranch),
-        //     RedeemSubCommands::CustodianOnly(params) => (params, TaprootTreeType::CustodianOnly),
-        // };
+    #[tokio::main]
+    async fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
+        if let RedeemSubCommands::Upc(params) = &self.command {
+            return Ok(());
+        }
 
-        // // Serialize params once for command history
-        // let command_history_params = serde_json::to_string(params)?;
+        let (params, command_name) = match &self.command {
+            RedeemSubCommands::Upc(params) => (params, "upc"),
+            RedeemSubCommands::CustodianOnly(params) => (params, "custodian_only"),
+        };
 
-        // // Execute staking operation
-        // let result = BridgeExecutor::execute_bridge(
-        //     &tvl_maker.suite,
-        //     tvl_maker.suite.env().network.to_string(),
-        //     params,
-        //     tree_type,
-        // )
-        // .map(|tx| {
-        //     CommandResult::new(
-        //         Some(tx.compute_txid().to_string()),
-        //         CommandStatus::Success,
-        //         None,
-        //     )
-        // })
-        // .unwrap_or_else(|e| CommandResult::new(None, CommandStatus::Error, Some(e)));
+        let executor = setup(
+            &params.rpc_url,
+            &params.private_key,
+            &params.token_address,
+            &params.token_symbol,
+            &params.gateway_address,
+        )?;
 
-        // // Create and store command history
-        // let command_history = CommandHistory::new(
-        //     match &self.command {
-        //         // RedeemSubCommands::Upc(_) => self.name().to_owned() + "_upc",
-        //         RedeemSubCommands::CustodianOnly(_) => self.name().to_owned() + "_custodian",
-        //     },
-        //     Some(self.suite_env_json(tvl_maker.suite.env())),
-        //     Some(command_history_params),
-        //     Some(serde_json::to_string(&result)?),
-        // );
+        // Execute staking operation
+        let result = executor
+            .redeem_token(
+                &tvl_maker.suite,
+                params.destination_chain.clone(),
+                params.amount,
+                params.locking_script.clone(),
+            )
+            .await;
 
-        // let id =
-        //     <dyn DbOperations<CommandHistory>>::create(&tvl_maker.db_querier, &command_history)
-        //         .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
+        let command_result = match result {
+            Ok(Some(tx_hash)) => {
+                println!("Token redeemed successfully: {}", tx_hash);
+                CommandResult {
+                    txid: Some(tx_hash),
+                    status: CommandStatus::Success,
+                    error: None,
+                }
+            }
+            Ok(None) => CommandResult {
+                txid: None,
+                status: CommandStatus::Error,
+                error: None,
+            },
+            Err(e) => CommandResult {
+                txid: None,
+                status: CommandStatus::Error,
+                error: Some(e.to_string()),
+            },
+        };
 
-        // // Ensure txid exists before unwrapping
-        // match result.txid {
-        //     Some(txid) => {
-        //         println!("Command history id: {}", id);
-        //         println!("Bridge transaction sent with txid: {}", txid);
-        //         Ok(())
-        //     }
-        //     None => anyhow::bail!("Failed to get transaction ID from result"),
-        // }
+        println!("Result: {:?}", command_result);
+
+        let command_history_params = serde_json::to_string(&params)?;
+
+        let command_history = CommandHistory::new(
+            self.name().to_owned() + " " + &command_name,
+            Some(self.suite_env_json(tvl_maker.suite.env())),
+            Some(command_history_params),
+            Some(serde_json::to_string(&command_result)?),
+        );
+
+        let id =
+            <dyn DbOperations<CommandHistory>>::create(&tvl_maker.db_querier, &command_history)
+                .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
+
+        println!("Command history created: {:?}", id);
+
         Ok(())
     }
+}
+
+fn setup(
+    rpc_url: &str,
+    private_key: &str,
+    token_address: &str,
+    token_symbol: &str,
+    gateway_address: &str,
+) -> anyhow::Result<RedeemExecutor> {
+    let token_address: Address = token_address.parse()?;
+    let gateway_address: Address = gateway_address.parse()?;
+
+    Ok(RedeemExecutor::new(
+        private_key,
+        rpc_url,
+        token_address,
+        token_symbol,
+        gateway_address,
+    ))
 }
