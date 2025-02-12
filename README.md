@@ -21,7 +21,7 @@ Bitcoin Vault is a comprehensive solution for managing Bitcoin vault transaction
 > Details in [vault/README.md](./vault/README.md)
 > The foundational Rust library implementing core Bitcoin vault functionality.
 
-#### Key Features:
+#### Key Features
 
 1. Staking transaction creation:
 
@@ -143,7 +143,7 @@ cd wasm && bun run build
 
 ##### Troubleshooting
 
-- If you encounter the error like `error: linking with `cc` failed: exit status 1`, you can try to install clang:
+- If you encounter the error like `error: linking with`cc`failed: exit status 1`, you can try to install clang:
 
 ```bash
 brew install llvm

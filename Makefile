@@ -3,4 +3,4 @@
 build-docker:
 	docker build -t scalar/bitcoin-vault .
 build-tools:
-	cargo build --bin tvl_maker
+	cargo build --bin tvl_maker --release
