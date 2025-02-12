@@ -25,6 +25,10 @@ pub struct SendTokenCommand {
     #[arg(short = 't', long)]
     pub token_address: String,
 
+    /// Token symbol
+    #[arg(short = 's', long)]
+    pub token_symbol: String,
+
     /// Gateway address
     #[arg(short = 'g', long)]
     pub gateway_address: String,
@@ -53,6 +57,7 @@ impl TvlCommand for SendTokenCommand {
             &self.rpc_url,
             &self.private_key,
             &self.token_address,
+            &self.token_symbol,
             &self.gateway_address,
         )?;
 
@@ -110,6 +115,7 @@ fn setup(
     rpc_url: &str,
     private_key: &str,
     token_address: &str,
+    token_symbol: &str,
     gateway_address: &str,
 ) -> anyhow::Result<SendTokenExecutor> {
     let token_address: Address = token_address.parse()?;
@@ -119,6 +125,7 @@ fn setup(
         private_key,
         rpc_url,
         token_address,
+        token_symbol,
         gateway_address,
     ))
 }

@@ -19,6 +19,7 @@ pub struct SendTokenExecutor {
     pub user_signer: LocalSigner<SigningKey>,
     pub token_contract: AlloyContract,
     pub gateway_contract: AlloyContract,
+    pub token_symbol: String,
 }
 
 impl SendTokenExecutor {
@@ -26,6 +27,7 @@ impl SendTokenExecutor {
         private_key: &str,
         rpc_url: &str,
         token_address: Address,
+        token_symbol: &str,
         gateway_address: Address,
     ) -> Self {
         let private_key = hex_to_vec(&private_key);
@@ -51,6 +53,7 @@ impl SendTokenExecutor {
             user_signer,
             token_contract,
             gateway_contract,
+            token_symbol: token_symbol.to_string(),
         }
     }
 
@@ -85,17 +88,7 @@ impl SendTokenExecutor {
 
         println!("approve tx_hash: {:?}", approve_tx_hash);
 
-        let token_symbol = self
-            .token_contract
-            .function("symbol", &[])
-            .unwrap()
-            .call()
-            .await
-            .unwrap();
-
-        let token_symbol = token_symbol[0].as_str().unwrap();
-
-        println!("token_symbol: {:?}", token_symbol);
+        println!("token_symbol: {:?}", self.token_symbol);
 
         let tx_hash = self
             .gateway_contract
@@ -104,7 +97,7 @@ impl SendTokenExecutor {
                 &[
                     DynSolValue::from(destination_chain),
                     DynSolValue::from(destination_recipient_address),
-                    DynSolValue::from(token_symbol.to_string()),
+                    DynSolValue::from(self.token_symbol.clone()),
                     DynSolValue::from(amount),
                 ],
             )
