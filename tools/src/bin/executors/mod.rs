@@ -2,7 +2,7 @@ use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
     network::EthereumWallet,
-    primitives::{Address, Uint, U8},
+    primitives::{Address, Uint},
     providers::ProviderBuilder,
     signers::{
         k256::ecdsa::SigningKey,

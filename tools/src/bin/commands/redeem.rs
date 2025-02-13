@@ -87,7 +87,6 @@ impl TvlCommand for RedeemCommands {
         // Execute staking operation
         let result = executor
             .redeem_token(
-                &tvl_maker.suite,
                 params.destination_chain.clone(),
                 params.amount,
                 params.locking_script.clone(),

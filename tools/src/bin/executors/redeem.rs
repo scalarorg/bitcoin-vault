@@ -1,13 +1,7 @@
-use alloy::{
-    dyn_abi::{abi, DynSolValue},
-    primitives::Address,
-};
-use vault::{hex_to_vec, TestSuite, UnstakingTaprootTreeType};
+use alloy::{dyn_abi::DynSolValue, primitives::Address};
+use vault::{hex_to_vec, UnstakingTaprootTreeType};
 
-use crate::executors::{
-    calculate_contract_call_with_token_payload, encode_custodian_only_payload,
-    ContractCallWithTokenPayload,
-};
+use crate::executors::{calculate_contract_call_with_token_payload, ContractCallWithTokenPayload};
 
 use super::EvmExecutor;
 
@@ -36,7 +30,6 @@ impl RedeemExecutor {
 
     pub async fn redeem_token(
         &self,
-        suite: &TestSuite,
         destination_chain: String,
         amount: u64,
         locking_script: String,
