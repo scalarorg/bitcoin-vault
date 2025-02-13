@@ -48,6 +48,21 @@ pub struct ConfigCommand {
     /// Version
     #[arg(short, long)]
     pub version: u32,
+
+    /// Mnemonic
+    #[arg(short, long)]
+    pub mnemonic: String,
+
+    #[arg(short, long)]
+    pub destination_chain: String,
+
+    /// Destination token address
+    #[arg(short, long)]
+    pub destination_token_address: String,
+
+    /// Destination recipient address
+    #[arg(short, long)]
+    pub destination_recipient_address: String,
 }
 
 impl ConfigCommand {
@@ -64,6 +79,10 @@ impl ConfigCommand {
             self.network.clone(),
             self.tag.clone(),
             self.version,
+            self.mnemonic.clone(),
+            self.destination_chain.clone(),
+            self.destination_token_address.clone(),
+            self.destination_recipient_address.clone(),
         );
 
         let id = db_querier

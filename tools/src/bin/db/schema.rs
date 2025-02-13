@@ -26,7 +26,11 @@ pub const CREATE_CONFIG_TABLE: &str = "
         custodian_quorum INTEGER NOT NULL,
         network VARCHAR NOT NULL,
         tag VARCHAR NOT NULL,
-        version INTEGER NOT NULL
+        version INTEGER NOT NULL,
+        mnemonic VARCHAR NOT NULL,
+        destination_chain VARCHAR NOT NULL,
+        destination_token_address VARCHAR NOT NULL,
+        destination_recipient_address VARCHAR NOT NULL
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_config_name ON configs (name);

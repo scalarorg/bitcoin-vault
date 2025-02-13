@@ -14,6 +14,10 @@ pub struct Config {
     pub network: String,
     pub tag: String,
     pub version: u32,
+    pub mnemonic: String,
+    pub destination_chain: String,
+    pub destination_token_address: String,
+    pub destination_recipient_address: String,
 }
 
 impl Config {
@@ -29,6 +33,10 @@ impl Config {
         network: String,
         tag: String,
         version: u32,
+        mnemonic: String,
+        destination_chain: String,
+        destination_token_address: String,
+        destination_recipient_address: String,
     ) -> Self {
         Self {
             id: None,
@@ -43,6 +51,10 @@ impl Config {
             network,
             tag,
             version,
+            mnemonic,
+            destination_chain,
+            destination_token_address,
+            destination_recipient_address,
         }
     }
 }
@@ -65,6 +77,10 @@ impl DbEntity for Config {
             "network",
             "tag",
             "version",
+            "mnemonic",
+            "destination_chain",
+            "destination_token_address",
+            "destination_recipient_address",
         ]
     }
 
@@ -81,6 +97,10 @@ impl DbEntity for Config {
             Box::new(self.network.clone()),
             Box::new(self.tag.clone()),
             Box::new(self.version),
+            Box::new(self.mnemonic.clone()),
+            Box::new(self.destination_chain.clone()),
+            Box::new(self.destination_token_address.clone()),
+            Box::new(self.destination_recipient_address.clone()),
         ]
     }
 
@@ -98,6 +118,10 @@ impl DbEntity for Config {
             network: row.get(9)?,
             tag: row.get(10)?,
             version: row.get(11)?,
+            mnemonic: row.get(12)?,
+            destination_chain: row.get(13)?,
+            destination_token_address: row.get(14)?,
+            destination_recipient_address: row.get(15)?,
         })
     }
 }
