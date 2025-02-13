@@ -64,7 +64,6 @@ impl DbOperations<CommandHistory> for Querier {
             ],
             |row| row.get(0),
         )?;
-        self.db_conn.flush_prepared_statement_cache();
         Ok(id)
     }
 
