@@ -3,8 +3,8 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    commands::{CommandResult, CommandStatus},
-    db::{CommandHistory, DbOperations},
+    commands::types::{CommandResult, CommandStatus},
+    db::CommandHistory,
     executors::RedeemExecutor,
     TvlMaker,
 };
@@ -125,7 +125,9 @@ impl TvlCommand for RedeemCommands {
             Some(serde_json::to_string(&command_result)?),
         );
 
-        let id = <dyn DbOperations<CommandHistory>>::create(tvl_maker.db_querier, &command_history)
+        let id = tvl_maker
+            .db_querier
+            .save(&command_history)
             .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
 
         println!("Command history created: {:?}", id);

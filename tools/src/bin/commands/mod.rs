@@ -1,11 +1,8 @@
-mod bridge;
-mod redeem;
-mod send_token;
+mod config;
 mod traits;
+mod tx;
 mod types;
 
-pub use bridge::*;
-pub use redeem::*;
-pub use send_token::*;
+pub use config::*;
 pub use traits::*;
-pub use types::*;
+pub use tx::*;

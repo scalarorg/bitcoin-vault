@@ -3,13 +3,13 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    commands::CommandStatus,
-    db::{CommandHistory, DbOperations},
+    commands::types::{CommandResult, CommandStatus},
+    db::CommandHistory,
     executors::SendTokenExecutor,
     TvlMaker,
 };
 
-use super::{CommandResult, TvlCommand};
+use super::TvlCommand;
 
 #[derive(Parser, Debug, Serialize, Deserialize)]
 pub struct SendTokenCommand {
@@ -101,7 +101,9 @@ impl TvlCommand for SendTokenCommand {
             Some(serde_json::to_string(&command_result)?),
         );
 
-        let id = <dyn DbOperations<CommandHistory>>::create(tvl_maker.db_querier, &command_history)
+        let id = tvl_maker
+            .db_querier
+            .save(&command_history)
             .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
 
         println!("Command history created: {:?}", id);

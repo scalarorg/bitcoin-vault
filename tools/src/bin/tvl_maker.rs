@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use commands::{BridgeCommands, RedeemCommands, SendTokenCommand, TvlCommand};
+use commands::{ConfigCommand, TvlCommand, TxCommands};
 use rusqlite::Connection;
 use vault::TestSuite;
 
@@ -11,6 +11,7 @@ mod executors;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
+    /// database path
     #[arg(long)]
     db_path: String,
 
@@ -20,32 +21,11 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Run tx commands
     Tx(TxCommands),
-}
 
-#[derive(Parser, Debug)]
-struct TxCommands {
-    /// Test environment to use (regtest, testnet4 or custom to the env file)
-    #[arg(short, long, default_value = ".env")]
-    test_env: String,
-    /// Service tag
-    #[arg(short = 'x', long)]
-    service_tag: String,
-
-    #[command(subcommand)]
-    command: SubTxCommands,
-}
-
-#[derive(Subcommand, Debug)]
-enum SubTxCommands {
-    /// Staking related commands
-    Bridge(BridgeCommands),
-    /// Send token related commands
-    SendToken(SendTokenCommand),
-    /// Redeem related commands
-    Redeem(RedeemCommands),
-    // /// Monitoring and status commands
-    // Monitor(MonitorCommands),
+    /// Run config command
+    Config(ConfigCommand),
 }
 
 struct TvlMaker<'a> {
@@ -69,12 +49,9 @@ impl Commands {
         match self {
             Commands::Tx(tx_cmd) => {
                 let tvl_maker = TvlMaker::new(db_querier, &tx_cmd.service_tag, &tx_cmd.test_env);
-                match &tx_cmd.command {
-                    SubTxCommands::Bridge(bridge_cmd) => bridge_cmd.execute(&tvl_maker),
-                    SubTxCommands::SendToken(send_token_cmd) => send_token_cmd.execute(&tvl_maker),
-                    SubTxCommands::Redeem(redeem_cmd) => redeem_cmd.execute(&tvl_maker),
-                }
+                tx_cmd.execute(&tvl_maker)
             }
+            Commands::Config(config_cmd) => config_cmd.execute(db_querier),
         }
     }
 }

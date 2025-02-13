@@ -1,8 +1,10 @@
 pub mod command_history;
+pub mod config;
 pub mod querier;
 pub mod schema;
 
 pub use command_history::*;
+pub use config::*;
 pub use querier::*;
 pub use schema::*;
 
@@ -21,14 +23,12 @@ impl From<rusqlite::Error> for DbError {
 
 pub type DbResult<T> = Result<T, DbError>;
 
-pub trait QueryBuilder {
-    fn build(&self) -> String;
-}
-
-pub trait DbOperations<T> {
-    fn create(&self, item: &T) -> DbResult<i64>;
-    fn read(&self, id: i64) -> DbResult<T>;
-    fn update(&self, id: i64, item: &T) -> DbResult<()>;
-    fn delete(&self, id: i64) -> DbResult<()>;
-    fn list(&self, limit: Option<i64>, offset: Option<i64>) -> DbResult<Vec<T>>;
+// First, create a trait for database entities
+pub trait DbEntity {
+    fn table_name() -> &'static str;
+    fn columns() -> Vec<&'static str>;
+    fn values(&self) -> Vec<Box<dyn rusqlite::ToSql>>;
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self>
+    where
+        Self: Sized;
 }
