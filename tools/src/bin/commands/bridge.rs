@@ -94,9 +94,8 @@ impl TvlCommand for BridgeCommands {
             Some(serde_json::to_string(&result)?),
         );
 
-        let id =
-            <dyn DbOperations<CommandHistory>>::create(&tvl_maker.db_querier, &command_history)
-                .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
+        let id = <dyn DbOperations<CommandHistory>>::create(tvl_maker.db_querier, &command_history)
+            .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
 
         // Ensure txid exists before unwrapping
         match result.txid {

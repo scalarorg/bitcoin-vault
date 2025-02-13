@@ -101,9 +101,8 @@ impl TvlCommand for SendTokenCommand {
             Some(serde_json::to_string(&command_result)?),
         );
 
-        let id =
-            <dyn DbOperations<CommandHistory>>::create(&tvl_maker.db_querier, &command_history)
-                .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
+        let id = <dyn DbOperations<CommandHistory>>::create(tvl_maker.db_querier, &command_history)
+            .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
 
         println!("Command history created: {:?}", id);
 

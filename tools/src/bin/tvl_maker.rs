@@ -11,13 +11,6 @@ mod executors;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// Test environment to use (regtest, testnet4 or custom to the env file)
-    #[arg(short, long, default_value = ".env")]
-    test_env: String,
-    /// Service tag
-    #[arg(short = 'x', long)]
-    service_tag: String,
-
     #[arg(long)]
     db_path: String,
 
@@ -27,6 +20,24 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    Tx(TxCommands),
+}
+
+#[derive(Parser, Debug)]
+struct TxCommands {
+    /// Test environment to use (regtest, testnet4 or custom to the env file)
+    #[arg(short, long, default_value = ".env")]
+    test_env: String,
+    /// Service tag
+    #[arg(short = 'x', long)]
+    service_tag: String,
+
+    #[command(subcommand)]
+    command: SubTxCommands,
+}
+
+#[derive(Subcommand, Debug)]
+enum SubTxCommands {
     /// Staking related commands
     Bridge(BridgeCommands),
     /// Send token related commands
@@ -37,43 +48,43 @@ enum Commands {
     // Monitor(MonitorCommands),
 }
 
-struct TvlMaker {
+struct TvlMaker<'a> {
     suite: TestSuite,
-    db_querier: db::Querier,
+    db_querier: &'a db::Querier,
 }
 
-impl TvlMaker {
-    fn new(test_env: &str, service_tag: &str, db_path: &str) -> Self {
+impl<'a> TvlMaker<'a> {
+    fn new(db_querier: &'a db::Querier, service_tag: &str, test_env: &str) -> Self {
         unsafe {
             std::env::set_var("TEST_ENV", test_env);
         }
         let suite = TestSuite::new(service_tag);
-
-        let db_conn = Connection::open(db_path).expect("Failed to open database");
-        let db_querier = db::Querier::new(db_conn);
 
         Self { suite, db_querier }
     }
 }
 
 impl Commands {
-    fn execute(&self, tvl_maker: &TvlMaker) -> anyhow::Result<()> {
+    fn execute(&self, db_querier: &db::Querier) -> anyhow::Result<()> {
         match self {
-            Commands::Bridge(stake_cmd) => stake_cmd.execute(tvl_maker),
-            Commands::SendToken(send_token_cmd) => send_token_cmd.execute(tvl_maker),
-            Commands::Redeem(redeem_cmd) => redeem_cmd.execute(tvl_maker),
+            Commands::Tx(tx_cmd) => {
+                let tvl_maker = TvlMaker::new(db_querier, &tx_cmd.service_tag, &tx_cmd.test_env);
+                match &tx_cmd.command {
+                    SubTxCommands::Bridge(bridge_cmd) => bridge_cmd.execute(&tvl_maker),
+                    SubTxCommands::SendToken(send_token_cmd) => send_token_cmd.execute(&tvl_maker),
+                    SubTxCommands::Redeem(redeem_cmd) => redeem_cmd.execute(&tvl_maker),
+                }
+            }
         }
     }
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let mut tvl_maker = TvlMaker::new(
-        cli.test_env.as_str(),
-        cli.service_tag.as_str(),
-        cli.db_path.as_str(),
-    );
 
-    tvl_maker.db_querier.run_migrations();
-    cli.command.execute(&tvl_maker)
+    let db_conn = Connection::open(cli.db_path).expect("Failed to open database");
+    let mut db_querier = db::Querier::new(db_conn);
+    db_querier.run_migrations();
+
+    cli.command.execute(&db_querier)
 }
