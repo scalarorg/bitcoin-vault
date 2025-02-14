@@ -344,9 +344,9 @@ async fn get_utxo_by_address(
     let mut filter_utxos: Vec<NeededUtxo> = Vec::new();
 
     for utxo in utxos {
-        // if !utxo.status.confirmed {
-        //     continue;
-        // }
+        if !utxo.status.confirmed {
+            continue;
+        }
 
         if total > amount {
             filter_utxos.push(NeededUtxo {
