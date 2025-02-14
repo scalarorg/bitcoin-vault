@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use commands::{ConfigCommand, TvlCommand, TxCommands};
+use commands::{BatchCommand, ConfigCommand, TvlCommand, TxCommands};
 use rusqlite::Connection;
 use vault::TestSuite;
 
@@ -26,6 +26,9 @@ enum Commands {
 
     /// Run config command
     Config(ConfigCommand),
+
+    /// Run batch commands
+    Batch(BatchCommand),
 }
 
 struct TvlMaker<'a> {
@@ -38,8 +41,12 @@ impl<'a> TvlMaker<'a> {
         unsafe {
             std::env::set_var("TEST_ENV", test_env);
         }
-        let suite = TestSuite::new(service_tag);
+        let suite = TestSuite::new_with_loaded_env(service_tag);
 
+        Self { suite, db_querier }
+    }
+
+    fn new_with_suite(db_querier: &'a db::Querier, suite: TestSuite) -> Self {
         Self { suite, db_querier }
     }
 }
@@ -52,6 +59,7 @@ impl Commands {
                 tx_cmd.execute(&tvl_maker)
             }
             Commands::Config(config_cmd) => config_cmd.execute(db_querier),
+            Commands::Batch(batch_cmd) => batch_cmd.execute(db_querier),
         }
     }
 }

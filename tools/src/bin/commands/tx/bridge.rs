@@ -1,13 +1,8 @@
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-use vault::TaprootTreeType;
+use vault::{get_adress, get_approvable_utxos, TaprootTreeType};
 
-use crate::{
-    commands::types::{CommandResult, CommandStatus},
-    db::CommandHistory,
-    executors::BridgeExecutor,
-    TvlMaker,
-};
+use crate::{executors::BridgeExecutor, TvlMaker};
 
 use super::TvlCommand;
 
@@ -64,49 +59,38 @@ impl TvlCommand for BridgeCommands {
             BridgeSubCommands::CustodianOnly(params) => (params, TaprootTreeType::CustodianOnly),
         };
 
-        // Serialize params once for command history
-        let command_history_params = serde_json::to_string(params)?;
+        let command_name = match &self.command {
+            BridgeSubCommands::Upc(_) => self.name().to_owned() + "_upc",
+            BridgeSubCommands::CustodianOnly(_) => self.name().to_owned() + "_custodian",
+        };
+
+        let utxo = get_approvable_utxos(
+            &tvl_maker.suite.rpc,
+            &get_adress(
+                tvl_maker.suite.env().network.as_str(),
+                &params.wallet_address,
+            ),
+            params.amount,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to get approvable utxos: {:?}", e))?;
 
         // Execute staking operation
-        let result = BridgeExecutor::execute_bridge(
-            &tvl_maker.suite,
-            tvl_maker.suite.env().network.to_string(),
+        let command_history = BridgeExecutor::execute_bridge(
+            &tvl_maker,
+            command_name.as_str(),
             params,
             tree_type,
+            utxo,
         )
-        .map(|tx| {
-            CommandResult::new(
-                Some(tx.compute_txid().to_string()),
-                CommandStatus::Success,
-                None,
-            )
-        })
-        .unwrap_or_else(|e| CommandResult::new(None, CommandStatus::Error, Some(e)));
-
-        // Create and store command history
-        let command_history = CommandHistory::new(
-            match &self.command {
-                BridgeSubCommands::Upc(_) => self.name().to_owned() + "_upc",
-                BridgeSubCommands::CustodianOnly(_) => self.name().to_owned() + "_custodian",
-            },
-            Some(self.suite_env_json(tvl_maker.suite.env())),
-            Some(command_history_params),
-            Some(serde_json::to_string(&result)?),
-        );
+        .map_err(|e| anyhow::anyhow!("Failed to execute bridge: {:?}", e))?;
 
         let id = tvl_maker
             .db_querier
             .save(&command_history)
             .map_err(|e| anyhow::anyhow!("Failed to create command history: {:?}", e))?;
 
-        // Ensure txid exists before unwrapping
-        match result.txid {
-            Some(txid) => {
-                println!("Command history id: {}", id);
-                println!("Bridge transaction sent with txid: {}", txid);
-                Ok(())
-            }
-            None => anyhow::bail!("Failed to get transaction ID from result"),
-        }
+        println!("Command history id: {}", id);
+
+        Ok(())
     }
 }

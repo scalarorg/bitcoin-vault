@@ -5,39 +5,43 @@ mod test_custodians {
     use bitcoincore_rpc::jsonrpc::base64;
     use vault::helper::{get_adress, key_from_wif, log_tx_result};
     use vault::{
-        AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap, Signing, SuiteAccount,
-        TaprootTreeType, TestSuite, UnstakingOutput, VaultManager,
+        get_approvable_utxos, AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap,
+        Signing, SuiteAccount, TaprootTreeType, TestSuite, UnstakingOutput, VaultManager,
     };
 
     use lazy_static::lazy_static;
 
     lazy_static! {
-        static ref TEST_SUITE: TestSuite = TestSuite::new("PEPE");
+        static ref TEST_SUITE: TestSuite = TestSuite::new_with_loaded_env("PEPE");
         static ref TEST_ACCOUNT: SuiteAccount =
-            SuiteAccount::new(AccountEnv::new(Some(TEST_SUITE.env_path())).unwrap());
+            SuiteAccount::new(AccountEnv::new(TEST_SUITE.env_path()).unwrap());
         static ref TEST_DESTINATION_INFO: DestinationInfo =
-            DestinationInfo::new(DestinationInfoEnv::new(Some(TEST_SUITE.env_path())).unwrap());
+            DestinationInfo::new(DestinationInfoEnv::new(TEST_SUITE.env_path()).unwrap());
     }
 
     #[test]
     fn test_staking() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
         let staking_tx = TEST_SUITE.prepare_staking_tx(
             1000,
             TaprootTreeType::CustodianOnly,
             TEST_ACCOUNT.clone(),
             TEST_DESTINATION_INFO.clone(),
+            utxo,
         );
         println!("tx_id: {:?}", staking_tx.unwrap().compute_txid());
     }
 
     #[test]
     fn test_basic_flow() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                10000,
+                1000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
 
@@ -79,12 +83,14 @@ mod test_custodians {
 
     #[test]
     fn test_partial_unstaking() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 100000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
 
@@ -132,14 +138,19 @@ mod test_custodians {
 
     #[test]
     fn test_partial_unstaking_multiple_utxos() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 100000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
+
+        let utxo2 = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
 
         let staking_tx2 = TEST_SUITE
             .prepare_staking_tx(
@@ -147,6 +158,7 @@ mod test_custodians {
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo2,
             )
             .unwrap();
 
@@ -204,12 +216,15 @@ mod test_custodians {
         // Create multiple staking transactions (inputs)
         let staking_txs: Vec<_> = (0..2)
             .map(|_| {
+                let utxo =
+                    get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
                 TEST_SUITE
                     .prepare_staking_tx(
                         100000,
                         TaprootTreeType::CustodianOnly,
                         TEST_ACCOUNT.clone(),
                         TEST_DESTINATION_INFO.clone(),
+                        utxo,
                     )
                     .unwrap()
             })
@@ -314,6 +329,8 @@ mod test_custodians {
 
     #[test]
     fn test_sign_wrong_pubkey() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+
         let secp = Secp256k1::new();
 
         let staking_tx = TEST_SUITE
@@ -322,8 +339,11 @@ mod test_custodians {
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
+
+        let utxo2 = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
 
         let staking_tx2 = TEST_SUITE
             .prepare_staking_tx(
@@ -331,6 +351,7 @@ mod test_custodians {
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo2,
             )
             .unwrap();
 

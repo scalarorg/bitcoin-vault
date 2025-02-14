@@ -7,11 +7,11 @@ use bitcoin::{
     PublicKey,
 };
 
-use bitcoincore_rpc::json::{
-    GetTransactionResult, ListUnspentQueryOptions, ListUnspentResultEntry,
-};
+use bitcoincore_rpc::json::{GetRawTransactionResult, ListUnspentQueryOptions};
 
 use bitcoincore_rpc::{Auth, Client, RpcApi};
+
+use super::NeededUtxo;
 
 pub fn hex_to_vec(hex: &str) -> Vec<u8> {
     let hex_str = hex.replace("0x", "").replace(" ", "");
@@ -66,7 +66,7 @@ pub fn get_approvable_utxos(
     rpc: &Client,
     user_address: &Address<NetworkChecked>,
     btc_amount: u64,
-) -> ListUnspentResultEntry {
+) -> Result<NeededUtxo, String> {
     let utxos = rpc
         .list_unspent(
             Some(0),
@@ -82,7 +82,15 @@ pub fn get_approvable_utxos(
         )
         .unwrap();
 
-    utxos[0].clone()
+    if utxos.is_empty() {
+        return Err("No utxos found".to_string());
+    }
+
+    Ok(NeededUtxo {
+        txid: utxos[0].txid,
+        vout: utxos[0].vout,
+        amount: utxos[0].amount,
+    })
 }
 
 // pub fn get_fee(n_outputs: u64) -> u64 {
@@ -93,29 +101,14 @@ pub fn get_fee_rate() -> u64 {
     1
 }
 
-pub fn log_tx_result(result: &GetTransactionResult) {
-    println!("\n=== Transaction Info ===");
-    println!("TxID: {}", result.info.txid);
-    println!("Confirmations: {}", result.info.confirmations);
-    println!("Block Hash: {:?}", result.info.blockhash);
-    println!("Block Index: {:?}", result.info.blockindex);
-    println!("Block Time: {:?}", result.info.blocktime);
-    println!("Block Height: {:?}", result.info.blockheight);
-    println!("Time: {}", result.info.time);
-    println!("Time Received: {}", result.info.timereceived);
-    println!("BIP125 Replaceable: {:?}", result.info.bip125_replaceable);
-    println!("Wallet Conflicts: {:?}\n", result.info.wallet_conflicts);
+pub fn log_tx_result(result: &GetRawTransactionResult) {
+    println!("=== Transaction Info ===");
 
-    println!("=== Transaction Details ===");
-    for detail in &result.details {
-        println!("Address: {:?}", detail.address);
-        println!("Category: {:?}", detail.category);
-        println!("Amount: {:?} BTC", detail.amount);
-        println!("Label: {:?}", detail.label);
-        println!("Vout: {}", detail.vout);
-        println!("Fee: {:?}", detail.fee);
-        println!("Abandoned: {:?}\n", detail.abandoned);
-    }
+    println!("TxID: {}", result.txid.to_string());
+    println!("Confirmations: {}", result.confirmations.unwrap_or(0));
+    println!("Block Hash: {:?}", result.blockhash);
+    println!("Version: {}", result.version);
+    println!("Locktime: {}", result.locktime);
 
     println!("=== Transaction Hex ===");
     let hex = result.hex.to_lower_hex_string();

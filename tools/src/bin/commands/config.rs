@@ -63,6 +63,10 @@ pub struct ConfigCommand {
     /// Destination recipient address
     #[arg(short, long)]
     pub destination_recipient_address: String,
+
+    /// Mempool url
+    #[arg(short, long)]
+    pub mempool_url: String,
 }
 
 impl ConfigCommand {
@@ -83,6 +87,7 @@ impl ConfigCommand {
             self.destination_chain.clone(),
             self.destination_token_address.clone(),
             self.destination_recipient_address.clone(),
+            self.mempool_url.clone(),
         );
 
         let id = db_querier

@@ -2,28 +2,31 @@
 mod test_upc {
     use bitcoin::{secp256k1::All, Psbt};
     use vault::{
-        helper::log_tx_result, AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap,
-        Signing, SuiteAccount, TaprootTreeType, TestSuite, UnstakingType, VaultManager,
+        get_approvable_utxos, helper::log_tx_result, AccountEnv, DestinationInfo,
+        DestinationInfoEnv, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType, TestSuite,
+        UnstakingType, VaultManager,
     };
 
     use lazy_static::lazy_static;
 
     lazy_static! {
-        static ref TEST_SUITE: TestSuite = TestSuite::new("PEPE");
+        static ref TEST_SUITE: TestSuite = TestSuite::new_with_loaded_env("PEPE");
         static ref TEST_ACCOUNT: SuiteAccount =
-            SuiteAccount::new(AccountEnv::new(Some(TEST_SUITE.env_path())).unwrap());
+            SuiteAccount::new(AccountEnv::new(TEST_SUITE.env_path()).unwrap());
         static ref TEST_DESTINATION_INFO: DestinationInfo =
-            DestinationInfo::new(DestinationInfoEnv::new(Some(TEST_SUITE.env_path())).unwrap());
+            DestinationInfo::new(DestinationInfoEnv::new(TEST_SUITE.env_path()).unwrap());
     }
 
     #[test]
     fn test_staking() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 1000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
         println!("tx_id: {:?}", staking_tx.compute_txid());
@@ -31,12 +34,14 @@ mod test_upc {
 
     #[test]
     fn test_user_protocol() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 1000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
 
@@ -72,12 +77,14 @@ mod test_upc {
 
     #[test]
     fn test_custodian_user() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 1000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
 
@@ -122,12 +129,14 @@ mod test_upc {
     // cargo test --package bitcoin-vault --test test_upc -- test_upc::test_custodian_protocol --exact --show-output
     #[test]
     fn test_custodian_protocol() {
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                10000,
+                1000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
 
@@ -174,12 +183,14 @@ mod test_upc {
         use std::sync::mpsc;
         use std::thread;
 
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 1000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
+                utxo,
             )
             .unwrap();
 

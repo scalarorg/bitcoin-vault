@@ -18,6 +18,7 @@ pub struct Config {
     pub destination_chain: String,
     pub destination_token_address: String,
     pub destination_recipient_address: String,
+    pub mempool_url: String,
 }
 
 impl Config {
@@ -37,6 +38,7 @@ impl Config {
         destination_chain: String,
         destination_token_address: String,
         destination_recipient_address: String,
+        mempool_url: String,
     ) -> Self {
         Self {
             id: None,
@@ -55,6 +57,7 @@ impl Config {
             destination_chain,
             destination_token_address,
             destination_recipient_address,
+            mempool_url,
         }
     }
 }
@@ -81,6 +84,7 @@ impl DbEntity for Config {
             "destination_chain",
             "destination_token_address",
             "destination_recipient_address",
+            "mempool_url",
         ]
     }
 
@@ -101,6 +105,7 @@ impl DbEntity for Config {
             Box::new(self.destination_chain.clone()),
             Box::new(self.destination_token_address.clone()),
             Box::new(self.destination_recipient_address.clone()),
+            Box::new(self.mempool_url.clone()),
         ]
     }
 
@@ -122,6 +127,7 @@ impl DbEntity for Config {
             destination_chain: row.get(13)?,
             destination_token_address: row.get(14)?,
             destination_recipient_address: row.get(15)?,
+            mempool_url: row.get(16)?,
         })
     }
 }

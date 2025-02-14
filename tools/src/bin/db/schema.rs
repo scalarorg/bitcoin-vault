@@ -30,7 +30,8 @@ pub const CREATE_CONFIG_TABLE: &str = "
         mnemonic VARCHAR NOT NULL,
         destination_chain VARCHAR NOT NULL,
         destination_token_address VARCHAR NOT NULL,
-        destination_recipient_address VARCHAR NOT NULL
+        destination_recipient_address VARCHAR NOT NULL,
+        mempool_url VARCHAR NOT NULL
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_config_name ON configs (name);

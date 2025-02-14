@@ -1,7 +1,7 @@
 use crate::{
-    CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, FeeParams, PreviousStakingUTXO,
-    Signing, Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams, Unstaking,
-    UnstakingOutput, UnstakingType, VaultManager,
+    log_tx_result, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, FeeParams,
+    PreviousStakingUTXO, Signing, Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams,
+    Unstaking, UnstakingOutput, UnstakingType, VaultManager,
 };
 use bitcoin::bip32::DerivationPath;
 use bitcoin::hex::DisplayHex;
@@ -12,7 +12,7 @@ use bitcoin::{
     Sequence, Transaction, TxIn, TxOut, Witness,
 };
 use bitcoin::{AddressType, Amount, OutPoint};
-use bitcoincore_rpc::json::GetTransactionResult;
+use bitcoincore_rpc::json::GetRawTransactionResult;
 
 use std::collections::BTreeMap;
 
@@ -20,10 +20,10 @@ use bitcoin::secp256k1::rand::prelude::SliceRandom;
 use bitcoincore_rpc::Client;
 use bitcoincore_rpc::RpcApi;
 
-use crate::helper::{create_rpc, get_approvable_utxos, get_network_id_from_str, key_from_wif};
+use crate::helper::{create_rpc, get_network_id_from_str, key_from_wif};
 
 use super::helper::get_fee_rate;
-use super::{DestinationInfo, Env, SuiteAccount};
+use super::{DestinationInfo, Env, NeededUtxo, SuiteAccount};
 
 #[derive(Debug, Clone)]
 pub enum TestEnv {
@@ -53,33 +53,15 @@ impl TestEnv {
 pub struct TestSuite {
     manager: VaultManager,
     env: Env,
-    rpc: Client,
+    pub rpc: Client,
     protocol_pair: (PrivateKey, PublicKey),
     custodian_pairs: BTreeMap<PublicKey, (PrivateKey, PublicKey)>,
     network_id: NetworkKind,
-    env_path: String,
+    env_path: Option<String>,
 }
 
-impl TestSuite {}
-
 impl TestSuite {
-    pub fn new(service_tag: &str) -> Self {
-        let env = TestEnv::from_env();
-        println!("\n=================================================================");
-        println!(
-            "                     RUNNING TEST ON {:?}                     ",
-            env
-        );
-        println!("=================================================================\n");
-
-        let path = match env {
-            TestEnv::Regtest => ".env.test.regtest".to_string(),
-            TestEnv::Testnet4 => ".env.test.testnet4".to_string(),
-            TestEnv::Custom(custom_env) => custom_env,
-        };
-
-        let env = Env::new(Some(&path)).unwrap();
-
+    pub fn new(service_tag: &str, env: Env, env_path: Option<String>) -> Self {
         let cloned_env = env.clone();
 
         let secp = Secp256k1::new();
@@ -116,8 +98,30 @@ impl TestSuite {
             custodian_pairs,
             manager,
             network_id,
-            env_path: path,
+            env_path,
         }
+    }
+}
+
+impl TestSuite {
+    pub fn new_with_loaded_env(service_tag: &str) -> Self {
+        let env = TestEnv::from_env();
+        println!("\n=================================================================");
+        println!(
+            "                     RUNNING TEST ON {:?}                     ",
+            env
+        );
+        println!("=================================================================\n");
+
+        let path = match env {
+            TestEnv::Regtest => ".env.test.regtest".to_string(),
+            TestEnv::Testnet4 => ".env.test.testnet4".to_string(),
+            TestEnv::Custom(custom_env) => custom_env,
+        };
+
+        let env = Env::new(Some(&path)).unwrap();
+
+        Self::new(service_tag, env, Some(path))
     }
 
     pub fn prepare_staking_tx(
@@ -126,6 +130,7 @@ impl TestSuite {
         taproot_tree_type: TaprootTreeType,
         account: SuiteAccount,
         dest: DestinationInfo,
+        utxo: NeededUtxo,
     ) -> Result<Transaction, String> {
         let outputs: Vec<TxOut> = match taproot_tree_type {
             TaprootTreeType::OnlyKeys => {
@@ -160,8 +165,6 @@ impl TestSuite {
             .map_err(|e| e.to_string())?
             .into_tx_outs(),
         };
-
-        let utxo = get_approvable_utxos(&self.rpc, account.address(), amount);
 
         let mut unsigned_tx = Transaction {
             version: transaction::Version::TWO,
@@ -203,7 +206,7 @@ impl TestSuite {
         psbt.inputs[0] = Input {
             witness_utxo: Some(TxOut {
                 value: utxo.amount,
-                script_pubkey: utxo.script_pub_key.clone(),
+                script_pubkey: account.address().script_pubkey(),
             }),
 
             // TODO: fix this, taproot address: leaf hash, no key origin
@@ -234,12 +237,12 @@ impl TestSuite {
 
         let result = Self::send_psbt(&self.rpc, psbt).ok_or("Failed to send PSBT")?;
 
+        log_tx_result(&result);
+
         let staking_tx_hex = result.hex;
 
         let staking_tx: Transaction =
             bitcoin::consensus::deserialize(&staking_tx_hex).map_err(|e| e.to_string())?;
-
-        println!("\nSTAKING TXID: {:?}", staking_tx.compute_txid());
 
         Ok(staking_tx)
     }
@@ -298,38 +301,64 @@ impl TestSuite {
         .unwrap()
     }
 
-    pub fn send_psbt_by_rpc(&self, psbt: Psbt) -> Option<GetTransactionResult> {
+    pub fn send_psbt_by_rpc(&self, psbt: Psbt) -> Option<GetRawTransactionResult> {
         Self::send_psbt(&self.rpc, psbt)
     }
 
-    pub fn send_psbt(rpc: &Client, psbt: Psbt) -> Option<GetTransactionResult> {
+    pub fn send_psbt(rpc: &Client, psbt: Psbt) -> Option<GetRawTransactionResult> {
         let finalized_tx = psbt.extract_tx().unwrap();
-
         let tx_hex = bitcoin::consensus::serialize(&finalized_tx);
 
         println!("TX_HEX: {:?}", tx_hex.to_lower_hex_string());
 
-        let txid = rpc.send_raw_transaction(&finalized_tx).unwrap();
-
+        // Add retry logic with backoff for mempool chain errors
         let mut retry_count = 0;
+        const MAX_RETRIES: u32 = 5;
 
-        let tx_result: Option<GetTransactionResult> = loop {
-            let tx_result = rpc.get_transaction(&txid, None).ok();
-
-            if tx_result.is_none() {
-                retry_count += 1;
-            } else {
-                break tx_result;
-            }
-
-            if retry_count > 10 {
-                panic!("tx not found");
+        let txid = loop {
+            match rpc.send_raw_transaction(&finalized_tx) {
+                Ok(txid) => break txid,
+                Err(e) => {
+                    if e.to_string().contains("too-long-mempool-chain") {
+                        retry_count += 1;
+                        if retry_count > MAX_RETRIES {
+                            panic!(
+                                "Failed to send transaction after {} retries: {}",
+                                MAX_RETRIES, e
+                            );
+                        }
+                        // Wait for some previous transactions to confirm
+                        println!(
+                            "Mempool chain too long, waiting for confirmations... (attempt {}/{})",
+                            retry_count, MAX_RETRIES
+                        );
+                        std::thread::sleep(std::time::Duration::from_secs(30));
+                        continue;
+                    }
+                    panic!("Failed to send transaction: {}", e);
+                }
             }
         };
 
-        let tx = tx_result.unwrap();
+        println!("TXID: {:?}", txid.to_string());
 
-        Some(tx)
+        let mut retry_count = 0;
+
+        loop {
+            let tx_result = rpc.get_raw_transaction_info(&txid, None).ok();
+            if tx_result.is_none() {
+                retry_count += 1;
+                if retry_count > 10 {
+                    panic!("tx not found");
+                }
+                // Add exponential backoff sleep
+                std::thread::sleep(std::time::Duration::from_millis(
+                    100 * (2_u64.pow(retry_count)),
+                ));
+            } else {
+                break tx_result;
+            }
+        }
     }
 }
 
@@ -342,8 +371,8 @@ impl TestSuite {
         &self.env
     }
 
-    pub fn env_path(&self) -> &str {
-        &self.env_path
+    pub fn env_path(&self) -> Option<&str> {
+        self.env_path.as_deref()
     }
 
     pub fn protocol_pubkey(&self) -> PublicKey {

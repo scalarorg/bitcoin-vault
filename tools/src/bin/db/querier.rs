@@ -1,7 +1,9 @@
 use rusqlite::Connection;
 use rusqlite_migration::{Migrations, M};
 
-use super::{DbEntity, DbError, DbResult, CREATE_COMMAND_HISTORY_TABLE, CREATE_CONFIG_TABLE};
+use super::{
+    Config, DbEntity, DbError, DbResult, CREATE_COMMAND_HISTORY_TABLE, CREATE_CONFIG_TABLE,
+};
 
 pub struct Querier {
     pub db_conn: Connection,
@@ -24,6 +26,43 @@ impl Querier {
 
         let mut stmt = self.db_conn.prepare(&query)?;
         stmt.query_row(rusqlite::params_from_iter(item.values()), |row| row.get(0))
+            .map_err(DbError::from)
+    }
+
+    pub fn batch_save<T: DbEntity>(&self, items: &[T]) -> DbResult<usize> {
+        if items.is_empty() {
+            return Ok(0);
+        }
+
+        let columns = T::columns();
+        let values_per_row = columns.len();
+        let num_rows = items.len();
+
+        // Create placeholders for all rows: (?, ?, ?), (?, ?, ?), ...
+        let row_placeholders = (0..num_rows)
+            .map(|row_idx| {
+                let start = row_idx * values_per_row + 1;
+                let placeholders = (start..=start + values_per_row - 1)
+                    .map(|i| format!("?{}", i))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("({})", placeholders)
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let query = format!(
+            "INSERT OR REPLACE INTO {} ({}) VALUES {}",
+            T::table_name(),
+            columns.join(", "),
+            row_placeholders
+        );
+
+        self.db_conn
+            .execute(
+                &query,
+                rusqlite::params_from_iter(items.iter().flat_map(|item| item.values())),
+            )
             .map_err(DbError::from)
     }
 
@@ -68,5 +107,13 @@ impl Querier {
         migrations
             .to_latest(&mut self.db_conn)
             .expect("Failed to run migrations");
+    }
+
+    pub fn get_config_by_name(&self, name: &str) -> DbResult<Config> {
+        let query = format!("SELECT * FROM {} WHERE name = ?1", Config::table_name());
+
+        let mut stmt = self.db_conn.prepare(&query)?;
+        stmt.query_row([name], Config::from_row)
+            .map_err(DbError::from)
     }
 }
