@@ -21,9 +21,9 @@ mod test_custodians {
 
     #[test]
     fn test_staking() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE.prepare_staking_tx(
-            1000,
+            2000,
             TaprootTreeType::CustodianOnly,
             TEST_ACCOUNT.clone(),
             TEST_DESTINATION_INFO.clone(),
@@ -34,10 +34,10 @@ mod test_custodians {
 
     #[test]
     fn test_basic_flow() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                1000,
+                10000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -83,10 +83,10 @@ mod test_custodians {
 
     #[test]
     fn test_partial_unstaking() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                100000,
+                10000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -138,11 +138,11 @@ mod test_custodians {
 
     #[test]
     fn test_partial_unstaking_multiple_utxos() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
 
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                100000,
+                10000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -150,11 +150,11 @@ mod test_custodians {
             )
             .unwrap();
 
-        let utxo2 = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo2 = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 3000).unwrap();
 
         let staking_tx2 = TEST_SUITE
             .prepare_staking_tx(
-                100000,
+                3000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -217,7 +217,7 @@ mod test_custodians {
         let staking_txs: Vec<_> = (0..2)
             .map(|_| {
                 let utxo =
-                    get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+                    get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 100000).unwrap();
                 TEST_SUITE
                     .prepare_staking_tx(
                         100000,
@@ -335,7 +335,7 @@ mod test_custodians {
 
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                100000,
+                1000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -347,7 +347,7 @@ mod test_custodians {
 
         let staking_tx2 = TEST_SUITE
             .prepare_staking_tx(
-                100000,
+                1000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -358,7 +358,7 @@ mod test_custodians {
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx, staking_tx2],
             vec![UnstakingOutput {
-                amount_in_sats: Amount::from_sat(7000),
+                amount_in_sats: Amount::from_sat(2000),
                 locking_script: TEST_ACCOUNT.address().script_pubkey(),
             }],
         );

@@ -252,16 +252,20 @@ impl TestSuite {
         staking_tx: &Transaction,
         unstaking_type: UnstakingType,
         account: SuiteAccount,
+        amount: u64,
     ) -> Psbt {
         <VaultManager as Unstaking>::build_upc(
             &self.manager,
             &UPCUnstakingParams {
-                input: PreviousStakingUTXO {
+                inputs: vec![PreviousStakingUTXO {
                     outpoint: OutPoint::new(staking_tx.compute_txid(), VOUT as u32),
                     amount_in_sats: staking_tx.output[VOUT].value,
                     script_pubkey: staking_tx.output[VOUT].script_pubkey.clone(),
+                }],
+                unstaking_output: UnstakingOutput {
+                    amount_in_sats: Amount::from_sat(amount),
+                    locking_script: account.address().script_pubkey(),
                 },
-                locking_script: account.address().script_pubkey(),
                 user_pub_key: account.public_key(),
                 protocol_pub_key: self.protocol_pubkey(),
                 custodian_pub_keys: self.custodian_pubkeys(),
