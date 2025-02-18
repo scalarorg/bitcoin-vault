@@ -19,10 +19,10 @@ mod test_upc {
 
     #[test]
     fn test_staking() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                1000,
+                2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -34,10 +34,10 @@ mod test_upc {
 
     #[test]
     fn test_user_protocol() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                1000,
+                2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -50,6 +50,7 @@ mod test_upc {
             &staking_tx,
             UnstakingType::UserProtocol,
             TEST_ACCOUNT.clone(),
+            1000,
         );
 
         // sign unstaking psbt
@@ -77,10 +78,10 @@ mod test_upc {
 
     #[test]
     fn test_custodian_user() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                1000,
+                2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -92,6 +93,7 @@ mod test_upc {
             &staking_tx,
             UnstakingType::CustodianUser,
             TEST_ACCOUNT.clone(),
+            1000,
         );
 
         // Sign with user key first
@@ -129,10 +131,10 @@ mod test_upc {
     // cargo test --package bitcoin-vault --test test_upc -- test_upc::test_custodian_protocol --exact --show-output
     #[test]
     fn test_custodian_protocol() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                1000,
+                2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -144,6 +146,7 @@ mod test_upc {
             &staking_tx,
             UnstakingType::CustodianProtocol,
             TEST_ACCOUNT.clone(),
+            1000,
         );
 
         // Sign with user key first
@@ -183,10 +186,10 @@ mod test_upc {
         use std::sync::mpsc;
         use std::thread;
 
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
-                1000,
+                2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
@@ -198,6 +201,7 @@ mod test_upc {
             &staking_tx,
             UnstakingType::CustodianUser,
             TEST_ACCOUNT.clone(),
+            1000,
         );
 
         // Sign with user key first

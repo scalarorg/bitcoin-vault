@@ -32,6 +32,7 @@ impl Unstaking for VaultManager {
         params: &UPCUnstakingParams,
         unstaking_type: UnstakingType,
     ) -> Result<Psbt, Self::Error> {
+        let (total_input_value, total_output_value) = params.validate()?;
         let secp = get_global_secp();
 
         let x_only_keys = manager::VaultManager::convert_upc_to_x_only_keys(
@@ -50,40 +51,26 @@ impl Unstaking for VaultManager {
             },
         )?;
 
-        let (branch, keys) =
-            UnstakingKeys::get_branch_and_keys_for_type(&x_only_keys, unstaking_type, &tree);
+        let upc_script = tree.clone().into_script(secp);
 
-        let mut tx_builder = UnstakingTransactionBuilder::new(params.rbf);
-
-        tx_builder.add_input(params.input.outpoint);
-
-        // The order of the outputs:
-        // [0] indexed output
-        // [1] unstaking output
-
-        let indexed_output = self.create_indexed_output(UnstakingTaprootTreeType::UPCBranch)?;
-
-        tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
-
-        // the user will receive the amount they staked in the previous staking tx
-        let total_output_value = params.input.amount_in_sats;
-
-        tx_builder.add_output(total_output_value, params.locking_script.clone());
-
-        let mut unsigned_tx = tx_builder.build();
-
-        let fee = self.calculate_transaction_fee(FeeParams {
-            n_inputs: unsigned_tx.input.len() as u64,
-            n_outputs: unsigned_tx.output.len() as u64,
-            fee_rate: params.fee_rate,
-        });
-
-        self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;
+        let unsigned_tx = self.build_unstaking_transaction(
+            total_input_value,
+            total_output_value,
+            &params.inputs,
+            &[params.unstaking_output.clone()],
+            UnstakingTaprootTreeType::UPCBranch,
+            &upc_script,
+            params.rbf,
+            params.fee_rate,
+        )?;
 
         let mut psbt =
             Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
 
-        psbt.inputs = self.prepare_psbt_inputs(&[params.input.clone()], &tree.root, branch, &keys);
+        let (branch, keys) =
+            UnstakingKeys::get_branch_and_keys_for_type(&x_only_keys, unstaking_type, &tree);
+
+        psbt.inputs = self.prepare_psbt_inputs(&params.inputs, &tree.root, branch, &keys);
 
         Ok(psbt)
     }
@@ -92,57 +79,32 @@ impl Unstaking for VaultManager {
         &self,
         params: &CustodianOnlyUnstakingParams,
     ) -> Result<Psbt, Self::Error> {
+        let (total_input_value, total_output_value) = params.validate()?;
         let secp = get_global_secp();
-        let x_only_pub_keys = self.convert_to_x_only_keys(&params.custodian_pub_keys);
 
+        let x_only_pub_keys = self.convert_to_x_only_keys(&params.custodian_pub_keys);
         let tree =
             TaprootTree::new_custodian_only(secp, &x_only_pub_keys, params.custodian_quorum)?;
-
         let custodian_only_script = tree.clone().into_script(secp);
 
-        let mut tx_builder = UnstakingTransactionBuilder::new(params.rbf);
+        let unsigned_tx = self.build_unstaking_transaction(
+            total_input_value,
+            total_output_value,
+            &params.inputs,
+            &params.unstaking_outputs,
+            UnstakingTaprootTreeType::CustodianOnly,
+            &custodian_only_script,
+            params.rbf,
+            params.fee_rate,
+        )?;
 
-        self.add_inputs_to_builder(&mut tx_builder, &params.inputs);
-
-        // The order of the outputs:
-        // [0] indexed output
-        // [1 - n-2] unstaking outputs
-        // [n-1] change output
-
-        let indexed_output = self.create_indexed_output(UnstakingTaprootTreeType::CustodianOnly)?;
-
-        tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
-
-        let total_output_value =
-            self.add_outputs_to_builder(&mut tx_builder, &params.unstaking_outputs);
-
-        let change = self.calculate_change(&params.inputs, total_output_value);
-
-        if change > Amount::ZERO {
-            self.add_change_output_placeholder(&mut tx_builder, &custodian_only_script);
-        }
-
-        let mut unsigned_tx = tx_builder.build();
-
-        let fee = self.calculate_transaction_fee(FeeParams {
-            n_inputs: unsigned_tx.input.len() as u64,
-            n_outputs: unsigned_tx.output.len() as u64,
-            fee_rate: params.fee_rate,
-        });
-
-        self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;
+        let mut psbt =
+            Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
 
         let (branch, keys) = (
             tree.only_custodian_branch.as_ref().unwrap(),
             x_only_pub_keys,
         );
-
-        if change > Amount::ZERO {
-            self.replace_change_output(&mut unsigned_tx, change, &custodian_only_script);
-        }
-
-        let mut psbt =
-            Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
 
         psbt.inputs = self.prepare_psbt_inputs(&params.inputs, &tree.root, branch, &keys);
 
@@ -254,6 +216,18 @@ impl VaultManager {
         }
     }
 
+    fn add_indexed_output_to_builder(
+        &self,
+        tx_builder: &mut UnstakingTransactionBuilder,
+        flags: UnstakingTaprootTreeType,
+    ) -> Result<(), CoreError> {
+        let indexed_output = self.create_indexed_output(flags)?;
+
+        tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
+
+        Ok(())
+    }
+
     fn create_indexed_output(
         &self,
         flags: UnstakingTaprootTreeType,
@@ -275,25 +249,14 @@ impl VaultManager {
         &self,
         tx_builder: &mut UnstakingTransactionBuilder,
         outputs: &[UnstakingOutput],
-    ) -> Amount {
-        let mut total_output_value = Amount::ZERO;
+    ) {
         for output in outputs {
             tx_builder.add_output(output.amount_in_sats, output.locking_script.clone());
-            total_output_value += output.amount_in_sats;
         }
-        total_output_value
     }
 
-    fn calculate_change(
-        &self,
-        inputs: &[PreviousStakingUTXO],
-        total_output_value: Amount,
-    ) -> Amount {
-        inputs
-            .iter()
-            .map(|input| input.amount_in_sats)
-            .sum::<Amount>()
-            - total_output_value
+    fn calculate_change(&self, total_input_value: Amount, total_output_value: Amount) -> Amount {
+        total_input_value - total_output_value
     }
 
     fn add_change_output_placeholder(
@@ -315,6 +278,52 @@ impl VaultManager {
             value: change,
             script_pubkey: script.clone(),
         });
+    }
+
+    // New helper method to extract common transaction building logic
+    fn build_unstaking_transaction(
+        &self,
+        total_input_value: Amount,
+        total_output_value: Amount,
+        inputs: &[PreviousStakingUTXO],
+        unstaking_outputs: &[UnstakingOutput],
+        tree_type: UnstakingTaprootTreeType,
+        script: &ScriptBuf,
+        rbf: bool,
+        fee_rate: u64,
+    ) -> Result<Transaction, CoreError> {
+        let mut tx_builder = UnstakingTransactionBuilder::new(rbf);
+
+        self.add_inputs_to_builder(&mut tx_builder, inputs);
+
+        // output[0]: indexed output
+        // output[1->n-2]: unstaking outputs
+        // output[n-1]: change output
+
+        self.add_indexed_output_to_builder(&mut tx_builder, tree_type)?;
+
+        self.add_outputs_to_builder(&mut tx_builder, unstaking_outputs);
+
+        let change = self.calculate_change(total_input_value, total_output_value);
+        if change > Amount::ZERO {
+            self.add_change_output_placeholder(&mut tx_builder, script);
+        }
+
+        let mut unsigned_tx = tx_builder.build();
+
+        let fee = self.calculate_transaction_fee(FeeParams {
+            n_inputs: unsigned_tx.input.len() as u64,
+            n_outputs: unsigned_tx.output.len() as u64,
+            fee_rate,
+        });
+
+        self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;
+
+        if change > Amount::ZERO {
+            self.replace_change_output(&mut unsigned_tx, change, script);
+        }
+
+        Ok(unsigned_tx)
     }
 }
 

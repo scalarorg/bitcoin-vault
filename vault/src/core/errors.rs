@@ -61,4 +61,6 @@ pub enum CoreError {
     SigningKeyMapIsEmpty,
     #[error("Failed to serialize")]
     FailedToSerialize,
+    #[error("Invalid params: {0}")]
+    InvalidParams(String),
 }

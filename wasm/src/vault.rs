@@ -293,7 +293,7 @@ impl VaultWasm {
 
         let params = UPCUnstakingParams {
             input: input.try_into()?,
-            locking_script: Decoder::decode_script_pubkey(locking_script),
+            redeem_script: Decoder::decode_script_pubkey(locking_script),
             user_pub_key,
             protocol_pub_key,
             custodian_pub_keys,
