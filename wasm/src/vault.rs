@@ -193,66 +193,66 @@ impl VaultWasm {
         )
     }
 
-    #[wasm_bindgen]
-    pub fn build_user_protocol_spend(
-        &self,
-        input: UnstakingInput,
-        locking_script: &[u8],
-        staker_pubkey: &[u8],
-        protocol_pubkey: &[u8],
-        custodian_pub_keys: &[u8],
-        custodian_quorum: u8,
-        fee_rate: u64,
-        rbf: bool,
-    ) -> Result<Vec<u8>, JsValue> {
-        self.build_unstaking(
-            input,
-            locking_script,
-            staker_pubkey,
-            protocol_pubkey,
-            custodian_pub_keys,
-            custodian_quorum,
-            fee_rate,
-            rbf,
-            UnstakingType::UserProtocol,
-        )
-    }
+    // #[wasm_bindgen]
+    // pub fn build_user_protocol_spend(
+    //     &self,
+    //     inputs: Vec<UnstakingInput>,
+    //     unstaking_output: UnstakingOutput,
+    //     staker_pubkey: &[u8],
+    //     protocol_pubkey: &[u8],
+    //     custodian_pub_keys: &[u8],
+    //     custodian_quorum: u8,
+    //     fee_rate: u64,
+    //     rbf: bool,
+    // ) -> Result<Vec<u8>, JsValue> {
+    //     self.build_unstaking(
+    //         inputs,
+    //         unstaking_output,
+    //         staker_pubkey,
+    //         protocol_pubkey,
+    //         custodian_pub_keys,
+    //         custodian_quorum,
+    //         fee_rate,
+    //         rbf,
+    //         UnstakingType::UserProtocol,
+    //     )
+    // }
 
-    #[wasm_bindgen]
-    pub fn build_custodian_protocol_spend(
-        &self,
-        input: UnstakingInput,
-        locking_script: &[u8],
-        staker_pubkey: &[u8],
-        protocol_pubkey: &[u8],
-        custodian_pub_keys: &[u8],
-        custodian_quorum: u8,
-        fee_rate: u64,
-        rbf: bool,
-    ) -> Result<Vec<u8>, JsValue> {
-        // ### Description
-        // ### Reversed txid is used to match the byte order of the txid in the previous staking UTXO.
-        // ### References: https://learnmeabitcoin.com/technical/general/byte-order/#natural-byte-order
-        // input_txid.reverse();
+    // #[wasm_bindgen]
+    // pub fn build_custodian_protocol_spend(
+    //     &self,
+    //     input: UnstakingInput,
+    //     locking_script: &[u8],
+    //     staker_pubkey: &[u8],
+    //     protocol_pubkey: &[u8],
+    //     custodian_pub_keys: &[u8],
+    //     custodian_quorum: u8,
+    //     fee_rate: u64,
+    //     rbf: bool,
+    // ) -> Result<Vec<u8>, JsValue> {
+    //     // ### Description
+    //     // ### Reversed txid is used to match the byte order of the txid in the previous staking UTXO.
+    //     // ### References: https://learnmeabitcoin.com/technical/general/byte-order/#natural-byte-order
+    //     // input_txid.reverse();
 
-        self.build_unstaking(
-            input,
-            locking_script,
-            staker_pubkey,
-            protocol_pubkey,
-            custodian_pub_keys,
-            custodian_quorum,
-            fee_rate,
-            rbf,
-            UnstakingType::CustodianProtocol,
-        )
-    }
+    //     self.build_unstaking(
+    //         input,
+    //         locking_script,
+    //         staker_pubkey,
+    //         protocol_pubkey,
+    //         custodian_pub_keys,
+    //         custodian_quorum,
+    //         fee_rate,
+    //         rbf,
+    //         UnstakingType::CustodianProtocol,
+    //     )
+    // }
 
     #[wasm_bindgen]
     pub fn build_custodian_user_spend(
         &self,
-        input: UnstakingInput,
-        locking_script: &[u8],
+        inputs: Vec<UnstakingInput>,
+        unstaking_output: UnstakingOutput,
         staker_pubkey: &[u8],
         protocol_pubkey: &[u8],
         custodian_pub_keys: &[u8],
@@ -261,8 +261,8 @@ impl VaultWasm {
         rbf: bool,
     ) -> Result<Vec<u8>, JsValue> {
         self.build_unstaking(
-            input,
-            locking_script,
+            inputs,
+            unstaking_output,
             staker_pubkey,
             protocol_pubkey,
             custodian_pub_keys,
@@ -275,8 +275,8 @@ impl VaultWasm {
 
     fn build_unstaking(
         &self,
-        input: UnstakingInput,
-        locking_script: &[u8],
+        inputs: Vec<UnstakingInput>,
+        unstaking_output: UnstakingOutput,
         staker_pubkey: &[u8],
         protocol_pubkey: &[u8],
         custodian_pub_keys: &[u8],
@@ -291,9 +291,14 @@ impl VaultWasm {
         let (user_pub_key, protocol_pub_key, custodian_pub_keys) =
             Self::parse_pubkeys(staker_pubkey, protocol_pubkey, custodian_pub_keys)?;
 
+        let inputs: Vec<PreviousStakingUTXO> = inputs
+            .into_iter()
+            .map(|input| input.try_into().unwrap())
+            .collect();
+
         let params = UPCUnstakingParams {
-            input: input.try_into()?,
-            redeem_script: Decoder::decode_script_pubkey(locking_script),
+            inputs,
+            unstaking_output: unstaking_output.try_into()?,
             user_pub_key,
             protocol_pub_key,
             custodian_pub_keys,

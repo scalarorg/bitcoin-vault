@@ -1,4 +1,8 @@
-import { UnstakingInput, VaultWasm } from "@scalar-lab/bitcoin-wasm";
+import {
+  UnstakingInput,
+  UnstakingOutput,
+  VaultWasm,
+} from "@scalar-lab/bitcoin-wasm";
 import ECPairFactory from "ecpair";
 
 import * as bitcoinLib from "bitcoinjs-lib";
@@ -7,7 +11,7 @@ import * as ecc from "tiny-secp256k1";
 import {
   TBuildUPCStakingPsbt,
   TBuildCustodianOnlyStakingPsbt,
-  TBuildUPCUntakingPsbt,
+  TBuildUPCUnstakingPsbt,
   TNetwork,
 } from "./types";
 
@@ -123,51 +127,36 @@ export class VaultUtils {
   };
 
   public buildUPCUnstakingPsbt = (
-    params: TBuildUPCUntakingPsbt
+    params: TBuildUPCUnstakingPsbt
   ): Uint8Array => {
-    const input = new UnstakingInput(
-      params.input.script_pubkey,
-      hexToBytes(params.input.txid),
-      params.input.vout,
-      params.input.value
-    );
-
-    if (params.type === "user_protocol") {
-      return this.wasm.build_user_protocol_spend(
-        input,
-        params.output.script,
-        params.stakerPubkey,
-        params.protocolPubkey,
-        params.custodianPubkeys,
-        params.custodianQuorum,
-        params.feeRate,
-        params.rbf
-      );
-    } else if (params.type === "user_custodian") {
-      return this.wasm.build_custodian_user_spend(
-        input,
-        params.output.script,
-        params.stakerPubkey,
-        params.protocolPubkey,
-        params.custodianPubkeys,
-        params.custodianQuorum,
-        params.feeRate,
-        params.rbf
-      );
-    } else if (params.type === "protocol_custodian") {
-      return this.wasm.build_custodian_protocol_spend(
-        input,
-        params.output.script,
-        params.stakerPubkey,
-        params.protocolPubkey,
-        params.custodianPubkeys,
-        params.custodianQuorum,
-        params.feeRate,
-        params.rbf
-      );
+    if (params.type !== "user_custodian") {
+      throw new Error(`Not supported unstaking type: ${params.type}`);
     }
 
-    throw new Error("Invalid unstaking type");
+    const inputs = params.inputs.map((input) => {
+      return new UnstakingInput(
+        input.script_pubkey,
+        hexToBytes(input.txid),
+        input.vout,
+        input.value
+      );
+    });
+
+    const output = new UnstakingOutput(
+      params.output.script,
+      params.output.value
+    );
+
+    return this.wasm.build_custodian_user_spend(
+      inputs,
+      output,
+      params.stakerPubkey,
+      params.protocolPubkey,
+      params.custodianPubkeys,
+      params.custodianQuorum,
+      params.feeRate,
+      params.rbf
+    );
   };
 
   public buildCustodianOnlyStakingPsbt = (

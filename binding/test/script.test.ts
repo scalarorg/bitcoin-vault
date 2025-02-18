@@ -3,7 +3,7 @@ import { setUpTest, StaticEnv } from "./util";
 import { fromOutputScript } from "bitcoinjs-lib/src/address";
 import * as bitcoin from "bitcoinjs-lib";
 import { getAddressUtxos, sendrawtransaction } from "../src/client";
-import { TBuildUPCUntakingPsbt } from "../src";
+import { TBuildUPCUnstakingPsbt } from "../src";
 import { getEstimatedFee } from "../src/utils";
 import { Psbt } from "bitcoinjs-lib";
 //Start local regtest bitcoin node before running the test
@@ -37,13 +37,15 @@ describe("Vault Script", async () => {
 
     console.log({ choosenUtxo });
 
-    const params: TBuildUPCUntakingPsbt = {
-      input: {
-        txid: choosenUtxo.txid,
-        vout: choosenUtxo.vout,
-        value: BigInt(choosenUtxo.value),
-        script_pubkey: script,
-      },
+    const params: TBuildUPCUnstakingPsbt = {
+      inputs: [
+        {
+          txid: choosenUtxo.txid,
+          vout: choosenUtxo.vout,
+          value: BigInt(choosenUtxo.value),
+          script_pubkey: script,
+        },
+      ],
       output: {
         script: bitcoin.address.toOutputScript(
           TestSuite.stakerAddress,

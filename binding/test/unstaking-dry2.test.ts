@@ -3,14 +3,13 @@ import * as bitcoin from "bitcoinjs-lib";
 import { Psbt } from "bitcoinjs-lib";
 import { sleep } from "bun";
 import { describe, it } from "bun:test";
-import { setUpTest, StaticEnv } from "./util";
 import {
   bytesToHex,
-  getEstimatedFee,
   hexToBytes,
   sendrawtransaction,
-  TBuildUPCUntakingPsbt,
+  TBuildUPCUnstakingPsbt,
 } from "../src";
+import { setUpTest, StaticEnv } from "./util";
 
 const TIMEOUT = 900_000;
 
@@ -80,13 +79,15 @@ describe("Vault-Unstaking", () => {
         throw new Error("p2wpkhScript is undefined");
       }
 
-      const params: TBuildUPCUntakingPsbt = {
-        input: {
-          txid,
-          vout: 0,
-          value: BigInt(Math.floor(tx.vout[0].value * 1e8)),
-          script_pubkey: scriptPubkeyOfLocking,
-        },
+      const params: TBuildUPCUnstakingPsbt = {
+        inputs: [
+          {
+            txid,
+            vout: 0,
+            value: BigInt(Math.floor(tx.vout[0].value * 1e8)),
+            script_pubkey: scriptPubkeyOfLocking,
+          },
+        ],
         output: {
           script: bitcoin.address.toOutputScript(
             testSuite.stakerAddress,

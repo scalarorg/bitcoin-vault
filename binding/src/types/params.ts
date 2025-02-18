@@ -38,8 +38,8 @@ interface PreviousStakingUTXO {
   value: bigint;
 }
 
-export type TBuildUPCUntakingPsbt = {
-  input: PreviousStakingUTXO;
+export type TBuildUPCUnstakingPsbt = {
+  inputs: PreviousStakingUTXO[];
   output: TxOutput;
   stakerPubkey: Uint8Array;
   protocolPubkey: Uint8Array;

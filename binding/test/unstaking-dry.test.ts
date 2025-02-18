@@ -8,7 +8,7 @@ import {
   getEstimatedFee,
   hexToBytes,
   sendrawtransaction,
-  TBuildUPCUntakingPsbt,
+  TBuildUPCUnstakingPsbt,
 } from "../src";
 import Client from "bitcoin-core-ts";
 
@@ -74,13 +74,15 @@ describe("Vault-Unstaking", () => {
       }
 
       // already calculated the fee in rust core
-      const params: TBuildUPCUntakingPsbt = {
-        input: {
-          txid,
-          vout: 0,
-          value: BigInt(Math.floor(tx.vout[0].value * 1e8)),
-          script_pubkey: scriptPubkeyOfLocking,
-        },
+      const params: TBuildUPCUnstakingPsbt = {
+        inputs: [
+          {
+            txid,
+            vout: 0,
+            value: BigInt(Math.floor(tx.vout[0].value * 1e8)),
+            script_pubkey: scriptPubkeyOfLocking,
+          },
+        ],
         output: {
           script: bitcoin.address.toOutputScript(
             testSuite.stakerAddress,

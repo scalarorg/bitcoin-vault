@@ -13,6 +13,7 @@ import {
 } from "../src";
 
 import * as ecc from "tiny-secp256k1";
+import { ECPairInterface } from "ecpair";
 
 // BTC_NODE_ADDRESS=localhost:48332
 // BTC_NODE_USER=scalar
@@ -48,6 +49,8 @@ const StaticEnvSchema = z.object({
   PROTOCOL_PRIVATE_KEY: z.string().min(10),
 });
 
+console.log("StaticEnvSchema", process.env);
+
 export const StaticEnv = StaticEnvSchema.parse({
   TAG: process.env.TAG,
   VERSION: Number(process.env.VERSION),
@@ -68,7 +71,22 @@ export const StaticEnv = StaticEnvSchema.parse({
   PROTOCOL_PRIVATE_KEY: process.env.PROTOCOL_PRIVATE_KEY,
 });
 
-export const setUpTest = async () => {
+export type TTestSuite = {
+  network: bitcoin.Network;
+  btcClient: Client;
+  vaultUtils: VaultUtils;
+  mempoolClient: ReturnType<typeof getMempoolClient>;
+  custodianPrivateKeys: string[];
+  custodialPubkeys: Uint8Array;
+  stakerAddress: string;
+  stakerWif: string;
+  stakerPubKey: Uint8Array;
+  stakerKeyPair: ECPairInterface;
+  protocolPubkey: Uint8Array;
+  protocolKeyPair: ECPairInterface;
+};
+
+export const setUpTest: () => Promise<TTestSuite> = async () => {
   console.log("StaticEnv", StaticEnv);
 
   console.log("init ECC lib");
@@ -133,6 +151,7 @@ export const setUpTest = async () => {
     btcClient,
     vaultUtils,
     mempoolClient: getMempoolClient(StaticEnv.NETWORK),
+    custodianPrivateKeys,
     custodialPubkeys: custodialPubkeysBuffer,
     stakerAddress: bondHolderAddress,
     stakerWif: bondHolderWif,
