@@ -313,8 +313,6 @@ impl TestSuite {
         let finalized_tx = psbt.extract_tx().unwrap();
         let tx_hex = bitcoin::consensus::serialize(&finalized_tx);
 
-        println!("TX_HEX: {:?}", tx_hex.to_lower_hex_string());
-
         // Add retry logic with backoff for mempool chain errors
         let mut retry_count = 0;
         const MAX_RETRIES: u32 = 5;
