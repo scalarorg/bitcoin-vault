@@ -78,7 +78,7 @@ mod test_upc {
 
     #[test]
     fn test_custodian_user() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 3000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 2000,
@@ -93,7 +93,7 @@ mod test_upc {
             &staking_tx,
             UnstakingType::CustodianUser,
             TEST_ACCOUNT.clone(),
-            1000,
+            2000,
         );
 
         // Sign with user key first

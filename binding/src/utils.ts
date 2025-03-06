@@ -5,13 +5,14 @@ import {
   P2TR_INPUT_SIZE,
   P2WPKH_INPUT_SIZE,
 } from "./constants";
-import {
-  AddressType,
+import type {
   InputByAddress,
   PsbtOutputExtended,
   TNetwork,
   UTXO,
 } from "./types";
+
+import { AddressType } from "./types";
 
 export const hexToBytes = (hex: string) => {
   return new Uint8Array(Buffer.from(hex, "hex"));
@@ -21,11 +22,15 @@ export const bytesToHex = (buffer: Uint8Array) => {
   return Buffer.from(buffer).toString("hex");
 };
 
+
+
+
 export const getStakingInputsAndFee = (params: {
   availableUTXOs: UTXO[];
   stakingAmount: number;
   nOutputs: number;
   feeRate: number;
+  addressType: AddressType;
 }): {
   selectedUTXOs: UTXO[];
   fee: number;
@@ -50,7 +55,8 @@ export const getStakingInputsAndFee = (params: {
     const currentFee = getEstimatedFee(
       params.feeRate,
       selectedUTXOs.length,
-      params.nOutputs
+      params.nOutputs,
+      params.addressType
     );
 
     // Check if we have enough to cover both staking amount and fees
@@ -70,9 +76,25 @@ export const getStakingInputsAndFee = (params: {
 export const getEstimatedFee = (
   feeRate: number,
   nInputs: number,
-  nOutputs: number
+  nOutputs: number,
+  addressType: AddressType = AddressType.P2PKH
 ) => {
-  return (11 + (68 + 112) * nInputs + 34 * nOutputs) * feeRate;
+  const buffer = 100;
+  let size = 0;
+  switch (addressType) {
+    case AddressType.P2TR:
+      size = (58 + buffer) * nInputs + 43 * nOutputs;
+      break;
+    case AddressType.P2WPKH:
+      size = (68 + buffer) * nInputs + 31 * nOutputs;
+      break;
+    case AddressType.P2PKH:
+      size = (140 + buffer) * nInputs + 34 * nOutputs;
+      break;
+    default:
+      size = (93 + buffer) * nInputs + 32 * nOutputs;
+  }
+  return (size + 10) * feeRate;
 };
 
 export const createStakingPsbt = (
@@ -83,7 +105,7 @@ export const createStakingPsbt = (
   amount: number,
   fee: number,
   changeAddress: string,
-  rbf: boolean = true
+  rbf = true
   //lockHeight: number,
 ) => {
   // Create a partially signed transaction
@@ -125,9 +147,9 @@ export const createStakingPsbt = (
 export const utxoToInput = (
   utxo: UTXO,
   inputByAddress: InputByAddress,
-  rbf: boolean = true
+  rbf = true
 ) => {
-  let baseInput = {
+  const baseInput = {
     hash: utxo.txid,
     index: utxo.vout,
     witnessUtxo: {
@@ -135,18 +157,18 @@ export const utxoToInput = (
       value: BigInt(utxo.value),
     },
   };
-  let input = inputByAddress.tapInternalKey
+  const input = inputByAddress.tapInternalKey
     ? { ...baseInput, tapInternalKey: inputByAddress.tapInternalKey }
     : inputByAddress.redeemScript
-    ? { ...baseInput, redeemScript: inputByAddress.redeemScript }
-    : baseInput;
+      ? { ...baseInput, redeemScript: inputByAddress.redeemScript }
+      : baseInput;
   return rbf ? { ...input, sequence: 0xfffffffd } : input;
 };
 
 export const decodeStakingOutput = (output_buffer: Uint8Array) => {
-  let len = output_buffer.length;
+  const len = output_buffer.length;
   let offset = 0;
-  let psbt_outputs: PsbtOutputExtended[] = [];
+  const psbt_outputs: PsbtOutputExtended[] = [];
   while (offset < len) {
     //Read first 2 bytes to get the length of the psbt output, this length does not include the 2 bytes for the length itself
     const psbt_output_length = new DataView(
@@ -172,17 +194,17 @@ export const prepareExtraInputByAddress = (
   publicKey: Uint8Array,
   network: bitcoinLib.Network
 ): InputByAddress => {
-  let decodeBase58;
-  let decodeBech32;
+  let decodeBase58: bitcoinLib.address.Base58CheckResult | undefined;
+  let decodeBech32: bitcoinLib.address.Bech32Result
   try {
     decodeBase58 = bitcoinLib.address.fromBase58Check(address);
   } catch (e) {
     try {
       decodeBech32 = bitcoinLib.address.fromBech32(address);
-    } catch (e) {}
+    } catch (e) { }
   }
-  let addressType = defineAddressType(address, network);
-  let outputScript;
+  const addressType = defineAddressType(address, network);
+  let outputScript: Uint8Array;
   let outputScriptSize = DEFAULT_INPUT_SIZE;
   //Address type
 
@@ -198,15 +220,15 @@ export const prepareExtraInputByAddress = (
   }
 
   //For P2TR address, we need to get tapInternalKey
-  let tapInternalKey;
+  let tapInternalKey: Uint8Array | undefined
   if (addressType === AddressType.P2TR) {
     // xonly public key
     tapInternalKey = publicKey.subarray(1, 33);
     outputScriptSize = P2TR_INPUT_SIZE;
   }
 
-  let redeemScript;
-  if (addressType == AddressType.P2WSH) {
+  let redeemScript: Uint8Array | undefined;
+  if (addressType === AddressType.P2WSH) {
     redeemScript = bitcoinLib.payments.p2wpkh({
       pubkey: publicKey,
     }).output;
@@ -226,19 +248,21 @@ export const defineAddressType = (
   network: bitcoinLib.Network
 ): AddressType => {
   try {
-    let decodeBase58 = bitcoinLib.address.fromBase58Check(address);
+    const decodeBase58 = bitcoinLib.address.fromBase58Check(address);
     if (decodeBase58.version === network.pubKeyHash) {
       return AddressType.P2PKH;
-    } else if (decodeBase58.version === network.scriptHash) {
+    }
+    if (decodeBase58.version === network.scriptHash) {
       return AddressType.P2SH;
     }
   } catch (e) {
     try {
-      let decodeBech32 = bitcoinLib.address.fromBech32(address);
+      const decodeBech32 = bitcoinLib.address.fromBech32(address);
       if (decodeBech32.version === 0) {
         if (decodeBech32.data.length === 20) {
           return AddressType.P2WPKH;
-        } else if (decodeBech32.data.length === 32) {
+        }
+        if (decodeBech32.data.length === 32) {
           return AddressType.P2WSH;
         }
       } else if (decodeBech32.version === 1) {
@@ -246,7 +270,7 @@ export const defineAddressType = (
           return AddressType.P2TR;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
   return AddressType.P2WPKH;
 };

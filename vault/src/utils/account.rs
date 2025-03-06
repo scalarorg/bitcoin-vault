@@ -53,8 +53,6 @@ impl AccountEnv {
 
         let account = AccountEnv::load_from_env();
 
-        println!("{:?}", account);
-
         if let Err(err) = account.validate() {
             panic!("Validation error: {:?}", err);
         }

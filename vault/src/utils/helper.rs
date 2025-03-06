@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
 use bitcoin::hex::DisplayHex;
-use bitcoin::Amount;
 use bitcoin::{
     address::NetworkChecked, key::Secp256k1, secp256k1::All, Address, NetworkKind, PrivateKey,
     PublicKey,
 };
+use bitcoin::{AddressType, Amount};
 
 use bitcoincore_rpc::json::{GetRawTransactionResult, ListUnspentQueryOptions};
 
@@ -93,12 +93,19 @@ pub fn get_approvable_utxos(
     })
 }
 
-// pub fn get_fee(n_outputs: u64) -> u64 {
-//     (148 + (34 * n_outputs) + 12) * get_fee_rate()
-// }
-
 pub fn get_fee_rate() -> u64 {
     1
+}
+
+pub fn get_basic_fee(i: u64, o: u64, rate: u64, address: AddressType) -> u64 {
+    const BUFFER: u64 = 100;
+    let size = match address {
+        AddressType::P2tr => (58 + BUFFER) * i + 43 * o,
+        AddressType::P2wpkh => (68 + BUFFER) * i + 31 * o,
+        AddressType::P2pkh => (140 + BUFFER) * i + 34 * o,
+        _ => (93 + BUFFER) * i + 32 * o,
+    };
+    (size + 10) * rate
 }
 
 pub fn log_tx_result(result: &GetRawTransactionResult) {

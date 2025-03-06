@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::core::fee::FeeParams;
+use crate::core::fee::UnstakingFeeParams;
 
 use super::{
     get_global_secp, manager, CoreError, CustodianOnlyUnstakingParams, DataScript, TaprootTree,
@@ -62,6 +62,7 @@ impl Unstaking for VaultManager {
             &upc_script,
             params.rbf,
             params.fee_rate,
+            params.custodian_quorum,
         )?;
 
         let mut psbt =
@@ -96,6 +97,7 @@ impl Unstaking for VaultManager {
             &custodian_only_script,
             params.rbf,
             params.fee_rate,
+            params.custodian_quorum,
         )?;
 
         let mut psbt =
@@ -291,6 +293,7 @@ impl VaultManager {
         script: &ScriptBuf,
         rbf: bool,
         fee_rate: u64,
+        custodian_quorum: u8,
     ) -> Result<Transaction, CoreError> {
         let mut tx_builder = UnstakingTransactionBuilder::new(rbf);
 
@@ -311,10 +314,11 @@ impl VaultManager {
 
         let mut unsigned_tx = tx_builder.build();
 
-        let fee = self.calculate_transaction_fee(FeeParams {
+        let fee = self.calculate_unstaking_fee(UnstakingFeeParams {
             n_inputs: unsigned_tx.input.len() as u64,
             n_outputs: unsigned_tx.output.len() as u64,
             fee_rate,
+            quorum: custodian_quorum,
         });
 
         self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;

@@ -43,3 +43,13 @@ pub const EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
 /// Total size of the embbeded data script for unstaking
 pub const UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE: usize =
     TAG_HASH_SIZE + VERSION_SIZE + NETWORK_ID_SIZE + FLAGS_SIZE + SERVICE_TAG_HASH_SIZE;
+
+/*
+    FEE CALCULATION
+*/
+
+pub const P2TR_INPUT_SIZE: u64 = 58; // 57.5
+pub const P2TR_OUTPUT_SIZE: u64 = 43;
+pub const P2TR_BUFFER_SIZE: u64 = 11; // 10.5
+pub const ESTIMATE_SIGNATURE_COST: u64 = 16;
+pub const ESTIMATE_ADDITIONAL_P2TR_SCRIPT_PATH_COST: u64 = 48;

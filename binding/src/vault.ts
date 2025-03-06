@@ -5,19 +5,21 @@ import {
 } from "@scalar-lab/bitcoin-wasm";
 import ECPairFactory from "ecpair";
 
-import * as bitcoinLib from "bitcoinjs-lib";
+import type * as bitcoinLib from "bitcoinjs-lib";
 import * as ecc from "tiny-secp256k1";
 
-import {
+import type {
   TBuildUPCStakingPsbt,
   TBuildCustodianOnlyStakingPsbt,
   TBuildUPCUnstakingPsbt,
   TNetwork,
+  AddressType,
 } from "./types";
 
 import {
   createStakingPsbt,
   decodeStakingOutput,
+  defineAddressType,
   getNetwork,
   getStakingInputsAndFee,
   hexToBytes,
@@ -94,11 +96,14 @@ export class VaultUtils {
 
     const psbtOutputs = decodeStakingOutput(outputBuf);
 
+    const addressType = defineAddressType(params.stakerAddress, this.network);
+
     const result = getStakingInputsAndFee({
       availableUTXOs: params.availableUTXOs,
       stakingAmount: Number(params.stakingAmount),
       nOutputs: psbtOutputs.length,
       feeRate: params.feeRate,
+      addressType
     });
 
     const { selectedUTXOs, fee } = result;
@@ -177,11 +182,14 @@ export class VaultUtils {
 
     const psbtOutputs = decodeStakingOutput(outputBuf);
 
+    const addressType = defineAddressType(params.stakerAddress, this.network);
+
     const result = getStakingInputsAndFee({
       availableUTXOs: params.availableUTXOs,
       stakingAmount: Number(params.stakingAmount),
       nOutputs: psbtOutputs.length,
       feeRate: params.feeRate,
+      addressType
     });
 
     const { selectedUTXOs, fee } = result;

@@ -63,8 +63,6 @@ impl DestinationInfoEnv {
 
         let destination_info = DestinationInfoEnv::load_from_env();
 
-        println!("{:?}", destination_info);
-
         if let Err(err) = destination_info.validate() {
             panic!("Validation error: {:?}", err);
         }

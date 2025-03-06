@@ -1,11 +1,13 @@
+import type { PsbtOutput } from "bip174";
+
 export type TNetwork = "bitcoin" | "testnet" | "testnet4" | "regtest";
 
 export enum AddressType {
-  P2PKH, //decodeBase58, version = pubKeyHash
-  P2SH, //decodeBase58, version = scriptHash
-  P2WPKH, //decodeBech32, version = 0, data.length = 20
-  P2WSH, //decodeBech32, version = 0, data.length = 32
-  P2TR, //decodeBech32, version = 1, data.length = 32
+  P2PKH = 0, //decodeBase58, version = pubKeyHash
+  P2SH = 1, //decodeBase58, version = scriptHash
+  P2WPKH = 2, //decodeBech32, version = 0, data.length = 20
+  P2WSH = 3, //decodeBech32, version = 0, data.length = 32
+  P2TR = 4, //decodeBech32, version = 1, data.length = 32
 }
 
 export type InputByAddress = {
@@ -16,7 +18,6 @@ export type InputByAddress = {
   redeemScript?: Uint8Array;
 };
 
-import { PsbtOutput } from "bip174";
 
 export type PsbtOutputExtended =
   | PsbtOutputExtendedAddress

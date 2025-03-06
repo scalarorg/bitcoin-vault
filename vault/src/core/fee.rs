@@ -1,20 +1,26 @@
 use bitcoin::{Amount, Transaction};
 
-use super::{CoreError, VaultManager};
+use super::{
+    CoreError, VaultManager, ESTIMATE_ADDITIONAL_P2TR_SCRIPT_PATH_COST, ESTIMATE_SIGNATURE_COST,
+    P2TR_BUFFER_SIZE, P2TR_INPUT_SIZE, P2TR_OUTPUT_SIZE,
+};
 
-pub struct FeeParams {
+#[derive(Debug)]
+pub struct UnstakingFeeParams {
     pub n_inputs: u64,
     pub n_outputs: u64,
+    pub quorum: u8,
     pub fee_rate: u64,
 }
 
 impl VaultManager {
-    pub fn get_fee(params: FeeParams) -> u64 {
-        (11 + (68 + 112) * params.n_inputs + 34 * params.n_outputs) * params.fee_rate
-    }
-
-    pub fn calculate_transaction_fee(&self, params: FeeParams) -> Amount {
-        bitcoin::Amount::from_sat(VaultManager::get_fee(params))
+    pub fn calculate_unstaking_fee(&self, params: UnstakingFeeParams) -> Amount {
+        let witness_cost = ESTIMATE_SIGNATURE_COST * params.quorum as u64
+            + ESTIMATE_ADDITIONAL_P2TR_SCRIPT_PATH_COST;
+        let inputs_cost = (P2TR_INPUT_SIZE + witness_cost) * params.n_inputs;
+        let outputs_cost = P2TR_OUTPUT_SIZE * params.n_outputs;
+        let fee = (P2TR_BUFFER_SIZE + inputs_cost + outputs_cost) * params.fee_rate;
+        bitcoin::Amount::from_sat(fee as u64)
     }
 
     pub fn distribute_fee(
@@ -51,3 +57,15 @@ impl VaultManager {
         Ok(())
     }
 }
+
+// let base_size = 11 + 34 * params.n_outputs; // Base tx size
+//     let witness_size_per_sig = 72; // Estimated per-signature witness size
+//     let max_signatures = 5; // Assume worst case
+
+//     let base_input_size = 68; // Base input size without witness
+//     let witness_overhead = 2; // Taproot witness overhead
+//     let total_witness_size = witness_overhead + (witness_size_per_sig * max_signatures);
+
+//     let total_input_size = params.n_inputs * (base_input_size + total_witness_size);
+
+//     (base_size + total_input_size) * params.fee_rate

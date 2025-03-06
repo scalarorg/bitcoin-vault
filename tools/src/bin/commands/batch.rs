@@ -13,8 +13,8 @@ use clap::{Parser, Subcommand};
 use rust_mempool::MempoolClient;
 use serde::{Deserialize, Serialize};
 use vault::{
-    get_fee_rate, get_network_from_str, log_tx_result, Env, FeeParams, NeededUtxo, Signing,
-    TaprootTreeType, TestSuite, VaultManager,
+    get_fee_rate, get_network_from_str, log_tx_result, Env, NeededUtxo, Signing, TaprootTreeType,
+    TestSuite, UnstakingFeeParams, VaultManager,
 };
 
 use crate::{
@@ -183,7 +183,7 @@ impl BatchCommand {
         let fee = tvl_maker
             .suite
             .manager()
-            .calculate_transaction_fee(FeeParams {
+            .calculate_unstaking_fee(UnstakingFeeParams {
                 n_inputs: unsigned_tx.input.len() as u64,
                 n_outputs: unsigned_tx.output.len() as u64,
                 fee_rate: get_fee_rate(),

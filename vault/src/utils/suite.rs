@@ -1,5 +1,5 @@
 use crate::{
-    log_tx_result, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams, FeeParams,
+    get_basic_fee, log_tx_result, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams,
     PreviousStakingUTXO, Signing, Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams,
     Unstaking, UnstakingOutput, UnstakingType, VaultManager,
 };
@@ -178,11 +178,14 @@ impl TestSuite {
             output: outputs,
         };
 
-        let fee = self.manager.calculate_transaction_fee(FeeParams {
-            n_inputs: unsigned_tx.input.len() as u64,
-            n_outputs: unsigned_tx.output.len() as u64,
-            fee_rate: get_fee_rate(),
-        });
+        let address_type = account.address().address_type().unwrap();
+
+        let fee = get_basic_fee(
+            unsigned_tx.input.len() as u64,
+            unsigned_tx.output.len() as u64,
+            get_fee_rate(),
+            address_type,
+        );
 
         println!("Staking Fee: {:?}", fee);
 
@@ -192,7 +195,7 @@ impl TestSuite {
             .map(|o| o.value.to_sat())
             .sum::<u64>();
 
-        let change = utxo.amount - Amount::from_sat(total_output_value) - fee;
+        let change = utxo.amount - Amount::from_sat(total_output_value) - Amount::from_sat(fee);
 
         if change > Amount::ZERO {
             unsigned_tx.output.push(TxOut {
@@ -312,6 +315,7 @@ impl TestSuite {
     pub fn send_psbt(rpc: &Client, psbt: Psbt) -> Option<GetRawTransactionResult> {
         let finalized_tx = psbt.extract_tx().unwrap();
         let tx_hex = bitcoin::consensus::serialize(&finalized_tx);
+        println!("TX HEX: {:?}", tx_hex.to_lower_hex_string());
 
         // Add retry logic with backoff for mempool chain errors
         let mut retry_count = 0;
