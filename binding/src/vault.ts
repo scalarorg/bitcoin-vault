@@ -13,7 +13,6 @@ import type {
   TBuildCustodianOnlyStakingPsbt,
   TBuildUPCUnstakingPsbt,
   TNetwork,
-  AddressType,
 } from "./types";
 
 import {

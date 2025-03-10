@@ -22,9 +22,6 @@ export const bytesToHex = (buffer: Uint8Array) => {
   return Buffer.from(buffer).toString("hex");
 };
 
-
-
-
 export const getStakingInputsAndFee = (params: {
   availableUTXOs: UTXO[];
   stakingAmount: number;

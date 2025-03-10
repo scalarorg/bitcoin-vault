@@ -1,5 +1,5 @@
 [workspace]
-members = ["vault", "wasm", "ffi", "tools", "macros"]
+members = ["vault", "wasm", "ffi", "macros"]
 resolver = "2"
 
 [profile.release]
