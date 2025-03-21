@@ -1,8 +1,8 @@
 use crate::{
     DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, TaprootTreeType,
     UnstakingTaprootTreeType, CUSTODIAN_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
-    DEST_TOKEN_ADDRESS_SIZE, FLAGS_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
-    VERSION_SIZE,
+    DEST_TOKEN_ADDRESS_SIZE, FLAGS_SIZE, HASH_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE,
+    TAG_HASH_SIZE, VERSION_SIZE,
 };
 use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
 use log::debug;
@@ -49,6 +49,8 @@ pub struct VaultReturnTxOutput {
     pub destination_chain: DestinationChain,
     pub destination_token_address: DestinationTokenAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
+    pub session_sequence: u64,
+    pub custodian_group_uid: [u8; HASH_SIZE],
 }
 
 fn read_bytes(bytes: &[u8], cursor: &mut usize, len: usize) -> Result<Vec<u8>, ParserError> {
@@ -89,7 +91,24 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         let flags = read_bytes(bytes, &mut cursor, FLAGS_SIZE)?[0];
 
         match UnstakingTaprootTreeType::try_from(flags) {
-            Ok(UnstakingTaprootTreeType::CustodianOnly | UnstakingTaprootTreeType::UPCBranch) => {
+            Ok(UnstakingTaprootTreeType::CustodianOnly) => {
+                let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
+                let session_sequence = read_bytes(bytes, &mut cursor, 4)?;
+                let session_sequence = u64::from_be_bytes(session_sequence.try_into().unwrap());
+                let custodian_group_uid = read_bytes(bytes, &mut cursor, HASH_SIZE)?;
+                Ok(VaultReturnTxOutput {
+                    tag: tag.try_into().unwrap(),
+                    version,
+                    network_id,
+                    flags,
+                    service_tag: service_tag.try_into().unwrap(),
+                    transaction_type: VaultReturnTxOutputType::Unstaking,
+                    session_sequence,
+                    custodian_group_uid: custodian_group_uid.try_into().unwrap(),
+                    ..Default::default()
+                })
+            }
+            Ok(UnstakingTaprootTreeType::UPCBranch) => {
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
                 Ok(VaultReturnTxOutput {
                     tag: tag.try_into().unwrap(),
@@ -155,6 +174,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     destination_chain,
                     destination_token_address,
                     destination_recipient_address,
+                    ..Default::default()
                 })
             }
         }

@@ -1,6 +1,10 @@
 /**
  * Please refer to [OP_RETURN](../docs/op_return.md) for more details.
  */
+/// Size of the hash size in bytes
+pub const HASH_SIZE: usize = 32;
+/// Size of the evm address in bytes
+pub const EVM_ADDRESS_SIZE: usize = 20;
 
 /// Size of the tag hash in bytes
 pub const TAG_HASH_SIZE: usize = 6;
