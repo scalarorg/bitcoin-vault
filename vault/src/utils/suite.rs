@@ -1,7 +1,7 @@
 use crate::{
     get_basic_fee, log_tx_result, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams,
     PreviousStakingUTXO, Signing, Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams,
-    Unstaking, UnstakingOutput, UnstakingType, VaultManager,
+    Unstaking, UnstakingOutput, UnstakingType, VaultManager, HASH_SIZE,
 };
 use bitcoin::bip32::DerivationPath;
 use bitcoin::hex::DisplayHex;
@@ -303,6 +303,8 @@ impl TestSuite {
                 custodian_quorum: self.env.custodian_quorum,
                 fee_rate: get_fee_rate(),
                 rbf: true,
+                session_sequence: 0,
+                custodian_group_uid: [0u8; HASH_SIZE],
             },
         )
         .unwrap()

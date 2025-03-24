@@ -3,6 +3,8 @@
  */
 /// Size of the hash size in bytes
 pub const HASH_SIZE: usize = 32;
+
+pub const SEQUENCE_SIZE: usize = 8;
 /// Size of the evm address in bytes
 pub const EVM_ADDRESS_SIZE: usize = 20;
 
@@ -45,8 +47,13 @@ pub const EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
     + DEST_RECIPIENT_ADDRESS_SIZE;
 
 /// Total size of the embbeded data script for unstaking
-pub const UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE: usize =
-    TAG_HASH_SIZE + VERSION_SIZE + NETWORK_ID_SIZE + FLAGS_SIZE + SERVICE_TAG_HASH_SIZE;
+pub const UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
+    + VERSION_SIZE
+    + NETWORK_ID_SIZE
+    + FLAGS_SIZE
+    + SERVICE_TAG_HASH_SIZE
+    + SEQUENCE_SIZE
+    + HASH_SIZE;
 
 /*
     FEE CALCULATION
