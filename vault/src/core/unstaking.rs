@@ -5,7 +5,7 @@ use crate::core::fee::UnstakingFeeParams;
 use super::{
     get_global_secp, manager, CoreError, CustodianOnlyUnstakingParams, DataScript, TaprootTree,
     UPCTaprootTreeParams, UPCUnstakingParams, Unstaking, UnstakingDataScriptParams,
-    UnstakingOutput, UnstakingTaprootTreeType, VaultManager, XOnlyKeys,
+    UnstakingOutput, UnstakingTaprootTreeType, VaultManager, XOnlyKeys, HASH_SIZE,
 };
 
 use super::PreviousStakingUTXO;
@@ -63,6 +63,8 @@ impl Unstaking for VaultManager {
             params.rbf,
             params.fee_rate,
             params.custodian_quorum,
+            0,
+            [0u8; HASH_SIZE],
         )?;
 
         let mut psbt =
@@ -98,6 +100,8 @@ impl Unstaking for VaultManager {
             params.rbf,
             params.fee_rate,
             params.custodian_quorum,
+            params.session_sequence,
+            params.custodian_group_uid,
         )?;
 
         let mut psbt =
@@ -222,8 +226,11 @@ impl VaultManager {
         &self,
         tx_builder: &mut UnstakingTransactionBuilder,
         flags: UnstakingTaprootTreeType,
+        session_sequence: u64,
+        custodian_group_uid: [u8; HASH_SIZE],
     ) -> Result<(), CoreError> {
-        let indexed_output = self.create_indexed_output(flags)?;
+        let indexed_output =
+            self.create_indexed_output(flags, session_sequence, &custodian_group_uid)?;
 
         tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
 
@@ -233,6 +240,8 @@ impl VaultManager {
     fn create_indexed_output(
         &self,
         flags: UnstakingTaprootTreeType,
+        session_sequence: u64,
+        custodian_group_uid: &[u8; HASH_SIZE],
     ) -> Result<UnstakingOutput, CoreError> {
         let unstaking_script = DataScript::new_unstaking(&UnstakingDataScriptParams {
             tag: self.tag(),
@@ -240,6 +249,8 @@ impl VaultManager {
             network_id: self.network_id(),
             service_tag: self.service_tag(),
             flags,
+            session_sequence,
+            custodian_group_uid,
         })?;
         Ok(UnstakingOutput {
             amount_in_sats: Amount::ZERO,
@@ -294,16 +305,23 @@ impl VaultManager {
         rbf: bool,
         fee_rate: u64,
         custodian_quorum: u8,
+        session_sequence: u64,
+        custodian_group_uid: [u8; HASH_SIZE],
     ) -> Result<Transaction, CoreError> {
         let mut tx_builder = UnstakingTransactionBuilder::new(rbf);
 
         self.add_inputs_to_builder(&mut tx_builder, inputs);
 
-        // output[0]: indexed output
+        // output[0]: indexed output (op_return)
         // output[1->n-2]: unstaking outputs
         // output[n-1]: change output
 
-        self.add_indexed_output_to_builder(&mut tx_builder, tree_type)?;
+        self.add_indexed_output_to_builder(
+            &mut tx_builder,
+            tree_type,
+            session_sequence,
+            custodian_group_uid,
+        )?;
 
         self.add_outputs_to_builder(&mut tx_builder, unstaking_outputs);
 

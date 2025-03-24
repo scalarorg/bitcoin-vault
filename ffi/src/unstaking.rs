@@ -1,12 +1,15 @@
 use std::slice;
 
 use bitcoin::PublicKey;
-use vault::{CustodianOnlyUnstakingParams, PreviousStakingUTXO, UnstakingOutput, VaultManager};
+use vault::{
+    CustodianOnlyUnstakingParams, PreviousStakingUTXO, UnstakingOutput, VaultManager, HASH_SIZE,
+};
 
 use vault::Unstaking;
 
 use crate::{
-    create_null_buffer, ByteBuffer, PreviousStakingUTXOFFI, PublicKeyFFI, UnstakingOutputFFI,
+    create_null_buffer, ByteBuffer, PoolingRedeemParams, PreviousStakingUTXOFFI, PublicKeyFFI,
+    UnstakingOutputFFI,
 };
 
 /// # Safety
@@ -65,6 +68,8 @@ pub unsafe extern "C" fn build_custodian_only(
         custodian_quorum,
         rbf,
         fee_rate,
+        session_sequence: 0,
+        custodian_group_uid: [0u8; HASH_SIZE],
     };
 
     // Create a VaultManager instance
@@ -84,6 +89,70 @@ pub unsafe extern "C" fn build_custodian_only(
             };
             std::mem::forget(output); // Prevent deallocation
             buffer
+        }
+        Err(_) => create_null_buffer(),
+    }
+}
+
+/// # Safety
+///
+/// This function is unsafe because it uses raw pointers and assumes that the caller has
+/// provided valid pointers and lengths for the inputs and outputs.
+/// Rewrite build_custodian_only for simplicity
+#[no_mangle]
+pub unsafe extern "C" fn build_pooling_redeem_tx(buffer: *const u8, len: usize) -> ByteBuffer {
+    // Safety checks for null pointers
+    if buffer.is_null() {
+        return create_null_buffer();
+    }
+    // Create parameters for the unstaking function
+    match PoolingRedeemParams::from_buffer(buffer, len) {
+        Ok(params) => {
+            let PoolingRedeemParams {
+                tag,
+                service_tag,
+                version,
+                network_id,
+                inputs,
+                outputs,
+                custodian_pub_keys,
+                custodian_quorum,
+                rbf,
+                fee_rate,
+                session_sequence,
+                custodian_group_uid,
+            } = params;
+            // Create a VaultManager instance
+            let vault_manager =
+                VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_id);
+
+            // Create parameters for the unstaking function
+            let params = CustodianOnlyUnstakingParams {
+                inputs,
+                unstaking_outputs: outputs,
+                custodian_pub_keys,
+                custodian_quorum,
+                rbf,
+                fee_rate,
+                session_sequence,
+                custodian_group_uid: custodian_group_uid.try_into().unwrap(),
+            };
+            // Call the build_custodian_only function
+            match vault_manager.build_custodian_only(&params) {
+                Ok(psbt) => {
+                    // Serialize the PSBT and return it as a ByteBuffer
+                    let psbt_bytes = psbt.serialize();
+                    let mut output = Vec::with_capacity(psbt_bytes.len());
+                    output.extend_from_slice(&psbt_bytes);
+                    let buffer = ByteBuffer {
+                        data: output.as_mut_ptr(),
+                        len: output.len(),
+                    };
+                    std::mem::forget(output); // Prevent deallocation
+                    buffer
+                }
+                Err(_) => create_null_buffer(),
+            }
         }
         Err(_) => create_null_buffer(),
     }

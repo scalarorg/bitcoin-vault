@@ -1,6 +1,11 @@
 package types
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/binary"
+	"encoding/json"
+	fmt "fmt"
+)
 
 // signing
 
@@ -55,13 +60,48 @@ type PreviousStakingUTXO struct {
 	Script   ScriptBuf
 }
 
+func (p *PreviousStakingUTXO) MarshalBinary() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.OutPoint.Txid[:])
+	binary.Write(&buf, binary.BigEndian, p.OutPoint.Vout)
+	binary.Write(&buf, binary.BigEndian, p.Amount)
+	buf.Write(p.Script)
+	return buf.Bytes()
+}
+
+func (p *PreviousStakingUTXO) UnmarshalBinary(data []byte) error {
+	if len(data) < 44 {
+		return fmt.Errorf("data is too short to unmarshal PreviousStakingUTXO")
+	}
+	copy(p.OutPoint.Txid[:], data[:32])
+	p.OutPoint.Vout = binary.BigEndian.Uint32(data[32:36])
+	p.Amount = binary.BigEndian.Uint64(data[36 : 36+8])
+	p.Script = data[44:]
+	return nil
+}
+
 type UnstakingOutput struct {
 	LockingScript ScriptBuf
 	Amount        uint64
 }
 
-// parsing
+func (u *UnstakingOutput) MarshalBinary() []byte {
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, u.Amount)
+	buf.Write(u.LockingScript)
+	return buf.Bytes()
+}
 
+func (u *UnstakingOutput) UnmarshalBinary(data []byte) error {
+	if len(data) < 8 {
+		return fmt.Errorf("data is too short to unmarshal UnstakingOutput")
+	}
+	u.Amount = binary.BigEndian.Uint64(data[:8])
+	u.LockingScript = data[8:]
+	return nil
+}
+
+// parsing
 type TransactionType string
 
 const (
@@ -98,4 +138,6 @@ type VaultReturnTxOutput struct {
 	DestinationChain            []byte          `json:"destination_chain"`
 	DestinationTokenAddress     []byte          `json:"destination_token_address"`
 	DestinationRecipientAddress []byte          `json:"destination_recipient_address"`
+	SessionSequence             uint64          `json:"session_sequence"`
+	CustodianGroupUID           []byte          `json:"custodian_group_uid"`
 }

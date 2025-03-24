@@ -3,7 +3,7 @@ use validator::Validate;
 
 use super::{
     CoreError, DestinationChain, DestinationRecipientAddress, DestinationTokenAddress,
-    PreviousStakingUTXO, UnstakingOutput,
+    PreviousStakingUTXO, UnstakingOutput, HASH_SIZE,
 };
 
 // TODO: Add validate for params
@@ -80,6 +80,8 @@ pub struct CustodianOnlyUnstakingParams {
     pub custodian_quorum: u8,
     pub rbf: bool,
     pub fee_rate: u64,
+    pub session_sequence: u64,
+    pub custodian_group_uid: [u8; HASH_SIZE],
 }
 
 impl CustodianOnlyUnstakingParams {

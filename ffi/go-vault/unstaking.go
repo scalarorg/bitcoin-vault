@@ -52,10 +52,17 @@ ByteBuffer build_custodian_only(
   uint64_t fee_rate
 );
 
+ByteBuffer build_pooling_redeem_tx(
+  const uint8_t* buffer,
+  size_t len
+);
+
 void free_byte_buffer(ByteBuffer buffer);
 */
 import "C"
 import (
+	"bytes"
+	"encoding/binary"
 	"unsafe"
 
 	"github.com/scalarorg/bitcoin-vault/go-utils/types"
@@ -138,6 +145,73 @@ func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8,
 		C.uint8_t(custodianQuorum),
 		C.bool(rbf),
 		C.uint64_t(feeRate),
+	)
+	defer C.free_byte_buffer(result)
+
+	if result.data == nil || result.len == 0 {
+		return nil, ErrFailedToBuildCustodianOnlyUnstakingTx
+	}
+
+	return C.GoBytes(unsafe.Pointer(result.data), C.int(result.len)), nil
+}
+
+func BuildPoolingRedeemTx(tag []byte,
+	serviceTag []byte,
+	version uint8,
+	network types.NetworkKind,
+	inputs []types.PreviousStakingUTXO,
+	outputs []types.UnstakingOutput,
+	custodianPubKeys []types.PublicKey,
+	custodianQuorum uint8,
+	rbf bool,
+	feeRate uint64,
+	sessionSequence uint64,
+	custodianGroupUID []byte,
+) ([]byte, error) {
+	if !network.Valid() {
+		return nil, ErrInvalidNetwork
+	}
+	buffer := bytes.Buffer{}
+	buffer.Write(tag)
+	buffer.Write(serviceTag)
+	buffer.WriteByte(version)
+	buffer.WriteByte(uint8(network))
+	//Inputs
+	binary.Write(&buffer, binary.BigEndian, uint32(len(inputs)))
+	for _, input := range inputs {
+		data := input.MarshalBinary()
+		binary.Write(&buffer, binary.BigEndian, uint32(len(data)))
+		buffer.Write(data)
+	}
+	//Outputs
+	binary.Write(&buffer, binary.BigEndian, uint32(len(outputs)))
+	for _, output := range outputs {
+		data := output.MarshalBinary()
+		binary.Write(&buffer, binary.BigEndian, uint32(len(data)))
+		buffer.Write(data)
+	}
+	//Custodian pub keys
+	binary.Write(&buffer, binary.BigEndian, uint32(len(custodianPubKeys)))
+	for _, pubKey := range custodianPubKeys {
+		buffer.Write(pubKey[:])
+	}
+	//Custodian quorum
+	buffer.WriteByte(custodianQuorum)
+	//RBF
+	if rbf {
+		buffer.WriteByte(1)
+	} else {
+		buffer.WriteByte(0)
+	}
+	binary.Write(&buffer, binary.BigEndian, feeRate)
+	binary.Write(&buffer, binary.BigEndian, sessionSequence)
+	//Custodian group UID
+	buffer.Write(custodianGroupUID)
+
+	data := buffer.Bytes()
+	result := C.build_pooling_redeem_tx(
+		(*C.uint8_t)(unsafe.Pointer(&data[0])),
+		C.size_t(len(data)),
 	)
 	defer C.free_byte_buffer(result)
 

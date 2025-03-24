@@ -9,8 +9,8 @@ use bitcoin::{
 
 use super::{
     CoreError, DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, TaprootTree,
-    UPCTaprootTreeParams, EMBEDDED_DATA_SCRIPT_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
-    UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE,
+    UPCTaprootTreeParams, EMBEDDED_DATA_SCRIPT_SIZE, HASH_SIZE, SERVICE_TAG_HASH_SIZE,
+    TAG_HASH_SIZE, UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE,
 };
 
 #[derive(Debug)]
@@ -110,6 +110,8 @@ pub struct UnstakingDataScriptParams<'a> {
     pub network_id: u8,
     pub service_tag: &'a Vec<u8>,
     pub flags: UnstakingTaprootTreeType,
+    pub session_sequence: u64,
+    pub custodian_group_uid: &'a [u8; HASH_SIZE],
 }
 
 #[derive(Debug)]
@@ -238,6 +240,8 @@ impl DataScript {
         data.push(params.network_id);
         data.push(params.flags as u8);
         data.extend_from_slice(&service_tag_hash);
+        data.extend_from_slice(&params.session_sequence.to_be_bytes());
+        data.extend_from_slice(params.custodian_group_uid);
         let data_slice: &[u8; UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE] = data
             .as_slice()
             .try_into()
