@@ -82,7 +82,7 @@ vault/
 - Please fill into `vault/.env.test` file, check `vault/.env.example` for more details
 - Navigate to `test` directory and run each test case only with commented script at the beginning of the file
 
-Eg: `cargo test --package bitcoin-vault --test mod -- test_e2e::test_staking --exact --show-output`
+Eg: `cargo test --package vault --test mod -- test_e2e::test_staking --exact --show-output`
 
 ### 🌟 WebAssembly Module (wasm)
 

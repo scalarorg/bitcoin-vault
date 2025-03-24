@@ -10,5 +10,5 @@ else
 endif
 
 lib:
-	RUST_BACKTRACE=1 RUST_LOG=debug cargo build --package bitcoin-vault && \
-	RUST_BACKTRACE=1 RUST_LOG=debug cargo test --package bitcoin-vault --lib -- tests --show-output --nocapture
+	RUST_BACKTRACE=1 RUST_LOG=debug cargo build --package vault && \
+	RUST_BACKTRACE=1 RUST_LOG=debug cargo test --package vault --lib -- tests --show-output --nocapture
