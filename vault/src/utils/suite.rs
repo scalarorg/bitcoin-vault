@@ -3,6 +3,7 @@ use crate::{
     PreviousStakingUTXO, Signing, Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams,
     Unstaking, UnstakingOutput, UnstakingType, VaultManager, HASH_SIZE,
 };
+use anyhow::{anyhow, Result};
 use bitcoin::bip32::DerivationPath;
 use bitcoin::hex::DisplayHex;
 use bitcoin::key::rand;
@@ -13,6 +14,7 @@ use bitcoin::{
 };
 use bitcoin::{AddressType, Amount, OutPoint};
 use bitcoincore_rpc::json::GetRawTransactionResult;
+use log::info;
 
 use std::collections::BTreeMap;
 
@@ -130,8 +132,8 @@ impl TestSuite {
         taproot_tree_type: TaprootTreeType,
         account: SuiteAccount,
         dest: DestinationInfo,
-        utxo: NeededUtxo,
-    ) -> Result<Transaction, String> {
+        utxos: Vec<NeededUtxo>,
+    ) -> Result<Transaction, anyhow::Error> {
         let outputs: Vec<TxOut> = match taproot_tree_type {
             TaprootTreeType::OnlyKeys => {
                 panic!("not implemented");
@@ -147,7 +149,7 @@ impl TestSuite {
                     destination_recipient_address: dest.destination_recipient_address,
                 },
             )
-            .map_err(|e| e.to_string())?
+            .map_err(|e| anyhow!(e))?
             .into_tx_outs(),
             TaprootTreeType::UPCBranch => <VaultManager as Staking>::build_upc(
                 &self.manager,
@@ -162,19 +164,22 @@ impl TestSuite {
                     destination_recipient_address: dest.destination_recipient_address,
                 },
             )
-            .map_err(|e| e.to_string())?
+            .map_err(|e| anyhow!(e))?
             .into_tx_outs(),
         };
 
         let mut unsigned_tx = Transaction {
             version: transaction::Version::TWO,
             lock_time: absolute::LockTime::ZERO,
-            input: vec![TxIn {
-                previous_output: OutPoint::new(utxo.txid, utxo.vout),
-                script_sig: ScriptBuf::default(),
-                sequence: Sequence::MAX,
-                witness: Witness::new(),
-            }],
+            input: utxos
+                .iter()
+                .map(|utxo| TxIn {
+                    previous_output: OutPoint::new(utxo.txid, utxo.vout),
+                    script_sig: ScriptBuf::default(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::new(),
+                })
+                .collect(),
             output: outputs,
         };
 
@@ -187,15 +192,21 @@ impl TestSuite {
             address_type,
         );
 
-        println!("Staking Fee: {:?}", fee);
+        info!("Staking Fee: {:?}", fee);
 
         let total_output_value = unsigned_tx
             .output
             .iter()
             .map(|o| o.value.to_sat())
             .sum::<u64>();
+        let total_input_amount = utxos
+            .iter()
+            .map(|utxo| utxo.amount)
+            .reduce(|a, b| a + b)
+            .unwrap_or_default();
 
-        let change = utxo.amount - Amount::from_sat(total_output_value) - Amount::from_sat(fee);
+        let change =
+            total_input_amount - Amount::from_sat(total_output_value) - Amount::from_sat(fee);
 
         if change > Amount::ZERO {
             unsigned_tx.output.push(TxOut {
@@ -204,31 +215,34 @@ impl TestSuite {
             });
         }
 
-        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).map_err(|e| e.to_string())?;
-
-        psbt.inputs[0] = Input {
-            witness_utxo: Some(TxOut {
-                value: utxo.amount,
-                script_pubkey: account.address().script_pubkey(),
-            }),
-
-            // TODO: fix this, taproot address: leaf hash, no key origin
-            // TODO: fix this, segwit address: no leaf hash, key origin
-            tap_internal_key: match account.address().address_type() {
-                Some(AddressType::P2tr) => Some(account.public_key().inner.x_only_public_key().0),
-                _ => None,
-            },
-            tap_key_origins: {
-                let mut map = BTreeMap::new();
-                // Note: no need leaf hash when staking
-                map.insert(
-                    account.public_key().inner.x_only_public_key().0,
-                    (vec![], ([0u8; 4].into(), DerivationPath::default())),
-                );
-                map
-            },
-            ..Default::default()
-        };
+        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).map_err(|e| anyhow!(e))?;
+        for (i, utxo) in utxos.iter().enumerate() {
+            psbt.inputs[i] = Input {
+                witness_utxo: Some(TxOut {
+                    value: utxo.amount,
+                    script_pubkey: account.address().script_pubkey(),
+                }),
+                // TODO: fix this, taproot address: leaf hash, no key origin
+                // TODO: fix this, taproot address: leaf hash, no key origin
+                // TODO: fix this, segwit address: no leaf hash, key origin
+                tap_internal_key: match account.address().address_type() {
+                    Some(AddressType::P2tr) => {
+                        Some(account.public_key().inner.x_only_public_key().0)
+                    }
+                    _ => None,
+                },
+                tap_key_origins: {
+                    let mut map = BTreeMap::new();
+                    // Note: no need leaf hash when staking
+                    map.insert(
+                        account.public_key().inner.x_only_public_key().0,
+                        (vec![], ([0u8; 4].into(), DerivationPath::default())),
+                    );
+                    map
+                },
+                ..Default::default()
+            };
+        }
 
         <VaultManager as Signing>::sign_psbt_by_single_key(
             &mut psbt,
@@ -236,18 +250,22 @@ impl TestSuite {
             self.network_id,
             true,
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| anyhow!(e))?;
 
-        let result = Self::send_psbt(&self.rpc, psbt).ok_or("Failed to send PSBT")?;
+        match Self::send_psbt(&self.rpc, psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+                let staking_tx_hex = result.hex;
 
-        log_tx_result(&result);
-
-        let staking_tx_hex = result.hex;
-
-        let staking_tx: Transaction =
-            bitcoin::consensus::deserialize(&staking_tx_hex).map_err(|e| e.to_string())?;
-
-        Ok(staking_tx)
+                return bitcoin::consensus::deserialize(&staking_tx_hex).map_err(|e| anyhow!(e));
+            }
+            Ok(None) => {
+                return Err(anyhow!("Failed to send PSBT"));
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
     }
 
     pub fn build_upc_unstaking_tx(
@@ -310,15 +328,19 @@ impl TestSuite {
         .unwrap()
     }
 
-    pub fn send_psbt_by_rpc(&self, psbt: Psbt) -> Option<GetRawTransactionResult> {
+    pub fn send_psbt_by_rpc(
+        &self,
+        psbt: Psbt,
+    ) -> Result<Option<GetRawTransactionResult>, anyhow::Error> {
         Self::send_psbt(&self.rpc, psbt)
     }
 
-    pub fn send_psbt(rpc: &Client, psbt: Psbt) -> Option<GetRawTransactionResult> {
+    pub fn send_psbt(
+        rpc: &Client,
+        psbt: Psbt,
+    ) -> Result<Option<GetRawTransactionResult>, anyhow::Error> {
         let finalized_tx = psbt.extract_tx().unwrap();
         let tx_hex = bitcoin::consensus::serialize(&finalized_tx);
-        println!("TX HEX: {:?}", tx_hex.to_lower_hex_string());
-
         // Add retry logic with backoff for mempool chain errors
         let mut retry_count = 0;
         const MAX_RETRIES: u32 = 5;
@@ -330,41 +352,53 @@ impl TestSuite {
                     if e.to_string().contains("too-long-mempool-chain") {
                         retry_count += 1;
                         if retry_count > MAX_RETRIES {
-                            panic!(
+                            info!(
                                 "Failed to send transaction after {} retries: {}",
                                 MAX_RETRIES, e
                             );
+                            return Err(anyhow!(e));
                         }
                         // Wait for some previous transactions to confirm
-                        println!(
+                        info!(
                             "Mempool chain too long, waiting for confirmations... (attempt {}/{})",
                             retry_count, MAX_RETRIES
                         );
                         std::thread::sleep(std::time::Duration::from_secs(30));
                         continue;
                     }
-                    panic!("Failed to send transaction: {}", e);
+                    return Err(anyhow!(e));
                 }
             }
         };
 
-        println!("TXID: {:?}", txid.to_string());
+        info!(
+            "TXID: {:?}, hex: {}",
+            txid.to_string(),
+            tx_hex.to_lower_hex_string()
+        );
 
         let mut retry_count = 0;
 
         loop {
-            let tx_result = rpc.get_raw_transaction_info(&txid, None).ok();
-            if tx_result.is_none() {
-                retry_count += 1;
-                if retry_count > 10 {
-                    panic!("tx not found");
+            let tx_result = rpc
+                .get_raw_transaction_info(&txid, None)
+                .map_err(|e| anyhow!(e));
+
+            match tx_result {
+                Ok(tx_result) => {
+                    break Ok(Some(tx_result));
                 }
-                // Add exponential backoff sleep
-                std::thread::sleep(std::time::Duration::from_millis(
-                    100 * (2_u64.pow(retry_count)),
-                ));
-            } else {
-                break tx_result;
+                Err(e) => {
+                    retry_count += 1;
+                    if retry_count > 10 {
+                        info!("tx {} not found with error: {}", txid.to_string(), e);
+                    }
+                    // Add exponential backoff sleep
+                    std::thread::sleep(std::time::Duration::from_millis(
+                        100 * (2_u64.pow(retry_count)),
+                    ));
+                    return Err(e);
+                }
             }
         }
     }

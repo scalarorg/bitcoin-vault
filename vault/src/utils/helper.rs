@@ -126,14 +126,12 @@ pub fn get_basic_fee(i: u64, o: u64, rate: u64, address: AddressType) -> u64 {
 
 pub fn log_tx_result(result: &GetRawTransactionResult) {
     println!("=== Transaction Info ===");
-
     println!("TxID: {}", result.txid);
     println!("Confirmations: {}", result.confirmations.unwrap_or(0));
     println!("Block Hash: {:?}", result.blockhash);
     println!("Version: {}", result.version);
     println!("Locktime: {}", result.locktime);
 
-    println!("=== Transaction Hex ===");
-    let hex = result.hex.to_lower_hex_string();
-    println!("{}\n", hex);
+    println!("Hex: {}", result.hex.to_lower_hex_string());
+    println!("=== End of Transaction Info ===");
 }

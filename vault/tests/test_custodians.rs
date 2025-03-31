@@ -10,10 +10,11 @@ mod test_custodians {
     use rust_mempool::MempoolClient;
     use vault::helper::{get_adress, key_from_wif, log_tx_result};
     use vault::{
-        get_approvable_utxo, get_network_from_str, AccountEnv, CustodianOnlyLockingScriptParams,
-        CustodianOnlyUnstakingParams, DestinationInfo, DestinationInfoEnv, LockingScript,
-        NeededUtxo, PreviousStakingUTXO, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType,
-        TestSuite, Unstaking, UnstakingOutput, VaultManager, HASH_SIZE,
+        get_approvable_utxo, get_approvable_utxos, get_network_from_str, AccountEnv,
+        CustodianOnlyLockingScriptParams, CustodianOnlyUnstakingParams, DestinationInfo,
+        DestinationInfoEnv, LockingScript, NeededUtxo, PreviousStakingUTXO, SignByKeyMap, Signing,
+        SuiteAccount, TaprootTreeType, TestSuite, Unstaking, UnstakingOutput, VaultManager,
+        HASH_SIZE,
     };
 
     use lazy_static::lazy_static;
@@ -28,20 +29,20 @@ mod test_custodians {
 
     #[test]
     fn test_staking() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE.prepare_staking_tx(
             2000,
             TaprootTreeType::CustodianOnly,
             TEST_ACCOUNT.clone(),
             TEST_DESTINATION_INFO.clone(),
-            utxo,
+            utxos,
         );
         println!("tx_id: {:?}", staking_tx.unwrap().compute_txid());
     }
 
     #[test]
     fn test_basic_flow() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
+        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 10000,
@@ -83,21 +84,29 @@ mod test_custodians {
         <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
         //  send unstaking tx
-        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
-
-        log_tx_result(&result);
+        match TEST_SUITE.send_psbt_by_rpc(unstaked_psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+            }
+            Ok(None) => {
+                panic!("tx not found");
+            }
+            Err(e) => {
+                panic!("tx not found with error: {}", e);
+            }
+        }
     }
 
     #[test]
     fn test_partial_unstaking() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 10000,
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo,
+                utxos,
             )
             .unwrap();
 
@@ -138,14 +147,22 @@ mod test_custodians {
         <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
         //  send unstaking tx
-        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
-
-        log_tx_result(&result);
+        match TEST_SUITE.send_psbt_by_rpc(unstaked_psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+            }
+            Ok(None) => {
+                panic!("tx not found");
+            }
+            Err(e) => {
+                panic!("tx not found with error: {}", e);
+            }
+        }
     }
 
     #[test]
     fn test_partial_unstaking_multiple_utxos() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
 
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
@@ -153,11 +170,11 @@ mod test_custodians {
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo,
+                utxos,
             )
             .unwrap();
 
-        let utxo2 = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 3000).unwrap();
+        let utxos2 = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 3000).unwrap();
 
         let staking_tx2 = TEST_SUITE
             .prepare_staking_tx(
@@ -165,7 +182,7 @@ mod test_custodians {
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo2,
+                utxos2,
             )
             .unwrap();
 
@@ -210,9 +227,17 @@ mod test_custodians {
         <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
         //  send unstaking tx
-        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
-
-        log_tx_result(&result);
+        match TEST_SUITE.send_psbt_by_rpc(unstaked_psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+            }
+            Ok(None) => {
+                panic!("tx not found");
+            }
+            Err(e) => {
+                panic!("tx not found with error: {}", e);
+            }
+        }
     }
 
     #[test]
@@ -223,15 +248,15 @@ mod test_custodians {
         // Create multiple staking transactions (inputs)
         let staking_txs: Vec<_> = (0..2)
             .map(|_| {
-                let utxo =
-                    get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 100000).unwrap();
+                let utxos =
+                    get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 100000).unwrap();
                 TEST_SUITE
                     .prepare_staking_tx(
                         100000,
                         TaprootTreeType::CustodianOnly,
                         TEST_ACCOUNT.clone(),
                         TEST_DESTINATION_INFO.clone(),
-                        utxo,
+                        utxos,
                     )
                     .unwrap()
             })
@@ -329,14 +354,23 @@ mod test_custodians {
 
         // Finalize and send
         <Psbt as SignByKeyMap<All>>::finalize(&mut final_psbt);
-        let result = TEST_SUITE.send_psbt_by_rpc(final_psbt).unwrap();
-        log_tx_result(&result);
+        match TEST_SUITE.send_psbt_by_rpc(final_psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+            }
+            Ok(None) => {
+                panic!("tx not found");
+            }
+            Err(e) => {
+                panic!("tx not found with error: {}", e);
+            }
+        }
         println!("🚀 ==== DONE ==== 🚀");
     }
 
     #[test]
     fn test_sign_wrong_pubkey() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
 
         let secp = Secp256k1::new();
 
@@ -346,11 +380,11 @@ mod test_custodians {
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo,
+                utxos,
             )
             .unwrap();
 
-        let utxo2 = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxos2 = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
 
         let staking_tx2 = TEST_SUITE
             .prepare_staking_tx(
@@ -358,7 +392,7 @@ mod test_custodians {
                 TaprootTreeType::CustodianOnly,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo2,
+                utxos2,
             )
             .unwrap();
 

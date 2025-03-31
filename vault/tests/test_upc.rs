@@ -2,7 +2,7 @@
 mod test_upc {
     use bitcoin::{secp256k1::All, Psbt};
     use vault::{
-        get_approvable_utxo, helper::log_tx_result, AccountEnv, DestinationInfo,
+        get_approvable_utxos, helper::log_tx_result, AccountEnv, DestinationInfo,
         DestinationInfoEnv, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType, TestSuite,
         UnstakingType, VaultManager,
     };
@@ -19,14 +19,14 @@ mod test_upc {
 
     #[test]
     fn test_staking() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo,
+                utxos,
             )
             .unwrap();
         println!("tx_id: {:?}", staking_tx.compute_txid());
@@ -34,14 +34,14 @@ mod test_upc {
 
     #[test]
     fn test_user_protocol() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo,
+                utxos,
             )
             .unwrap();
 
@@ -71,21 +71,29 @@ mod test_upc {
         .unwrap();
 
         //  send unstaking tx
-        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
-
-        log_tx_result(&result);
+        match TEST_SUITE.send_psbt_by_rpc(unstaked_psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+            }
+            Ok(None) => {
+                panic!("tx not found");
+            }
+            Err(e) => {
+                panic!("tx not found with error: {}", e);
+            }
+        }
     }
 
     #[test]
     fn test_custodian_user() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 3000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 3000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo,
+                utxos,
             )
             .unwrap();
 
@@ -124,21 +132,30 @@ mod test_upc {
         <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
         // // Extract and send
-        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
-        log_tx_result(&result);
+        match TEST_SUITE.send_psbt_by_rpc(unstaked_psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+            }
+            Ok(None) => {
+                panic!("tx not found");
+            }
+            Err(e) => {
+                panic!("tx not found with error: {}", e);
+            }
+        }
     }
 
     // cargo test --package bitcoin-vault --test test_upc -- test_upc::test_custodian_protocol --exact --show-output
     #[test]
     fn test_custodian_protocol() {
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo,
+                utxos,
             )
             .unwrap();
 
@@ -177,8 +194,17 @@ mod test_upc {
         <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
         // Extract and send
-        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap();
-        log_tx_result(&result);
+        match TEST_SUITE.send_psbt_by_rpc(unstaked_psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+            }
+            Ok(None) => {
+                panic!("tx not found");
+            }
+            Err(e) => {
+                panic!("tx not found with error: {}", e);
+            }
+        }
     }
 
     #[test]
@@ -186,14 +212,14 @@ mod test_upc {
         use std::sync::mpsc;
         use std::thread;
 
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 2000,
                 TaprootTreeType::UPCBranch,
                 TEST_ACCOUNT.clone(),
                 TEST_DESTINATION_INFO.clone(),
-                utxo,
+                utxos,
             )
             .unwrap();
 
@@ -270,8 +296,17 @@ mod test_upc {
 
         // Finalize and send
         <Psbt as SignByKeyMap<All>>::finalize(&mut final_psbt);
-        let result = TEST_SUITE.send_psbt_by_rpc(final_psbt).unwrap();
-        log_tx_result(&result);
+        match TEST_SUITE.send_psbt_by_rpc(final_psbt) {
+            Ok(Some(result)) => {
+                log_tx_result(&result);
+            }
+            Ok(None) => {
+                panic!("tx not found");
+            }
+            Err(e) => {
+                panic!("tx not found with error: {}", e);
+            }
+        }
         println!("🚀 ==== DONE ==== 🚀");
     }
 }
