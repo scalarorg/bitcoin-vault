@@ -27,7 +27,7 @@ pub struct CustodianOnlyLockingScriptParams<'a> {
     pub custodian_quorum: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LockingScript(ScriptBuf);
 
 impl LockingScript {

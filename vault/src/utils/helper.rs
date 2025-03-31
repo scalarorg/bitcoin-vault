@@ -66,7 +66,7 @@ pub fn get_approvable_utxos(
     rpc: &Client,
     user_address: &Address<NetworkChecked>,
     btc_amount: u64,
-) -> Result<NeededUtxo, String> {
+) -> Result<Vec<NeededUtxo>, String> {
     let utxos = rpc
         .list_unspent(
             Some(0),
@@ -86,6 +86,22 @@ pub fn get_approvable_utxos(
         return Err("No utxos found".to_string());
     }
 
+    Ok(utxos
+        .iter()
+        .map(|utxo| NeededUtxo {
+            txid: utxo.txid,
+            vout: utxo.vout,
+            amount: utxo.amount,
+        })
+        .collect())
+}
+
+pub fn get_approvable_utxo(
+    rpc: &Client,
+    user_address: &Address<NetworkChecked>,
+    btc_amount: u64,
+) -> Result<NeededUtxo, String> {
+    let utxos = get_approvable_utxos(rpc, user_address, btc_amount)?;
     Ok(NeededUtxo {
         txid: utxos[0].txid,
         vout: utxos[0].vout,

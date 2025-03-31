@@ -1,12 +1,19 @@
 #[cfg(test)]
 mod test_custodians {
+    use std::str::FromStr;
+
     use bitcoin::key::Secp256k1;
     use bitcoin::{secp256k1::All, Amount, Psbt};
+    use bitcoin::{Address, OutPoint, Txid, XOnlyPublicKey};
     use bitcoincore_rpc::jsonrpc::base64;
+    use bitcoincore_rpc::RawTx;
+    use rust_mempool::MempoolClient;
     use vault::helper::{get_adress, key_from_wif, log_tx_result};
     use vault::{
-        get_approvable_utxos, AccountEnv, DestinationInfo, DestinationInfoEnv, SignByKeyMap,
-        Signing, SuiteAccount, TaprootTreeType, TestSuite, UnstakingOutput, VaultManager,
+        get_approvable_utxo, get_network_from_str, AccountEnv, CustodianOnlyLockingScriptParams,
+        CustodianOnlyUnstakingParams, DestinationInfo, DestinationInfoEnv, LockingScript,
+        NeededUtxo, PreviousStakingUTXO, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType,
+        TestSuite, Unstaking, UnstakingOutput, VaultManager, HASH_SIZE,
     };
 
     use lazy_static::lazy_static;
@@ -21,7 +28,7 @@ mod test_custodians {
 
     #[test]
     fn test_staking() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
+        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
         let staking_tx = TEST_SUITE.prepare_staking_tx(
             2000,
             TaprootTreeType::CustodianOnly,
@@ -34,7 +41,7 @@ mod test_custodians {
 
     #[test]
     fn test_basic_flow() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
+        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 10000,
@@ -83,7 +90,7 @@ mod test_custodians {
 
     #[test]
     fn test_partial_unstaking() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
+        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
                 10000,
@@ -138,7 +145,7 @@ mod test_custodians {
 
     #[test]
     fn test_partial_unstaking_multiple_utxos() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
+        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 10000).unwrap();
 
         let staking_tx = TEST_SUITE
             .prepare_staking_tx(
@@ -150,7 +157,7 @@ mod test_custodians {
             )
             .unwrap();
 
-        let utxo2 = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 3000).unwrap();
+        let utxo2 = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 3000).unwrap();
 
         let staking_tx2 = TEST_SUITE
             .prepare_staking_tx(
@@ -217,7 +224,7 @@ mod test_custodians {
         let staking_txs: Vec<_> = (0..2)
             .map(|_| {
                 let utxo =
-                    get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 100000).unwrap();
+                    get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 100000).unwrap();
                 TEST_SUITE
                     .prepare_staking_tx(
                         100000,
@@ -329,7 +336,7 @@ mod test_custodians {
 
     #[test]
     fn test_sign_wrong_pubkey() {
-        let utxo = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
 
         let secp = Secp256k1::new();
 
@@ -343,7 +350,7 @@ mod test_custodians {
             )
             .unwrap();
 
-        let utxo2 = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
+        let utxo2 = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 1000).unwrap();
 
         let staking_tx2 = TEST_SUITE
             .prepare_staking_tx(
@@ -421,5 +428,117 @@ mod test_custodians {
         // let result = suite.send_psbt_by_rpc(unstaked_psbt).unwrap();
 
         // log_tx_result(&result);
+    }
+
+    #[test]
+    fn test_collect_all_available_utxos() {
+        let _ = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                const VOUT: u32 = 1;
+                const LIMIT: usize = 100;
+                let secp = Secp256k1::new();
+
+                let custodians_x_only: Vec<XOnlyPublicKey> = TEST_SUITE
+                    .custodian_pubkeys()
+                    .iter()
+                    .map(|pk| XOnlyPublicKey::from(*pk))
+                    .collect();
+
+                let script = LockingScript::new_custodian_only(
+                    &secp,
+                    &CustodianOnlyLockingScriptParams {
+                        custodian_pub_keys: &custodians_x_only,
+                        custodian_quorum: TEST_SUITE.env().custodian_quorum,
+                    },
+                )
+                .unwrap();
+
+                // let address = get_adress(&env.network, &env.address);
+                let network = get_network_from_str(&TEST_SUITE.env().network);
+                let address = Address::from_script(&script.into_script(), network).unwrap();
+
+                let client = MempoolClient::new(network);
+                let utxos = client.get_address_utxo(&address.to_string()).await.unwrap();
+                if utxos.is_empty() {
+                    return Err("No utxos found".to_string());
+                }
+
+                // // get first <limit> utxos
+                let utxos = utxos
+                    .iter()
+                    .map(|utxo| NeededUtxo {
+                        txid: Txid::from_str(&utxo.txid).unwrap(),
+                        vout: utxo.vout,
+                        amount: Amount::from_sat(utxo.value),
+                    })
+                    .collect::<Vec<NeededUtxo>>();
+
+                let utxos: Vec<NeededUtxo> = utxos.iter().take(LIMIT).cloned().collect();
+
+                let total: u64 = utxos.iter().map(|utxo| utxo.amount.to_sat()).sum();
+
+                println!("utxos: {:?}", utxos);
+
+                let mut unstaked_psbt = <VaultManager as Unstaking>::build_custodian_only(
+                    &TEST_SUITE.manager(),
+                    &CustodianOnlyUnstakingParams {
+                        inputs: utxos
+                            .iter()
+                            .map(|u| PreviousStakingUTXO {
+                                outpoint: OutPoint::new(u.txid, VOUT),
+                                amount_in_sats: u.amount,
+                                script_pubkey: address.script_pubkey(),
+                            })
+                            .collect(),
+                        unstaking_outputs: vec![UnstakingOutput {
+                            amount_in_sats: Amount::from_sat(total),
+                            locking_script: TEST_ACCOUNT.address().script_pubkey(),
+                        }],
+                        custodian_pub_keys: TEST_SUITE.custodian_pubkeys(),
+                        custodian_quorum: TEST_SUITE.env().custodian_quorum,
+                        fee_rate: 2,
+                        rbf: false,
+                        session_sequence: 0,
+                        custodian_group_uid: [0u8; HASH_SIZE],
+                    },
+                )
+                .unwrap();
+
+                let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
+
+                println!("signing_privkeys: {:?}", signing_privkeys);
+
+                for privkey in signing_privkeys {
+                    let _ = <VaultManager as Signing>::sign_psbt_by_single_key(
+                        &mut unstaked_psbt,
+                        privkey.as_slice(),
+                        TEST_SUITE.network_id(),
+                        false,
+                    )
+                    .unwrap();
+
+                    println!(
+                        "unstaked_psbt[0]: {:?}\n",
+                        unstaked_psbt.inputs[0].tap_script_sigs
+                    );
+                }
+
+                // Finalize the PSBT
+                <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+
+                //  send unstaking tx
+
+                let finalized_tx = unstaked_psbt.extract_tx().unwrap();
+                let tx_hex = finalized_tx.raw_hex();
+
+                let tx_id = client.broadcast_transaction(&tx_hex).await.unwrap();
+                println!("tx_id: {:?}", tx_id);
+
+                Ok(())
+            });
     }
 }
