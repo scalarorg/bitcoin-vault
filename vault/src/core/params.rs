@@ -46,7 +46,7 @@ pub struct UPCUnstakingParams {
 
 impl UPCUnstakingParams {
     pub fn validate(&self) -> Result<(Amount, Amount), CoreError> {
-        if self.inputs.len() == 0 {
+        if self.inputs.is_empty() {
             return Err(CoreError::InvalidParams(
                 "UPCUnstakingParams must have at least one input".to_string(),
             ));
@@ -86,13 +86,13 @@ pub struct CustodianOnlyUnstakingParams {
 
 impl CustodianOnlyUnstakingParams {
     pub fn validate(&self) -> Result<(Amount, Amount), CoreError> {
-        if self.inputs.len() == 0 {
+        if self.inputs.is_empty() {
             return Err(CoreError::InvalidParams(
                 "CustodianOnlyUnstakingParams must have at least one input".to_string(),
             ));
         }
 
-        if self.unstaking_outputs.len() == 0 {
+        if self.unstaking_outputs.is_empty() {
             return Err(CoreError::InvalidParams(
                 "CustodianOnlyUnstakingParams must have at least one unstaking output".to_string(),
             ));

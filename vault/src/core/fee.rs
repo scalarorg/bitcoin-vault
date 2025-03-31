@@ -20,7 +20,7 @@ impl VaultManager {
         let inputs_cost = (P2TR_INPUT_SIZE + witness_cost) * params.n_inputs;
         let outputs_cost = P2TR_OUTPUT_SIZE * params.n_outputs;
         let fee = (P2TR_BUFFER_SIZE + inputs_cost + outputs_cost) * params.fee_rate;
-        bitcoin::Amount::from_sat(fee as u64)
+        bitcoin::Amount::from_sat(fee)
     }
 
     pub fn distribute_fee(

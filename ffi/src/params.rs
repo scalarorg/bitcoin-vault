@@ -19,8 +19,11 @@ pub struct PoolingRedeemParams<'a> {
     pub custodian_group_uid: &'a [u8],
 }
 
-impl<'a> PoolingRedeemParams<'a> {
-    pub fn from_buffer(buffer: *const u8, len: usize) -> Result<Self, anyhow::Error> {
+impl PoolingRedeemParams<'_> {
+    /// # Safety
+    ///
+    ///
+    pub unsafe fn from_buffer(buffer: *const u8, len: usize) -> Result<Self, anyhow::Error> {
         let mut ptr = 0_usize;
         // Convert *const u8 to a slice reference
         let data: &[u8] = unsafe { slice::from_raw_parts(buffer, len) };
@@ -62,7 +65,7 @@ impl<'a> PoolingRedeemParams<'a> {
         let inputs_len = u32::from_be_bytes(data[ptr..ptr + 4].try_into().unwrap()) as usize;
         ptr += 4;
         let mut inputs = Vec::new();
-        for i in 0..inputs_len {
+        for _ in 0..inputs_len {
             let input_size = u32::from_be_bytes(data[ptr..ptr + 4].try_into().unwrap()) as usize;
             ptr += 4;
             let input = PreviousStakingUTXO::try_from(&data[ptr..ptr + input_size])?;
@@ -77,7 +80,7 @@ impl<'a> PoolingRedeemParams<'a> {
         let outputs_len = u32::from_be_bytes(data[ptr..ptr + 4].try_into().unwrap()) as usize;
         ptr += 4;
         let mut outputs = Vec::new();
-        for i in 0..outputs_len {
+        for _ in 0..outputs_len {
             let output_size = u32::from_be_bytes(data[ptr..ptr + 4].try_into().unwrap()) as usize;
             ptr += 4;
             let output = UnstakingOutput::try_from(&data[ptr..ptr + output_size])?;
@@ -91,7 +94,7 @@ impl<'a> PoolingRedeemParams<'a> {
         let pub_keys_len = u32::from_be_bytes(data[ptr..ptr + 4].try_into().unwrap()) as usize;
         ptr += 4;
         let mut custodian_pub_keys = Vec::new();
-        for i in 0..pub_keys_len {
+        for _ in 0..pub_keys_len {
             let pub_key = PublicKey::from_slice(&data[ptr..ptr + 33])?;
             custodian_pub_keys.push(pub_key);
             ptr += 33;

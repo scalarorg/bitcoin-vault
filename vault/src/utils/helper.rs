@@ -111,7 +111,7 @@ pub fn get_basic_fee(i: u64, o: u64, rate: u64, address: AddressType) -> u64 {
 pub fn log_tx_result(result: &GetRawTransactionResult) {
     println!("=== Transaction Info ===");
 
-    println!("TxID: {}", result.txid.to_string());
+    println!("TxID: {}", result.txid);
     println!("Confirmations: {}", result.confirmations.unwrap_or(0));
     println!("Block Hash: {:?}", result.blockhash);
     println!("Version: {}", result.version);
