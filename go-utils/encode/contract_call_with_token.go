@@ -75,16 +75,17 @@ func DecodeCustodianOnly(payload []byte) (*ContractCallWithTokenPayload, error) 
 		return nil, err
 	}
 
-	feeOptions := types.BTCFeeOpts(decoded[0].(uint8))
-	rbf := decoded[1].(bool)
-	recipientChainIdentifier := decoded[2].([]byte)
+	lockingScript := decoded[1].([]byte)
+	// _amount := decoded[0].(uint64)
+	// _txIds := decoded[2].([]string)
+	// _vouts := decoded[3].([]uint32)
+	// _amounts := decoded[4].([]uint64)
+	// _reqId := decoded[5].([32]byte)
 
 	return &ContractCallWithTokenPayload{
 		PayloadType: ContractCallWithTokenPayloadType_CustodianOnly,
 		CustodianOnly: &CustodianOnly{
-			FeeOptions:               feeOptions,
-			RBF:                      rbf,
-			RecipientChainIdentifier: recipientChainIdentifier,
+			RecipientChainIdentifier: lockingScript,
 		},
 	}, nil
 }
