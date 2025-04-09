@@ -48,7 +48,7 @@ func CalculateContractCallWithTokenPayload(
 		return nil, nil, err
 	}
 
-	finalPayload := appendPayload(payloadArgs.PayloadType, encodedPayload)
+	finalPayload := AppendPayload(payloadArgs.PayloadType, encodedPayload)
 	hash := crypto.Keccak256(finalPayload)
 	return finalPayload, hash, nil
 }
@@ -101,7 +101,7 @@ func DecodeUPC(payload []byte) (*ContractCallWithTokenPayload, error) {
 	}, nil
 }
 
-func appendPayload(payloadType ContractCallWithTokenPayloadType, encodedPayload []byte) []byte {
+func AppendPayload(payloadType ContractCallWithTokenPayloadType, encodedPayload []byte) []byte {
 	var finalPayload []byte
 	finalPayload = append(finalPayload, payloadType.Bytes()...)
 	finalPayload = append(finalPayload, encodedPayload...)
