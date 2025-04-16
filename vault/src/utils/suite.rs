@@ -257,14 +257,10 @@ impl TestSuite {
                 log_tx_result(&result);
                 let staking_tx_hex = result.hex;
 
-                return bitcoin::consensus::deserialize(&staking_tx_hex).map_err(|e| anyhow!(e));
+                bitcoin::consensus::deserialize(&staking_tx_hex).map_err(|e| anyhow!(e))
             }
-            Ok(None) => {
-                return Err(anyhow!("Failed to send PSBT"));
-            }
-            Err(e) => {
-                return Err(e);
-            }
+            Ok(None) => Err(anyhow!("Failed to send PSBT")),
+            Err(e) => Err(e),
         }
     }
 
@@ -391,13 +387,13 @@ impl TestSuite {
                 Err(e) => {
                     retry_count += 1;
                     if retry_count > 10 {
-                        info!("tx {} not found with error: {}", txid.to_string(), e);
+                        return Err(e);
                     }
+                    info!("tx {} not found with error: {}", txid.to_string(), e);
                     // Add exponential backoff sleep
                     std::thread::sleep(std::time::Duration::from_millis(
                         100 * (2_u64.pow(retry_count)),
                     ));
-                    return Err(e);
                 }
             }
         }

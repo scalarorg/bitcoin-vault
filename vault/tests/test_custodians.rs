@@ -10,11 +10,10 @@ mod test_custodians {
     use rust_mempool::MempoolClient;
     use vault::helper::{get_adress, key_from_wif, log_tx_result};
     use vault::{
-        get_approvable_utxo, get_approvable_utxos, get_network_from_str, AccountEnv,
-        CustodianOnlyLockingScriptParams, CustodianOnlyUnstakingParams, DestinationInfo,
-        DestinationInfoEnv, LockingScript, NeededUtxo, PreviousStakingUTXO, SignByKeyMap, Signing,
-        SuiteAccount, TaprootTreeType, TestSuite, Unstaking, UnstakingOutput, VaultManager,
-        HASH_SIZE,
+        get_approvable_utxos, get_network_from_str, AccountEnv, CustodianOnlyLockingScriptParams,
+        CustodianOnlyUnstakingParams, DestinationInfo, DestinationInfoEnv, LockingScript,
+        NeededUtxo, PreviousStakingUTXO, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType,
+        TestSuite, Unstaking, UnstakingOutput, VaultManager, HASH_SIZE,
     };
 
     use lazy_static::lazy_static;
