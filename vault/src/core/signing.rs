@@ -32,7 +32,7 @@ impl Signing for VaultManager {
         let tx = psbt
             .clone()
             .extract_tx()
-            .map_err(|_| CoreError::FailedToExtractTx)?;
+            .map_err(|e| CoreError::FailedToExtractTx(e.to_string()))?;
         Ok((serialize(&tx), key_map))
     }
 
@@ -90,7 +90,7 @@ impl Signing for VaultManager {
         let tx = psbt
             .clone()
             .extract_tx()
-            .map_err(|_| CoreError::FailedToExtractTx)?;
+            .map_err(|e| CoreError::FailedToExtractTx(e.to_string()))?;
         Ok(serialize(&tx))
     }
 }

@@ -1,4 +1,5 @@
 #!/bin/sh
+
 run() {
     PRIVKEY=${1:-}
     NAME=${2:-"bitcoin-regtest"}
@@ -71,11 +72,12 @@ entrypoint() {
 
     create_miner_wallet miner passphrase
 
-    while true; do
-        MINER_ADDRESS=$(cat $WORKDIR/miner-p2tr.txt)
-        echo "Mining 1 block to ${MINER_ADDRESS}"
-        fund_address miner ${MINER_ADDRESS}
-    done
+    # while true; do
+    #     MINER_ADDRESS=$(cat $WORKDIR/miner-p2tr.txt)
+    #     echo "Mining 1 block to ${MINER_ADDRESS}"
+    #     fund_address miner ${MINER_ADDRESS}
+    #     sleep 30
+    # done
 
     sleep infinity
 }

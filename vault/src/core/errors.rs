@@ -37,8 +37,8 @@ pub enum CoreError {
     InvalidSecp256k1PublicKey,
     #[error("Signing psbt failed: {0}")]
     SigningPSBTFailed(String),
-    #[error("Failed to extract tx")]
-    FailedToExtractTx,
+    #[error("Failed to extract tx: {0}")]
+    FailedToExtractTx(String),
     #[error("Invalid unstaking type")]
     InvalidUnstakingType,
     #[error("Cannot convert op_return data to slice")]

@@ -349,7 +349,7 @@ impl VaultManager {
     }
 }
 
-struct UnstakingTransactionBuilder {
+pub struct UnstakingTransactionBuilder {
     version: transaction::Version,
     inputs: Vec<TxIn>,
     outputs: Vec<TxOut>,
@@ -357,7 +357,7 @@ struct UnstakingTransactionBuilder {
 }
 
 impl UnstakingTransactionBuilder {
-    fn new(rbf: bool) -> Self {
+    pub fn new(rbf: bool) -> Self {
         Self {
             version: transaction::Version::TWO,
             inputs: Vec::new(),
@@ -366,7 +366,7 @@ impl UnstakingTransactionBuilder {
         }
     }
 
-    fn add_input(&mut self, outpoint: OutPoint) {
+    pub fn add_input(&mut self, outpoint: OutPoint) {
         self.inputs.push(TxIn {
             previous_output: outpoint,
             script_sig: ScriptBuf::default(),
@@ -378,14 +378,31 @@ impl UnstakingTransactionBuilder {
         });
     }
 
-    fn add_output(&mut self, value: Amount, script_pubkey: ScriptBuf) {
+    pub fn add_input_with_sequence(
+        &mut self,
+        outpoint: OutPoint,
+        sequence: Sequence,
+    ) {
+        self.inputs.push(TxIn {
+            previous_output: outpoint,
+            script_sig: ScriptBuf::default(),
+            sequence,
+            witness: Witness::default(),
+        });
+    }
+
+    pub fn add_output(&mut self, value: Amount, script_pubkey: ScriptBuf) {
         self.outputs.push(TxOut {
             value,
             script_pubkey,
         });
     }
 
-    fn build(self) -> Transaction {
+    pub fn add_raw_output(&mut self, output: TxOut) {
+        self.outputs.push(output);
+    }
+
+    pub fn build(self) -> Transaction {
         Transaction {
             version: self.version,
             lock_time: absolute::LockTime::ZERO,

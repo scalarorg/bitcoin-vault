@@ -14,4 +14,19 @@ Note:
 
 In terms of bitcoin, we can operate `OP_CHECKLOCKTIMEVERIFY` and `OP_CHECKSEQUENCEVERIFY` to implement the HTLC along with Taproot mechanism:
 
-Given Alice want to redeem the staked bitcoin, she have to unlock the tap tree by the following:
+- ***Escrow with Timeout***
+An escrow that times out automatically 30 days after being funded can be established in the following way. Alice, Bob and Escrow create a 2-of-3 address with the following redeemscript.
+
+    ```asm
+        IF
+            2 <Alice's pubkey> <Bob's pubkey> <Escrow's pubkey> 3 CHECKMULTISIG
+        ELSE
+            "30d" CHECKSEQUENCEVERIFY DROP
+            <Alice's pubkey> CHECKSIG
+        ENDIF
+    ```
+At any time funds can be spent using signatures from any two of Alice, Bob or the Escrow.
+After 30 days Alice can sign alone.
+The clock does not start ticking until the payment to the escrow address confirms.
+
+- Credit: [BIP-0112](https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki)
