@@ -1,16 +1,20 @@
 use bitcoin::{
-    opcodes::all::{OP_CHECKSIG, OP_CHECKSIGADD, OP_CHECKSIGVERIFY, OP_GREATERTHANOREQUAL},
+    opcodes::all::{
+        OP_CHECKSIG, OP_CHECKSIGADD, OP_CHECKSIGVERIFY, OP_CSV, OP_DROP, OP_GREATERTHANOREQUAL,
+    },
     script, ScriptBuf, XOnlyPublicKey,
 };
 
 use super::{
-    BuildCustodianAndPartyBranch, BuildCustodianOnlyBranch, BuildTwoPartyBranch, CoreError,
+    BuildCustodianAndPartyBranch, BuildCustodianOnlyBranch, BuildPartyWithSequenceVerification,
+    BuildTwoPartyBranch, CoreError,
 };
 
 pub type TwoPartyBranch = ScriptBuf;
 pub type CustodianAndPartyBranch = ScriptBuf;
 pub type CustodianOnlyBranch = ScriptBuf;
 pub type CustodianScript = ScriptBuf;
+pub type PartyWithSequenceVerification = ScriptBuf;
 pub struct CustodianScriptBuilder;
 
 impl CustodianScriptBuilder {
@@ -86,5 +90,17 @@ impl BuildCustodianOnlyBranch for CustodianOnlyBranch {
     ) -> Result<Self, CoreError> {
         let script = CustodianScriptBuilder::build(custodian_pub_keys, custodian_quorum, None)?;
         Ok(script)
+    }
+}
+
+impl BuildPartyWithSequenceVerification for PartyWithSequenceVerification {
+    fn build(x: &XOnlyPublicKey, sequence: i64) -> Result<Self, CoreError> {
+        Ok(script::Builder::new()
+            .push_int(sequence)
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_DROP)
+            .push_x_only_key(x)
+            .push_opcode(OP_CHECKSIGVERIFY)
+            .into_script())
     }
 }

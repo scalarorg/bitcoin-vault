@@ -107,10 +107,7 @@ impl Unstaking for VaultManager {
         let mut psbt =
             Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
 
-        let (branch, keys) = (
-            tree.only_custodian_branch.as_ref().unwrap(),
-            x_only_pub_keys,
-        );
+        let (branch, keys) = (tree.only_custodian_tree.as_ref().unwrap(), x_only_pub_keys);
 
         psbt.inputs = self.prepare_psbt_inputs(&params.inputs, &tree.root, branch, &keys);
 
@@ -378,11 +375,7 @@ impl UnstakingTransactionBuilder {
         });
     }
 
-    pub fn add_input_with_sequence(
-        &mut self,
-        outpoint: OutPoint,
-        sequence: Sequence,
-    ) {
+    pub fn add_input_with_sequence(&mut self, outpoint: OutPoint, sequence: Sequence) {
         self.inputs.push(TxIn {
             previous_output: outpoint,
             script_sig: ScriptBuf::default(),
@@ -422,18 +415,21 @@ impl UnstakingKeys {
     ) -> (&'a ScriptBuf, Vec<XOnlyPublicKey>) {
         match unstaking_type {
             UnstakingType::UserProtocol => (
-                tree.user_protocol_branch.as_ref().unwrap(),
+                &tree.upc_tree.as_ref().unwrap().user_protocol_branch,
                 vec![x_only_keys.user, x_only_keys.protocol],
             ),
             UnstakingType::CustodianProtocol => {
                 let mut keys = vec![x_only_keys.protocol];
                 keys.extend_from_slice(&x_only_keys.custodians);
-                (tree.protocol_custodian_branch.as_ref().unwrap(), keys)
+                (
+                    &tree.upc_tree.as_ref().unwrap().protocol_custodian_branch,
+                    keys,
+                )
             }
             UnstakingType::CustodianUser => {
                 let mut keys = vec![x_only_keys.user];
                 keys.extend_from_slice(&x_only_keys.custodians);
-                (tree.user_custodian_branch.as_ref().unwrap(), keys)
+                (&tree.upc_tree.as_ref().unwrap().user_custodian_branch, keys)
             }
         }
     }

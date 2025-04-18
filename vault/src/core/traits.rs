@@ -5,6 +5,11 @@ use super::{
     StakingOutput, TapScriptSigsMap, UPCStakingParams, UPCUnstakingParams, UnstakingType,
 };
 
+pub trait TimeLockedExit {
+    type Error;
+    fn build(&self, params: &UPCStakingParams) -> Result<StakingOutput, Self::Error>;
+}
+
 pub trait Staking {
     type Error;
 
@@ -78,6 +83,12 @@ pub trait BuildCustodianOnlyBranch {
         custodian_pub_keys: &[XOnlyPublicKey],
         custodian_quorum: u8,
     ) -> Result<Self, CoreError>
+    where
+        Self: Sized;
+}
+
+pub trait BuildPartyWithSequenceVerification {
+    fn build(x: &XOnlyPublicKey, sequence: i64) -> Result<Self, CoreError>
     where
         Self: Sized;
 }
