@@ -172,9 +172,15 @@ func BuildPoolingRedeemTx(tag []byte,
 		return nil, ErrInvalidNetwork
 	}
 	buffer := bytes.Buffer{}
+	//Tag
+	buffer.WriteByte(uint8(len(tag)))
 	buffer.Write(tag)
+	//Service tag
+	buffer.WriteByte(uint8(len(serviceTag)))
 	buffer.Write(serviceTag)
+	//Version
 	buffer.WriteByte(version)
+	//Network
 	buffer.WriteByte(uint8(network))
 	//Inputs
 	binary.Write(&buffer, binary.BigEndian, uint32(len(inputs)))
