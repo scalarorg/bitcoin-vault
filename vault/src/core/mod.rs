@@ -10,9 +10,9 @@ mod signing;
 mod staking;
 mod taproot;
 mod traits;
+mod types;
 mod unstaking;
 mod utxo;
-mod types;
 
 pub use branches::*;
 pub use constants::*;
@@ -25,6 +25,6 @@ pub use scripts::*;
 pub use staking::*;
 pub use taproot::*;
 pub use traits::*;
+pub use types::*;
 pub use unstaking::*;
 pub use utxo::*;
-pub use types::*;
