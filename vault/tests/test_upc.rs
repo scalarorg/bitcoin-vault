@@ -4,7 +4,7 @@ mod test_upc {
     use vault::{
         get_approvable_utxos, helper::log_tx_result, AccountEnv, DestinationInfo,
         DestinationInfoEnv, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType, TestSuite,
-        UnstakingType, VaultManager,
+        UnlockingType, VaultManager,
     };
 
     use lazy_static::lazy_static;
@@ -48,7 +48,7 @@ mod test_upc {
         // prepare unstaking tx
         let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
             &staking_tx,
-            UnstakingType::UserProtocol,
+            UnlockingType::UserProtocol,
             TEST_ACCOUNT.clone(),
             1000,
         );
@@ -99,7 +99,7 @@ mod test_upc {
 
         let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
             &staking_tx,
-            UnstakingType::CustodianUser,
+            UnlockingType::CustodianUser,
             TEST_ACCOUNT.clone(),
             2000,
         );
@@ -161,7 +161,7 @@ mod test_upc {
 
         let mut unstaked_psbt = TEST_SUITE.build_upc_unstaking_tx(
             &staking_tx,
-            UnstakingType::CustodianProtocol,
+            UnlockingType::CustodianProtocol,
             TEST_ACCOUNT.clone(),
             1000,
         );
@@ -225,7 +225,7 @@ mod test_upc {
 
         let mut original_psbt = TEST_SUITE.build_upc_unstaking_tx(
             &staking_tx,
-            UnstakingType::CustodianUser,
+            UnlockingType::CustodianUser,
             TEST_ACCOUNT.clone(),
             1000,
         );

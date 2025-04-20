@@ -7,9 +7,8 @@ use super::{
 };
 
 // TODO: Add validate for params
-
 #[derive(Debug, Validate)]
-pub struct UPCStakingParams {
+pub struct UPCLockingParams {
     pub user_pub_key: PublicKey,
     pub protocol_pub_key: PublicKey,
     pub custodian_pub_keys: Vec<PublicKey>,
@@ -20,20 +19,10 @@ pub struct UPCStakingParams {
     pub destination_recipient_address: DestinationRecipientAddress,
 }
 
-#[derive(Debug, Validate)]
-pub struct CustodianOnlyStakingParams {
-    pub staking_amount: u64,
-    pub custodian_pub_keys: Vec<PublicKey>,
-    pub custodian_quorum: u8,
-    pub destination_chain: DestinationChain,
-    pub destination_token_address: DestinationTokenAddress,
-    pub destination_recipient_address: DestinationRecipientAddress,
-}
-
 /// Because the unstaking tx is formed from a previous staking tx, 1 - 1 mapping is used.
 /// So we just need one input and one output.
 #[derive(Debug, Validate)]
-pub struct UPCUnstakingParams {
+pub struct UPCUnlockingParams {
     pub inputs: Vec<PreviousStakingUTXO>,
     pub unstaking_output: UnstakingOutput,
     pub user_pub_key: PublicKey,
@@ -44,7 +33,7 @@ pub struct UPCUnstakingParams {
     pub fee_rate: u64,
 }
 
-impl UPCUnstakingParams {
+impl UPCUnlockingParams {
     pub fn validate(&self) -> Result<(Amount, Amount), CoreError> {
         if self.inputs.is_empty() {
             return Err(CoreError::InvalidParams(
@@ -70,6 +59,21 @@ impl UPCUnstakingParams {
 
         Ok((total_input_value, self.unstaking_output.amount_in_sats))
     }
+}
+
+#[derive(Debug, Validate)]
+pub struct CustodianOnlyStakingParams {
+    pub staking_amount: u64,
+    pub custodian_pub_keys: Vec<PublicKey>,
+    pub custodian_quorum: u8,
+    pub destination_chain: DestinationChain,
+    pub destination_token_address: DestinationTokenAddress,
+    pub destination_recipient_address: DestinationRecipientAddress,
+}
+
+#[derive(Debug, Validate)]
+pub struct TimeLockedExitParams {
+    pub staking_amount: u64,
 }
 
 #[derive(Debug, Validate)]

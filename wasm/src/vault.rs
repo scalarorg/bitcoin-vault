@@ -6,8 +6,8 @@ use bitcoin::{Amount, NetworkKind, OutPoint, PublicKey, XOnlyPublicKey};
 use vault::{
     CustodianOnlyLockingScriptParams, CustodianOnlyStakingParams, DestinationChain,
     DestinationRecipientAddress, DestinationTokenAddress, LockingScript, PreviousStakingUTXO,
-    Signing, Staking, UPCLockingScriptParams, UPCStakingParams, UPCUnstakingParams, Unstaking,
-    UnstakingOutput as VaultUnstakingOutput, UnstakingType, VaultManager,
+    Signing, Staking, UPCLockingParams, UPCLockingScriptParams, UPCUnlockingParams, UnlockingType,
+    Unstaking, UnstakingOutput as VaultUnstakingOutput, VaultManager,
 };
 use wasm_bindgen::prelude::*;
 impl From<VaultABIError> for JsValue {
@@ -176,7 +176,7 @@ impl VaultWasm {
         let (user_pub_key, protocol_pub_key, custodian_pub_keys) =
             Self::parse_pubkeys(staker_pubkey, protocol_pubkey, custodial_pubkeys)?;
 
-        let params = UPCStakingParams {
+        let params = UPCLockingParams {
             staking_amount,
             user_pub_key,
             protocol_pub_key,
@@ -269,7 +269,7 @@ impl VaultWasm {
             custodian_quorum,
             fee_rate,
             rbf,
-            UnstakingType::CustodianUser,
+            UnlockingType::CustodianUser,
         )
     }
 
@@ -283,7 +283,7 @@ impl VaultWasm {
         custodian_quorum: u8,
         fee_rate: u64,
         rbf: bool,
-        unstaking_type: UnstakingType,
+        unstaking_type: UnlockingType,
     ) -> Result<Vec<u8>, JsValue> {
         // ### Description
         // ### Reversed txid is used to match the byte order of the txid in the previous staking UTXO.
@@ -296,7 +296,7 @@ impl VaultWasm {
             .map(|input| input.try_into().unwrap())
             .collect();
 
-        let params = UPCUnstakingParams {
+        let params = UPCUnlockingParams {
             inputs,
             unstaking_output: unstaking_output.try_into()?,
             user_pub_key,

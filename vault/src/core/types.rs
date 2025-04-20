@@ -1,12 +1,56 @@
 use std::collections::BTreeMap;
 
-use bitcoin::{consensus::Encodable, hashes::Hash, taproot, TapLeafHash, XOnlyPublicKey};
+use bitcoin::{
+    consensus::Encodable, hashes::Hash, taproot, Amount, TapLeafHash, TxOut, XOnlyPublicKey,
+};
 #[allow(unused_imports)]
 use bitcoincore_rpc::jsonrpc::serde_json;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{serde_as, Bytes};
 
-use super::CoreError;
+use super::{
+    CoreError, DataScript, LockingScript, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
+    DEST_TOKEN_ADDRESS_SIZE,
+};
+
+/// Type alias for destination address
+pub type DestinationTokenAddress = [u8; DEST_TOKEN_ADDRESS_SIZE];
+
+/// Type alias for destination recipient address
+pub type DestinationRecipientAddress = [u8; DEST_RECIPIENT_ADDRESS_SIZE];
+
+/// Type alias for destination chain
+pub type DestinationChain = [u8; DEST_CHAIN_SIZE];
+
+#[derive(Debug)]
+pub struct LockingOutput {
+    amount: u64,
+    script: LockingScript,
+    data: DataScript,
+}
+
+impl LockingOutput {
+    pub fn new(amount: u64, script: LockingScript, data: DataScript) -> Self {
+        Self {
+            amount: amount,
+            script: script,
+            data: data,
+        }
+    }
+
+    pub fn into_tx_outs(self) -> Vec<TxOut> {
+        vec![
+            TxOut {
+                value: Amount::from_sat(0),
+                script_pubkey: self.data.into_script(),
+            },
+            TxOut {
+                value: Amount::from_sat(self.amount),
+                script_pubkey: self.script.into_script(),
+            },
+        ]
+    }
+}
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,8 +115,8 @@ impl TapScriptSig {
     }
 
     pub fn from_serialized(serialized: TapScriptSigSerialized) -> Result<Self, CoreError> {
-        let key =
-            XOnlyPublicKey::from_slice(&serialized.key_x_only).map_err(|_| CoreError::InvalidPublicKey)?;
+        let key = XOnlyPublicKey::from_slice(&serialized.key_x_only)
+            .map_err(|_| CoreError::InvalidPublicKey)?;
         let leaf_hash = TapLeafHash::from_slice(&serialized.leaf_hash)
             .map_err(|_| CoreError::InvalidLeafHash)?;
         let sig = taproot::Signature::from_slice(&serialized.signature)
