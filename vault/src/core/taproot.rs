@@ -6,8 +6,9 @@ use bitcoin::{
 };
 
 use super::{
-    BuildCustodianAndPartyBranch, BuildCustodianOnlyBranch, BuildTwoPartyBranch, CoreError,
-    CustodianAndPartyBranch, CustodianOnlyBranch, TwoPartyBranch,
+    BuildCustodianAndPartyBranch, BuildCustodianOnlyBranch, BuildPartyWithSequenceVerification,
+    BuildTwoPartyBranch, CoreError, CustodianAndPartyBranch, CustodianOnlyBranch,
+    PartyWithSequenceVerification, TwoPartyBranch,
 };
 
 use lazy_static::lazy_static;
@@ -21,24 +22,31 @@ lazy_static! {
     .unwrap();
 }
 
-#[derive(Debug)]
-pub struct UPCTaprootTreeParams {
-    pub user_pub_key: XOnlyPublicKey,
-    pub protocol_pub_key: XOnlyPublicKey,
-    pub custodian_pub_keys: Vec<XOnlyPublicKey>,
-    pub custodian_quorum: u8,
+#[derive(Debug, Clone)]
+pub struct UPCTaprootTree {
+    pub user_protocol_branch: TwoPartyBranch,
+    pub user_custodian_branch: CustodianAndPartyBranch,
+    pub protocol_custodian_branch: CustodianAndPartyBranch,
 }
 
 #[derive(Debug, Clone)]
-pub struct TaprootTree {
-    pub root: TaprootSpendInfo,
-    pub user_protocol_branch: Option<TwoPartyBranch>,
-    pub user_custodian_branch: Option<CustodianAndPartyBranch>,
-    pub protocol_custodian_branch: Option<CustodianAndPartyBranch>,
-    pub only_custodian_branch: Option<CustodianOnlyBranch>,
+pub struct CustodianOnlyTree {
+    pub only_custodian_branch: CustodianOnlyBranch,
 }
 
-impl TaprootTree {
+#[derive(Debug, Clone)]
+pub struct CSVCustodialTree {
+    pub csv_party_branch: PartyWithSequenceVerification,
+    pub only_custodian_branch: CustodianOnlyBranch,
+}
+
+#[derive(Debug, Clone)]
+pub struct TaprootTree<T> {
+    pub root: TaprootSpendInfo,
+    pub tree: T,
+}
+
+impl TaprootTree<UPCTaprootTree> {
     /// Creates a Taproot locking script with multiple spending conditions.
     ///
     /// This function constructs a Taproot script tree with different spending paths:
@@ -73,27 +81,28 @@ impl TaprootTree {
     /// ### Returns
     /// * `Result<ScriptBuf, CoreError>` - The resulting Taproot script or an error
     ///
-    pub fn new_upc(
+    pub fn new(
         secp: &Secp256k1<All>,
-        params: &UPCTaprootTreeParams,
+        user_pub_key: XOnlyPublicKey,
+        protocol_pub_key: XOnlyPublicKey,
+        custodian_pub_keys: Vec<XOnlyPublicKey>,
+        custodian_quorum: u8,
     ) -> Result<Self, CoreError> {
         let mut builder = TaprootBuilder::new();
 
-        let up_branch = <ScriptBuf as BuildTwoPartyBranch>::build(
-            &params.user_pub_key,
-            &params.protocol_pub_key,
-        )?;
+        let up_branch =
+            <ScriptBuf as BuildTwoPartyBranch>::build(&user_pub_key, &protocol_pub_key)?;
 
         let uc_branch = <ScriptBuf as BuildCustodianAndPartyBranch>::build(
-            &params.user_pub_key,
-            &params.custodian_pub_keys,
-            params.custodian_quorum,
+            &user_pub_key,
+            &custodian_pub_keys,
+            custodian_quorum,
         )?;
 
         let pc_branch = <ScriptBuf as BuildCustodianAndPartyBranch>::build(
-            &params.protocol_pub_key,
-            &params.custodian_pub_keys,
-            params.custodian_quorum,
+            &protocol_pub_key,
+            &custodian_pub_keys,
+            custodian_quorum,
         )?;
 
         builder = builder.add_leaf(1, up_branch.clone())?;
@@ -106,23 +115,26 @@ impl TaprootTree {
 
         Ok(Self {
             root: taproot_spend_info,
-            user_protocol_branch: Some(up_branch),
-            user_custodian_branch: Some(uc_branch),
-            protocol_custodian_branch: Some(pc_branch),
-            only_custodian_branch: None,
+            tree: UPCTaprootTree {
+                user_protocol_branch: up_branch,
+                user_custodian_branch: uc_branch,
+                protocol_custodian_branch: pc_branch,
+            },
         })
     }
+}
 
+impl TaprootTree<CustodianOnlyTree> {
     /// Creates a Taproot locking script with only custodian spending path.
     ///
     /// ```text
-    /// Root
-    /// |
-    /// 1
-    /// |
-    /// Only Custodian: OP_CHECKSIG + OP_CHECKSIGADD + ... + OP_GREATERTHANOREQUAL
+    ///     Root
+    ///      |
+    ///      1
+    ///      |
+    ///    Only Custodian: OP_CHECKSIG + OP_CHECKSIGADD +... + OP_GREATERTHANOREQUAL
     /// ```
-    pub fn new_custodian_only(
+    pub fn new(
         secp: &Secp256k1<All>,
         custodian_pub_keys: &[XOnlyPublicKey],
         custodian_quorum: u8,
@@ -140,13 +152,61 @@ impl TaprootTree {
 
         Ok(Self {
             root: taproot_spend_info,
-            user_protocol_branch: None,
-            user_custodian_branch: None,
-            protocol_custodian_branch: None,
-            only_custodian_branch: Some(only_custodian_branch),
+            tree: CustodianOnlyTree {
+                only_custodian_branch: only_custodian_branch,
+            },
         })
     }
+}
 
+impl TaprootTree<CSVCustodialTree> {
+    /// Creates a Taproot locking script with only custodian spending path.
+    ///
+    /// ```text
+    ///        Root
+    ///       /    \
+    ///      /      \
+    ///     /        \
+    ///    /          \
+    ///   1            1
+    ///   |            |
+    ///   |            |
+    ///   |            |
+    ///   |            |
+    /// CustodianOnly SequenceLocked   
+    /// ```
+    pub fn new(
+        secp: &Secp256k1<All>,
+        party: &XOnlyPublicKey,
+        custodian_pub_keys: &[XOnlyPublicKey],
+        custodian_quorum: u8,
+        sequence: i64,
+    ) -> Result<Self, CoreError> {
+        let mut builder = TaprootBuilder::new();
+
+        let only_custodian_branch =
+            <ScriptBuf as BuildCustodianOnlyBranch>::build(custodian_pub_keys, custodian_quorum)?;
+
+        let csv_branch = <ScriptBuf as BuildPartyWithSequenceVerification>::build(party, sequence)?;
+
+        builder = builder.add_leaf(1, csv_branch.clone())?;
+        builder = builder.add_leaf(1, only_custodian_branch.clone())?;
+
+        let taproot_spend_info = builder
+            .finalize(secp, *NUMS_BIP_341)
+            .map_err(|_| CoreError::TaprootFinalizationFailed)?;
+
+        Ok(Self {
+            root: taproot_spend_info,
+            tree: CSVCustodialTree {
+                csv_party_branch: csv_branch,
+                only_custodian_branch: only_custodian_branch,
+            },
+        })
+    }
+}
+
+impl<T> TaprootTree<T> {
     pub fn internal_key(&self) -> UntweakedPublicKey {
         self.root.internal_key()
     }
@@ -154,9 +214,6 @@ impl TaprootTree {
     pub fn merkle_root(&self) -> Option<TapNodeHash> {
         self.root.merkle_root()
     }
-}
-
-impl TaprootTree {
     pub fn into_script(self, secp: &Secp256k1<All>) -> ScriptBuf {
         ScriptBuf::new_p2tr(secp, self.internal_key(), self.merkle_root())
     }

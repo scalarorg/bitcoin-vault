@@ -1,7 +1,7 @@
 use crate::{
     get_basic_fee, log_tx_result, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams,
-    PreviousStakingUTXO, Signing, Staking, TaprootTreeType, UPCStakingParams, UPCUnstakingParams,
-    Unstaking, UnstakingOutput, UnstakingType, VaultManager, HASH_SIZE,
+    PreviousStakingUTXO, Signing, Staking, TaprootTreeType, UPCLockingParams, UPCUnlockingParams,
+    UnlockingType, Unstaking, UnstakingOutput, VaultManager, HASH_SIZE,
 };
 use anyhow::{anyhow, Result};
 use bitcoin::bip32::DerivationPath;
@@ -153,7 +153,7 @@ impl TestSuite {
             .into_tx_outs(),
             TaprootTreeType::UPCBranch => <VaultManager as Staking>::build_upc(
                 &self.manager,
-                &UPCStakingParams {
+                &UPCLockingParams {
                     user_pub_key: account.public_key(),
                     protocol_pub_key: self.protocol_pubkey(),
                     custodian_pub_keys: self.custodian_pubkeys(),
@@ -267,13 +267,13 @@ impl TestSuite {
     pub fn build_upc_unstaking_tx(
         &self,
         staking_tx: &Transaction,
-        unstaking_type: UnstakingType,
+        unstaking_type: UnlockingType,
         account: SuiteAccount,
         amount: u64,
     ) -> Psbt {
         <VaultManager as Unstaking>::build_upc(
             &self.manager,
-            &UPCUnstakingParams {
+            &UPCUnlockingParams {
                 inputs: vec![PreviousStakingUTXO {
                     outpoint: OutPoint::new(staking_tx.compute_txid(), VOUT as u32),
                     amount_in_sats: staking_tx.output[VOUT].value,
