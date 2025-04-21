@@ -214,6 +214,7 @@ func EncodePoolingRedeemParams(tag []byte,
 	data := buffer.Bytes()
 	return data
 }
+
 func BuildPoolingRedeemTx(tag []byte,
 	serviceTag []byte,
 	version uint8,
