@@ -6,7 +6,7 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct UnstakingFeeParams {
+pub struct UnlockingFeeParams {
     pub n_inputs: u64,
     pub n_outputs: u64,
     pub quorum: u8,
@@ -14,7 +14,7 @@ pub struct UnstakingFeeParams {
 }
 
 impl VaultManager {
-    pub fn calculate_unstaking_fee(&self, params: UnstakingFeeParams) -> Amount {
+    pub fn calculate_unlocking_fee(&self, params: UnlockingFeeParams) -> Amount {
         let witness_cost = ESTIMATE_SIGNATURE_COST * params.quorum as u64
             + ESTIMATE_ADDITIONAL_P2TR_SCRIPT_PATH_COST;
         let inputs_cost = (P2TR_INPUT_SIZE + witness_cost) * params.n_inputs;

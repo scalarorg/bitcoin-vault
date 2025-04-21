@@ -25,8 +25,8 @@ lazy_static! {
 #[derive(Debug, Clone)]
 pub struct UPCTaprootTree {
     pub user_protocol_branch: TwoPartyBranch,
-    pub user_custodian_branch: CustodianAndPartyBranch,
-    pub protocol_custodian_branch: CustodianAndPartyBranch,
+    pub custodian_user_branch: CustodianAndPartyBranch,
+    pub custodian_protocol_branch: CustodianAndPartyBranch,
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ pub struct CSVCustodialTree {
 #[derive(Debug, Clone)]
 pub struct TaprootTree<T> {
     pub root: TaprootSpendInfo,
-    pub tree: T,
+    pub raw: T,
 }
 
 impl TaprootTree<UPCTaprootTree> {
@@ -115,10 +115,10 @@ impl TaprootTree<UPCTaprootTree> {
 
         Ok(Self {
             root: taproot_spend_info,
-            tree: UPCTaprootTree {
+            raw: UPCTaprootTree {
                 user_protocol_branch: up_branch,
-                user_custodian_branch: uc_branch,
-                protocol_custodian_branch: pc_branch,
+                custodian_user_branch: uc_branch,
+                custodian_protocol_branch: pc_branch,
             },
         })
     }
@@ -152,8 +152,8 @@ impl TaprootTree<CustodianOnlyTree> {
 
         Ok(Self {
             root: taproot_spend_info,
-            tree: CustodianOnlyTree {
-                only_custodian_branch: only_custodian_branch,
+            raw: CustodianOnlyTree {
+                only_custodian_branch,
             },
         })
     }
@@ -198,9 +198,9 @@ impl TaprootTree<CSVCustodialTree> {
 
         Ok(Self {
             root: taproot_spend_info,
-            tree: CSVCustodialTree {
+            raw: CSVCustodialTree {
                 csv_party_branch: csv_branch,
-                only_custodian_branch: only_custodian_branch,
+                only_custodian_branch,
             },
         })
     }

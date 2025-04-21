@@ -1,7 +1,7 @@
 use crate::{
-    get_basic_fee, log_tx_result, CustodianOnlyStakingParams, CustodianOnlyUnstakingParams,
-    PreviousStakingUTXO, Signing, Staking, TaprootTreeType, UPCLockingParams, UPCUnlockingParams,
-    UnlockingType, Unstaking, UnstakingOutput, VaultManager, HASH_SIZE,
+    get_basic_fee, log_tx_result, CustodianOnly, CustodianOnlyLockingParams,
+    CustodianOnlyUnlockingParams, PreviousOutpoint, Signing, TaprootTreeType, UPCLockingParams,
+    UPCUnlockingParams, UnlockingType, VaultManager, HASH_SIZE, UPC,
 };
 use anyhow::{anyhow, Result};
 use bitcoin::bip32::DerivationPath;
@@ -138,20 +138,22 @@ impl TestSuite {
             TaprootTreeType::OnlyKeys => {
                 panic!("not implemented");
             }
-            TaprootTreeType::CustodianOnly => <VaultManager as Staking>::build_custodian_only(
-                &self.manager,
-                &CustodianOnlyStakingParams {
-                    custodian_pub_keys: self.custodian_pubkeys(),
-                    custodian_quorum: self.env.custodian_quorum,
-                    staking_amount: amount,
-                    destination_chain: dest.destination_chain,
-                    destination_token_address: dest.destination_token_address,
-                    destination_recipient_address: dest.destination_recipient_address,
-                },
-            )
-            .map_err(|e| anyhow!(e))?
-            .into_tx_outs(),
-            TaprootTreeType::UPCBranch => <VaultManager as Staking>::build_upc(
+            TaprootTreeType::CustodianOnly => {
+                <VaultManager as CustodianOnly>::build_locking_output(
+                    &self.manager,
+                    &CustodianOnlyLockingParams {
+                        custodian_pub_keys: self.custodian_pubkeys(),
+                        custodian_quorum: self.env.custodian_quorum,
+                        staking_amount: amount,
+                        destination_chain: dest.destination_chain,
+                        destination_token_address: dest.destination_token_address,
+                        destination_recipient_address: dest.destination_recipient_address,
+                    },
+                )
+                .map_err(|e| anyhow!(e))?
+                .into_tx_outs()
+            }
+            TaprootTreeType::UPCBranch => <VaultManager as UPC>::build_locking_output(
                 &self.manager,
                 &UPCLockingParams {
                     user_pub_key: account.public_key(),
@@ -271,17 +273,17 @@ impl TestSuite {
         account: SuiteAccount,
         amount: u64,
     ) -> Psbt {
-        <VaultManager as Unstaking>::build_upc(
+        <VaultManager as UPC>::build_unlocking_psbt(
             &self.manager,
             &UPCUnlockingParams {
-                inputs: vec![PreviousStakingUTXO {
+                inputs: vec![PreviousOutpoint {
                     outpoint: OutPoint::new(staking_tx.compute_txid(), VOUT as u32),
                     amount_in_sats: staking_tx.output[VOUT].value,
                     script_pubkey: staking_tx.output[VOUT].script_pubkey.clone(),
                 }],
-                unstaking_output: UnstakingOutput {
-                    amount_in_sats: Amount::from_sat(amount),
-                    locking_script: account.address().script_pubkey(),
+                output: TxOut {
+                    value: Amount::from_sat(amount),
+                    script_pubkey: account.address().script_pubkey(),
                 },
                 user_pub_key: account.public_key(),
                 protocol_pub_key: self.protocol_pubkey(),
@@ -289,8 +291,8 @@ impl TestSuite {
                 custodian_quorum: self.env.custodian_quorum,
                 fee_rate: get_fee_rate(),
                 rbf: true,
+                typ: unstaking_type,
             },
-            unstaking_type,
         )
         .unwrap()
     }
@@ -299,20 +301,20 @@ impl TestSuite {
     pub fn build_batch_custodian_only_unstaking_tx(
         &self,
         staking_txs: &[Transaction],
-        unstaking_outputs: Vec<UnstakingOutput>,
+        outputs: Vec<TxOut>,
     ) -> Psbt {
-        <VaultManager as Unstaking>::build_custodian_only(
+        <VaultManager as CustodianOnly>::build_unlocking_psbt(
             &self.manager,
-            &CustodianOnlyUnstakingParams {
+            &CustodianOnlyUnlockingParams {
                 inputs: staking_txs
                     .iter()
-                    .map(|t| PreviousStakingUTXO {
+                    .map(|t| PreviousOutpoint {
                         outpoint: OutPoint::new(t.compute_txid(), VOUT as u32),
                         amount_in_sats: t.output[VOUT].value,
                         script_pubkey: t.output[VOUT].script_pubkey.clone(),
                     })
                     .collect(),
-                unstaking_outputs,
+                outputs,
                 custodian_pub_keys: self.custodian_pubkeys(),
                 custodian_quorum: self.env.custodian_quorum,
                 fee_rate: get_fee_rate(),

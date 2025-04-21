@@ -1,9 +1,21 @@
 use std::collections::BTreeMap;
 
-use bitcoin::{bip32::{DerivationPath, Fingerprint}, key::Secp256k1, psbt::Input, secp256k1::All, taproot::{LeafVersion, TaprootSpendInfo}, Amount, PublicKey, ScriptBuf, TapLeafHash, TxOut, XOnlyPublicKey};
+use bitcoin::{
+    bip32::{DerivationPath, Fingerprint},
+    key::Secp256k1,
+    opcodes::all::OP_RETURN,
+    psbt::{Input, PsbtSighashType},
+    script,
+    secp256k1::All,
+    taproot::{LeafVersion, TaprootSpendInfo},
+    Amount, PublicKey, ScriptBuf, TapLeafHash, TapSighashType, Transaction, TxOut, XOnlyPublicKey,
+};
 use lazy_static::lazy_static;
 
-use super::PreviousStakingUTXO;
+use super::{
+    CoreError, DataScript, PreviousOutpoint, TransactionBuilder, UnlockingFeeParams,
+    UnlockingTaprootTreeType, HASH_SIZE, UNLOCKING_EMBEDDED_DATA_SCRIPT_SIZE,
+};
 
 lazy_static! {
     static ref SECP: Secp256k1<All> = Secp256k1::new();
@@ -21,11 +33,18 @@ pub struct VaultManager {
     network_id: u8,
 }
 
-#[derive(Debug)]
-pub struct XOnlyKeys {
-    pub user: XOnlyPublicKey,
-    pub protocol: XOnlyPublicKey,
-    pub custodians: Vec<XOnlyPublicKey>,
+pub struct UnlockingParams<'a> {
+    pub total_input_value: Amount,
+    pub total_output_value: Amount,
+    pub inputs: &'a [PreviousOutpoint],
+    pub outputs: &'a [TxOut],
+    pub tree_type: UnlockingTaprootTreeType,
+    pub script: &'a ScriptBuf,
+    pub rbf: bool,
+    pub fee_rate: u64,
+    pub custodian_quorum: u8,
+    pub session_sequence: u64,
+    pub custodian_group_uid: [u8; HASH_SIZE],
 }
 
 impl VaultManager {
@@ -54,9 +73,9 @@ impl VaultManager {
         self.network_id
     }
 
-    fn prepare_psbt_inputs(
+    pub fn prepare_psbt_inputs(
         &self,
-        inputs: &[PreviousStakingUTXO],
+        inputs: &[PreviousOutpoint],
         tree: &TaprootSpendInfo,
         branch: &ScriptBuf,
         keys: &[XOnlyPublicKey],
@@ -104,7 +123,7 @@ impl VaultManager {
 
     fn create_psbt_inputs(
         &self,
-        inputs: &[PreviousStakingUTXO],
+        inputs: &[PreviousOutpoint],
         tree: &bitcoin::taproot::TaprootSpendInfo,
         tap_scripts: &BTreeMap<bitcoin::taproot::ControlBlock, (ScriptBuf, LeafVersion)>,
         tap_key_origins: &BTreeMap<
@@ -140,7 +159,7 @@ impl VaultManager {
             .collect()
     }
 
-    fn convert_to_x_only_keys(&self, pub_keys: &[PublicKey]) -> Vec<XOnlyPublicKey> {
+    pub fn convert_to_x_only_keys(pub_keys: &[PublicKey]) -> Vec<XOnlyPublicKey> {
         pub_keys
             .iter()
             .map(|pk| XOnlyPublicKey::from(*pk))
@@ -149,8 +168,8 @@ impl VaultManager {
 
     fn add_inputs_to_builder(
         &self,
-        tx_builder: &mut UnstakingTransactionBuilder,
-        inputs: &[PreviousStakingUTXO],
+        tx_builder: &mut TransactionBuilder,
+        inputs: &[PreviousOutpoint],
     ) {
         for input in inputs {
             tx_builder.add_input(input.outpoint);
@@ -159,48 +178,47 @@ impl VaultManager {
 
     fn add_indexed_output_to_builder(
         &self,
-        tx_builder: &mut UnstakingTransactionBuilder,
-        flags: UnstakingTaprootTreeType,
+        tx_builder: &mut TransactionBuilder,
+        flags: UnlockingTaprootTreeType,
         session_sequence: u64,
         custodian_group_uid: [u8; HASH_SIZE],
     ) -> Result<(), CoreError> {
-        let indexed_output =
-            self.create_indexed_output(flags, session_sequence, &custodian_group_uid)?;
+        let script =
+            self.create_indexed_unlocking_script(flags, session_sequence, &custodian_group_uid)?;
 
-        tx_builder.add_output(indexed_output.amount_in_sats, indexed_output.locking_script);
+        tx_builder.add_output(Amount::ZERO, script.into_script());
 
         Ok(())
     }
 
-    fn create_indexed_output(
+    fn create_indexed_unlocking_script(
         &self,
-        flags: UnstakingTaprootTreeType,
+        flags: UnlockingTaprootTreeType,
         session_sequence: u64,
         custodian_group_uid: &[u8; HASH_SIZE],
-    ) -> Result<UnstakingOutput, CoreError> {
-        let unstaking_script = DataScript::new_unstaking(&UnstakingDataScriptParams {
-            tag: self.tag(),
-            version: self.version(),
-            network_id: self.network_id(),
-            service_tag: self.service_tag(),
-            flags,
-            session_sequence,
-            custodian_group_uid,
-        })?;
-        Ok(UnstakingOutput {
-            amount_in_sats: Amount::ZERO,
-            locking_script: unstaking_script.into_script(),
-        })
-    }
+    ) -> Result<DataScript, CoreError> {
+        let tag_hash = DataScript::compute_tag_hash(self.tag.as_slice())?;
+        let service_tag_hash = DataScript::compute_service_tag_hash(self.service_tag.as_slice())?;
 
-    fn add_outputs_to_builder(
-        &self,
-        tx_builder: &mut UnstakingTransactionBuilder,
-        outputs: &[UnstakingOutput],
-    ) {
-        for output in outputs {
-            tx_builder.add_output(output.amount_in_sats, output.locking_script.clone());
-        }
+        let mut data = Vec::<u8>::with_capacity(UNLOCKING_EMBEDDED_DATA_SCRIPT_SIZE);
+        data.extend_from_slice(&tag_hash);
+        data.push(self.version);
+        data.push(self.network_id);
+        data.push(flags as u8);
+        data.extend_from_slice(&service_tag_hash);
+        data.extend_from_slice(&session_sequence.to_be_bytes());
+        data.extend_from_slice(custodian_group_uid);
+        let data_slice: &[u8; UNLOCKING_EMBEDDED_DATA_SCRIPT_SIZE] = data
+            .as_slice()
+            .try_into()
+            .map_err(|_| CoreError::CannotConvertOpReturnDataToSlice)?;
+
+        let script = script::Builder::new()
+            .push_opcode(OP_RETURN)
+            .push_slice(data_slice)
+            .into_script();
+
+        Ok(DataScript(script))
     }
 
     fn calculate_change(&self, total_input_value: Amount, total_output_value: Amount) -> Amount {
@@ -209,7 +227,7 @@ impl VaultManager {
 
     fn add_change_output_placeholder(
         &self,
-        tx_builder: &mut UnstakingTransactionBuilder,
+        tx_builder: &mut TransactionBuilder,
         script: &ScriptBuf,
     ) {
         tx_builder.add_output(Amount::ZERO, script.clone());
@@ -229,55 +247,45 @@ impl VaultManager {
     }
 
     // New helper method to extract common transaction building logic
-    pub fn build_unstaking_transaction(
+    pub fn build_unlocking_transaction(
         &self,
-        total_input_value: Amount,
-        total_output_value: Amount,
-        inputs: &[PreviousStakingUTXO],
-        unstaking_outputs: &[UnstakingOutput],
-        tree_type: UnstakingTaprootTreeType,
-        script: &ScriptBuf,
-        rbf: bool,
-        fee_rate: u64,
-        custodian_quorum: u8,
-        session_sequence: u64,
-        custodian_group_uid: [u8; HASH_SIZE],
+        params: &UnlockingParams,
     ) -> Result<Transaction, CoreError> {
-        let mut tx_builder = UnstakingTransactionBuilder::new(rbf);
+        let mut tx_builder = TransactionBuilder::new(params.rbf);
 
-        self.add_inputs_to_builder(&mut tx_builder, inputs);
+        self.add_inputs_to_builder(&mut tx_builder, params.inputs);
 
         // output[0]: indexed output (op_return)
-        // output[1->n-2]: unstaking outputs
+        // output[1->n-2]: unlocking outputs
         // output[n-1]: change output
 
         self.add_indexed_output_to_builder(
             &mut tx_builder,
-            tree_type,
-            session_sequence,
-            custodian_group_uid,
+            params.tree_type,
+            params.session_sequence,
+            params.custodian_group_uid,
         )?;
 
-        self.add_outputs_to_builder(&mut tx_builder, unstaking_outputs);
+        tx_builder.add_outputs(params.outputs);
 
-        let change = self.calculate_change(total_input_value, total_output_value);
+        let change = self.calculate_change(params.total_input_value, params.total_output_value);
         if change > Amount::ZERO {
-            self.add_change_output_placeholder(&mut tx_builder, script);
+            self.add_change_output_placeholder(&mut tx_builder, params.script);
         }
 
         let mut unsigned_tx = tx_builder.build();
 
-        let fee = self.calculate_unstaking_fee(UnstakingFeeParams {
+        let fee = self.calculate_unlocking_fee(UnlockingFeeParams {
             n_inputs: unsigned_tx.input.len() as u64,
             n_outputs: unsigned_tx.output.len() as u64,
-            fee_rate,
-            quorum: custodian_quorum,
+            fee_rate: params.fee_rate,
+            quorum: params.custodian_quorum,
         });
 
-        self.distribute_fee(&mut unsigned_tx, total_output_value, fee)?;
+        self.distribute_fee(&mut unsigned_tx, params.total_output_value, fee)?;
 
         if change > Amount::ZERO {
-            self.replace_change_output(&mut unsigned_tx, change, script);
+            self.replace_change_output(&mut unsigned_tx, change, params.script);
         }
 
         Ok(unsigned_tx)

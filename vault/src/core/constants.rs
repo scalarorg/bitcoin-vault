@@ -46,8 +46,8 @@ pub const EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
     + DEST_TOKEN_ADDRESS_SIZE
     + DEST_RECIPIENT_ADDRESS_SIZE;
 
-/// Total size of the embbeded data script for unstaking
-pub const UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
+/// Total size of the embbeded data script for unlocking
+pub const UNLOCKING_EMBEDDED_DATA_SCRIPT_SIZE: usize = TAG_HASH_SIZE
     + VERSION_SIZE
     + NETWORK_ID_SIZE
     + FLAGS_SIZE

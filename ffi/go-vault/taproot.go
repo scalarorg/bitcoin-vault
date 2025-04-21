@@ -35,7 +35,7 @@ func CustodiansOnlyLockingScript(custodianPubKeys []types.PublicKey, custodianQu
 	defer C.free_byte_buffer(result)
 
 	if result.data == nil || result.len == 0 {
-		return nil, ErrFailedToBuildCustodianOnlyUnstakingTx
+		return nil, ErrFailedToBuildCustodianOnlyUnlockingTx
 	}
 
 	return C.GoBytes(unsafe.Pointer(result.data), C.int(result.len)), nil

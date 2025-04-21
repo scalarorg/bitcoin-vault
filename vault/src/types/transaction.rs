@@ -1,6 +1,6 @@
 use crate::{
     DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, TaprootTreeType,
-    UnstakingTaprootTreeType, CUSTODIAN_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
+    UnlockingTaprootTreeType, CUSTODIAN_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
     DEST_TOKEN_ADDRESS_SIZE, FLAGS_SIZE, HASH_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE,
     TAG_HASH_SIZE, VERSION_SIZE,
 };
@@ -90,8 +90,8 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         // Read flags
         let flags = read_bytes(bytes, &mut cursor, FLAGS_SIZE)?[0];
 
-        match UnstakingTaprootTreeType::try_from(flags) {
-            Ok(UnstakingTaprootTreeType::CustodianOnly) => {
+        match UnlockingTaprootTreeType::try_from(flags) {
+            Ok(UnlockingTaprootTreeType::CustodianOnlyBranch) => {
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
                 let session_sequence = read_bytes(bytes, &mut cursor, 4)?;
                 let session_sequence = u64::from_be_bytes(session_sequence.try_into().unwrap());
@@ -108,7 +108,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     ..Default::default()
                 })
             }
-            Ok(UnstakingTaprootTreeType::UPCBranch) => {
+            Ok(UnlockingTaprootTreeType::UPCBranch) => {
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
                 Ok(VaultReturnTxOutput {
                     tag: tag.try_into().unwrap(),

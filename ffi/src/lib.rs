@@ -5,7 +5,7 @@ mod parsing;
 mod signing;
 mod taproot;
 mod types;
-mod unstaking;
+mod unlocking;
 mod utils;
 
 pub use error::*;
@@ -15,5 +15,5 @@ pub use parsing::*;
 pub use signing::*;
 pub use taproot::*;
 pub use types::*;
-pub use unstaking::*;
-pub use utils::*;
+pub use unlocking::*;
+use utils::*;

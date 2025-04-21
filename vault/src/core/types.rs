@@ -1,12 +1,15 @@
 use std::collections::BTreeMap;
 
 use bitcoin::{
-    consensus::Encodable, hashes::Hash, taproot, Amount, TapLeafHash, TxOut, XOnlyPublicKey,
+    consensus::{Decodable, Encodable},
+    hashes::Hash,
+    taproot, Amount, OutPoint, ScriptBuf, TapLeafHash, TxOut, Txid, XOnlyPublicKey,
 };
 #[allow(unused_imports)]
 use bitcoincore_rpc::jsonrpc::serde_json;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{serde_as, Bytes};
+use validator::Validate;
 
 use super::{
     CoreError, DataScript, LockingScript, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
@@ -22,7 +25,14 @@ pub type DestinationRecipientAddress = [u8; DEST_RECIPIENT_ADDRESS_SIZE];
 /// Type alias for destination chain
 pub type DestinationChain = [u8; DEST_CHAIN_SIZE];
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
+pub enum UnlockingType {
+    UserProtocol,
+    CustodianProtocol,
+    CustodianUser,
+}
+
+#[derive(Debug, Clone)]
 pub struct LockingOutput {
     amount: u64,
     script: LockingScript,
@@ -32,10 +42,17 @@ pub struct LockingOutput {
 impl LockingOutput {
     pub fn new(amount: u64, script: LockingScript, data: DataScript) -> Self {
         Self {
-            amount: amount,
-            script: script,
-            data: data,
+            amount,
+            script,
+            data,
         }
+    }
+
+    pub fn amount(&self) -> u64 {
+        self.amount
+    }
+    pub fn script(&self) -> &LockingScript {
+        &self.script
     }
 
     pub fn into_tx_outs(self) -> Vec<TxOut> {
@@ -49,6 +66,31 @@ impl LockingOutput {
                 script_pubkey: self.script.into_script(),
             },
         ]
+    }
+}
+
+#[derive(Debug, Validate, Clone)]
+pub struct PreviousOutpoint {
+    pub outpoint: OutPoint, // txid, vout
+    pub amount_in_sats: Amount,
+    pub script_pubkey: ScriptBuf,
+}
+
+impl TryFrom<&[u8]> for PreviousOutpoint {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let mut txid = [0u8; 32];
+        txid.copy_from_slice(&value[0..32]);
+        let txid = Txid::consensus_decode(&mut txid.as_slice())
+            .map_err(|_| anyhow::anyhow!("Invalid txid"))?;
+        let vout = u32::from_be_bytes(value[32..36].try_into().unwrap());
+        let amount = u64::from_be_bytes(value[33..41].try_into().unwrap());
+        Ok(PreviousOutpoint {
+            outpoint: OutPoint::new(txid, vout),
+            amount_in_sats: Amount::from_sat(amount),
+            script_pubkey: ScriptBuf::from_bytes(value[41..].to_vec()),
+        })
     }
 }
 
