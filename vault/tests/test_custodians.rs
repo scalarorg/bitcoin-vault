@@ -4,16 +4,16 @@ mod test_custodians {
 
     use bitcoin::key::Secp256k1;
     use bitcoin::{secp256k1::All, Amount, Psbt};
-    use bitcoin::{Address, OutPoint, Txid, XOnlyPublicKey};
+    use bitcoin::{Address, OutPoint, TxOut, Txid};
     use bitcoincore_rpc::jsonrpc::base64;
     use bitcoincore_rpc::RawTx;
     use rust_mempool::MempoolClient;
     use vault::helper::{get_adress, key_from_wif, log_tx_result};
     use vault::{
-        get_approvable_utxos, get_network_from_str, AccountEnv, CustodianOnlyLockingScriptParams,
-        CustodianOnlyUnstakingParams, DestinationInfo, DestinationInfoEnv, LockingScript,
-        NeededUtxo, PreviousStakingUTXO, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType,
-        TestSuite, Unstaking, UnstakingOutput, VaultManager, HASH_SIZE,
+        get_approvable_utxos, get_network_from_str, AccountEnv, CustodianOnly,
+        CustodianOnlyUnlockingParams, DestinationInfo, DestinationInfoEnv, NeededUtxo,
+        PreviousOutpoint, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType, TestSuite,
+        VaultManager, HASH_SIZE,
     };
 
     use lazy_static::lazy_static;
@@ -54,9 +54,9 @@ mod test_custodians {
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx],
-            vec![UnstakingOutput {
-                amount_in_sats: Amount::from_sat(8000),
-                locking_script: TEST_ACCOUNT.address().script_pubkey(),
+            vec![TxOut {
+                value: Amount::from_sat(8000),
+                script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
             }],
         );
 
@@ -111,9 +111,9 @@ mod test_custodians {
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx],
-            vec![UnstakingOutput {
-                amount_in_sats: Amount::from_sat(8000),
-                locking_script: TEST_ACCOUNT.address().script_pubkey(),
+            vec![TxOut {
+                value: Amount::from_sat(8000),
+                script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
             }],
         );
 
@@ -187,9 +187,9 @@ mod test_custodians {
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx, staking_tx2],
-            vec![UnstakingOutput {
-                amount_in_sats: Amount::from_sat(7000),
-                locking_script: TEST_ACCOUNT.address().script_pubkey(),
+            vec![TxOut {
+                value: Amount::from_sat(7000),
+                script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
             }],
         );
 
@@ -275,13 +275,13 @@ mod test_custodians {
         let original_psbt: Psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &staking_txs,
             vec![
-                UnstakingOutput {
-                    amount_in_sats: Amount::from_sat(7000),
-                    locking_script: TEST_ACCOUNT.address().script_pubkey(),
+                TxOut {
+                    value: Amount::from_sat(7000),
+                    script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
                 },
-                UnstakingOutput {
-                    amount_in_sats: Amount::from_sat(4000),
-                    locking_script: another_address.script_pubkey(),
+                TxOut {
+                    value: Amount::from_sat(4000),
+                    script_pubkey: another_address.script_pubkey(),
                 },
             ],
         );
@@ -397,9 +397,9 @@ mod test_custodians {
 
         let mut unstaked_psbt = TEST_SUITE.build_batch_custodian_only_unstaking_tx(
             &[staking_tx, staking_tx2],
-            vec![UnstakingOutput {
-                amount_in_sats: Amount::from_sat(2000),
-                locking_script: TEST_ACCOUNT.address().script_pubkey(),
+            vec![TxOut {
+                value: Amount::from_sat(2000),
+                script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
             }],
         );
 
@@ -473,20 +473,10 @@ mod test_custodians {
             .block_on(async {
                 const VOUT: u32 = 1;
                 const LIMIT: usize = 100;
-                let secp = Secp256k1::new();
 
-                let custodians_x_only: Vec<XOnlyPublicKey> = TEST_SUITE
-                    .custodian_pubkeys()
-                    .iter()
-                    .map(|pk| XOnlyPublicKey::from(*pk))
-                    .collect();
-
-                let script = LockingScript::new_custodian_only(
-                    &secp,
-                    &CustodianOnlyLockingScriptParams {
-                        custodian_pub_keys: &custodians_x_only,
-                        custodian_quorum: TEST_SUITE.env().custodian_quorum,
-                    },
+                let script = <VaultManager as CustodianOnly>::locking_script(
+                    &TEST_SUITE.custodian_pubkeys(),
+                    TEST_SUITE.env().custodian_quorum,
                 )
                 .unwrap();
 
@@ -516,20 +506,20 @@ mod test_custodians {
 
                 println!("utxos: {:?}", utxos);
 
-                let mut unstaked_psbt = <VaultManager as Unstaking>::build_custodian_only(
+                let mut unstaked_psbt = <VaultManager as CustodianOnly>::build_unlocking_psbt(
                     &TEST_SUITE.manager(),
-                    &CustodianOnlyUnstakingParams {
+                    &CustodianOnlyUnlockingParams {
                         inputs: utxos
                             .iter()
-                            .map(|u| PreviousStakingUTXO {
+                            .map(|u| PreviousOutpoint {
                                 outpoint: OutPoint::new(u.txid, VOUT),
                                 amount_in_sats: u.amount,
                                 script_pubkey: address.script_pubkey(),
                             })
                             .collect(),
-                        unstaking_outputs: vec![UnstakingOutput {
-                            amount_in_sats: Amount::from_sat(total),
-                            locking_script: TEST_ACCOUNT.address().script_pubkey(),
+                        outputs: vec![TxOut {
+                            value: Amount::from_sat(total),
+                            script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
                         }],
                         custodian_pub_keys: TEST_SUITE.custodian_pubkeys(),
                         custodian_quorum: TEST_SUITE.env().custodian_quorum,

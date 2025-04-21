@@ -1,16 +1,11 @@
 use bitcoin::{
     hashes::{sha256d::Hash as Sha256dHash, Hash},
-    key::Secp256k1,
-    opcodes::all::*,
-    script,
-    secp256k1::All,
     ScriptBuf, XOnlyPublicKey,
 };
 
 use super::{
     CoreError, DestinationChain, DestinationRecipientAddress, DestinationTokenAddress,
-    EMBEDDED_DATA_SCRIPT_SIZE, HASH_SIZE, SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
-    UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE,
+    SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE,
 };
 
 #[derive(Debug)]
@@ -31,37 +26,6 @@ pub struct CustodianOnlyLockingScriptParams<'a> {
 pub struct LockingScript(pub ScriptBuf);
 
 impl LockingScript {
-    // pub fn new_upc(
-    //     secp: &Secp256k1<All>,
-    //     params: &UPCLockingScriptParams,
-    // ) -> Result<Self, CoreError> {
-    // }
-
-    // pub fn new_custodian_only(
-    //     secp: &Secp256k1<All>,
-    //     params: &CustodianOnlyLockingScriptParams,
-    // ) -> Result<Self, CoreError> {
-    //     let tree = TaprootTree::new_custodian_only(
-    //         secp,
-    //         params.custodian_pub_keys,
-    //         params.custodian_quorum,
-    //     )?;
-
-    //     Ok(LockingScript(tree.into_script(secp)))
-    // }
-
-    // pub fn get_custodian_only(
-    //     params: &CustodianOnlyLockingScriptParams,
-    // ) -> Result<Self, CoreError> {
-    //     let secp = Secp256k1::new();
-    //     LockingScript::new_custodian_only(&secp, params)
-    // }
-
-    // pub fn get_upc(params: &UPCLockingScriptParams) -> Result<Self, CoreError> {
-    //     let secp = Secp256k1::new();
-    //     LockingScript::new_upc(&secp, params)
-    // }
-
     pub fn into_script(self) -> ScriptBuf {
         self.0
     }
@@ -93,17 +57,7 @@ pub struct CustodianOnlyDataParams<'a> {
     pub destination_recipient_address: &'a DestinationRecipientAddress,
 }
 
-pub struct UnstakingDataScriptParams<'a> {
-    pub tag: &'a Vec<u8>,
-    pub version: u8,
-    pub network_id: u8,
-    pub service_tag: &'a Vec<u8>,
-    pub flags: UnstakingTaprootTreeType,
-    pub session_sequence: u64,
-    pub custodian_group_uid: &'a [u8; HASH_SIZE],
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DataScript(pub ScriptBuf);
 
 /**
@@ -129,8 +83,8 @@ pub enum TaprootTreeType {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum UnstakingTaprootTreeType {
-    CustodianOnly = 0b01000001,
+pub enum UnlockingTaprootTreeType {
+    CustodianOnlyBranch = 0b01000001,
     UPCBranch = 0b10000001,
 }
 
@@ -147,12 +101,12 @@ impl TryFrom<u8> for TaprootTreeType {
     }
 }
 
-impl TryFrom<u8> for UnstakingTaprootTreeType {
+impl TryFrom<u8> for UnlockingTaprootTreeType {
     type Error = CoreError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0b01000001 => Ok(Self::CustodianOnly),
+            0b01000001 => Ok(Self::CustodianOnlyBranch),
             0b10000001 => Ok(Self::UPCBranch),
             _ => Err(CoreError::InvalidTaprootTreeType),
         }
@@ -160,60 +114,6 @@ impl TryFrom<u8> for UnstakingTaprootTreeType {
 }
 
 impl DataScript {
-    pub fn new_custodian_only(params: &CustodianOnlyDataParams) -> Result<Self, CoreError> {
-        let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
-        let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
-        let flags = TaprootTreeType::CustodianOnly as u8;
-
-        let mut data = Vec::<u8>::with_capacity(EMBEDDED_DATA_SCRIPT_SIZE);
-        data.extend_from_slice(&tag_hash);
-        data.push(params.version);
-        data.push(params.network_id);
-        data.push(flags);
-        data.extend_from_slice(&service_tag_hash);
-        data.push(params.custodian_quorum);
-        data.extend_from_slice(params.destination_chain_id);
-        data.extend_from_slice(params.destination_token_address);
-        data.extend_from_slice(params.destination_recipient_address);
-
-        let data_slice: &[u8; EMBEDDED_DATA_SCRIPT_SIZE] = data
-            .as_slice()
-            .try_into()
-            .map_err(|_| CoreError::CannotConvertOpReturnDataToSlice)?;
-
-        let embedded_data_script = script::Builder::new()
-            .push_opcode(OP_RETURN)
-            .push_slice(data_slice)
-            .into_script();
-
-        Ok(DataScript(embedded_data_script))
-    }
-
-    pub fn new_unstaking(params: &UnstakingDataScriptParams) -> Result<Self, CoreError> {
-        let tag_hash = Self::compute_tag_hash(params.tag.as_slice())?;
-        let service_tag_hash = Self::compute_service_tag_hash(params.service_tag.as_slice())?;
-
-        let mut data = Vec::<u8>::with_capacity(UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE);
-        data.extend_from_slice(&tag_hash);
-        data.push(params.version);
-        data.push(params.network_id);
-        data.push(params.flags as u8);
-        data.extend_from_slice(&service_tag_hash);
-        data.extend_from_slice(&params.session_sequence.to_be_bytes());
-        data.extend_from_slice(params.custodian_group_uid);
-        let data_slice: &[u8; UNSTAKING_EMBEDDED_DATA_SCRIPT_SIZE] = data
-            .as_slice()
-            .try_into()
-            .map_err(|_| CoreError::CannotConvertOpReturnDataToSlice)?;
-
-        let embedded_data_script = script::Builder::new()
-            .push_opcode(OP_RETURN)
-            .push_slice(data_slice)
-            .into_script();
-
-        Ok(DataScript(embedded_data_script))
-    }
-
     pub fn compute_tag_hash(tag: &[u8]) -> Result<[u8; TAG_HASH_SIZE], CoreError> {
         let mut new_hash = [0u8; TAG_HASH_SIZE];
         if tag.len() <= TAG_HASH_SIZE {

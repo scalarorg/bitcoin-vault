@@ -1,7 +1,7 @@
 use std::slice;
 
-use bitcoin::{PublicKey, XOnlyPublicKey};
-use vault::{CustodianOnlyLockingScriptParams, LockingScript};
+use bitcoin::PublicKey;
+use vault::VaultManager;
 
 use crate::{create_null_buffer, ByteBuffer, PublicKeyFFI};
 
@@ -27,17 +27,11 @@ pub unsafe extern "C" fn custodians_only_locking_script(
         .map(|key| PublicKey::from_slice(key.as_slice()).unwrap())
         .collect();
 
-    let custodian_x_only_pubkeys: Vec<XOnlyPublicKey> = custodian_pub_keys
-        .iter()
-        .map(|p| XOnlyPublicKey::from(*p))
-        .collect::<Vec<_>>();
-
     // Create parameters for the unstaking function
-    let result = LockingScript::get_custodian_only(&CustodianOnlyLockingScriptParams {
-        custodian_pub_keys: &custodian_x_only_pubkeys,
+    let result = <VaultManager as vault::CustodianOnly>::locking_script(
+        &custodian_pub_keys,
         custodian_quorum,
-    });
-
+    );
     // Call the build_custodian_only function
     match result {
         Ok(script) => {

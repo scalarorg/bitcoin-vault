@@ -1,6 +1,6 @@
-use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, Txid};
-use vault::{PreviousStakingUTXO, UnstakingOutput};
+use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, TxOut, Txid};
 use std::slice;
+use vault::PreviousOutpoint;
 
 use crate::FFIError;
 
@@ -33,11 +33,11 @@ pub struct PreviousStakingUTXOFFI {
     pub script_pubkey: ScriptBufFFI,
 }
 
-impl TryInto<PreviousStakingUTXO> for &PreviousStakingUTXOFFI {
+impl TryInto<PreviousOutpoint> for &PreviousStakingUTXOFFI {
     type Error = FFIError;
 
-    fn try_into(self) -> Result<PreviousStakingUTXO, Self::Error> {
-        Ok(PreviousStakingUTXO {
+    fn try_into(self) -> Result<PreviousOutpoint, Self::Error> {
+        Ok(PreviousOutpoint {
             outpoint: OutPoint::new(
                 Txid::from_slice(self.outpoint.txid.as_slice())
                     .map_err(|_| FFIError::InvalidTxid)?,
@@ -50,16 +50,16 @@ impl TryInto<PreviousStakingUTXO> for &PreviousStakingUTXOFFI {
 }
 
 #[repr(C)]
-pub struct UnstakingOutputFFI {
+pub struct TxOutFFI {
     pub locking_script: ScriptBufFFI,
     pub amount_in_sats: AmountFFI,
 }
 
-impl From<&UnstakingOutputFFI> for UnstakingOutput {
-    fn from(ffi: &UnstakingOutputFFI) -> UnstakingOutput {
-        UnstakingOutput {
-            locking_script: ScriptBuf::from_bytes(ffi.locking_script.to_vec()),
-            amount_in_sats: Amount::from_sat(ffi.amount_in_sats),
+impl From<&TxOutFFI> for TxOut {
+    fn from(ffi: &TxOutFFI) -> TxOut {
+        TxOut {
+            script_pubkey: ScriptBuf::from_bytes(ffi.locking_script.to_vec()),
+            value: Amount::from_sat(ffi.amount_in_sats),
         }
     }
 }

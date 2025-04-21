@@ -8,12 +8,11 @@ mod test_csv {
         opcodes::all::{OP_CHECKSIG, OP_CSV, OP_DROP, OP_ELSE, OP_ENDIF, OP_IF},
         psbt::Input,
         script::Builder,
-        AddressType, Amount, OutPoint, Psbt, ScriptBuf, Sequence, TxOut, XOnlyPublicKey,
+        AddressType, Amount, OutPoint, Psbt, TxOut, XOnlyPublicKey,
     };
     use vault::{
-        get_approvable_utxo, log_tx_result, AccountEnv, BuildCustodianOnlyBranch, DestinationInfo,
-        DestinationInfoEnv, PreviousStakingUTXO, Signing, SuiteAccount, TestSuite, UnstakingOutput,
-        UnstakingTransactionBuilder, VaultManager,
+        get_approvable_utxo, log_tx_result, AccountEnv, DestinationInfo, DestinationInfoEnv,
+        Signing, SuiteAccount, TestSuite, TransactionBuilder, VaultManager,
     };
 
     use lazy_static::lazy_static;
@@ -29,7 +28,7 @@ mod test_csv {
     #[test]
     fn test_simple() {
         let lock_time: u16 = 0;
-        let mut tx_builder = UnstakingTransactionBuilder::new(false);
+        let mut tx_builder = TransactionBuilder::new(false);
 
         let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
 
@@ -125,7 +124,7 @@ mod test_csv {
 
         // spend the previout output
 
-        let mut tx_builder = UnstakingTransactionBuilder::new(false);
+        let mut tx_builder = TransactionBuilder::new(false);
 
         tx_builder.add_input(OutPoint {
             txid: result.txid,
@@ -178,6 +177,4 @@ mod test_csv {
 
         log_tx_result(&result);
     }
-
-    
 }

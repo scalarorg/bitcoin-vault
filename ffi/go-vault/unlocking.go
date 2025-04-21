@@ -27,7 +27,7 @@ typedef struct {
 typedef struct {
     ScriptBufFFI locking_script;
     AmountFFI amount_in_sats;
-} UnstakingOutputFFI;
+} TxOutFFI;
 
 typedef struct {
     uint8_t* data;
@@ -43,7 +43,7 @@ ByteBuffer build_custodian_only(
   uint8_t network_kind,
   const PreviousStakingUTXOFFI* inputs_ptr,
   size_t inputs_len,
-  const UnstakingOutputFFI* outputs_ptr,
+  const TxOutFFI* outputs_ptr,
   size_t outputs_len,
   const uint8_t (*custodian_pub_keys_ptr)[33],
   size_t custodian_pub_keys_len,
@@ -92,15 +92,15 @@ func convertInputsToFFI(inputs []types.PreviousStakingUTXO) ([]C.PreviousStaking
 	return inputsFFI, ptrs
 }
 
-func convertOutputsToFFI(outputs []types.UnstakingOutput) ([]C.UnstakingOutputFFI, []unsafe.Pointer) {
-	outputsFFI := make([]C.UnstakingOutputFFI, len(outputs))
+func convertOutputsToFFI(outputs []types.UnstakingOutput) ([]C.TxOutFFI, []unsafe.Pointer) {
+	outputsFFI := make([]C.TxOutFFI, len(outputs))
 	ptrs := make([]unsafe.Pointer, len(outputs))
 
 	for i, output := range outputs {
 		scriptPtr := C.CBytes(output.LockingScript)
 		ptrs[i] = scriptPtr
 
-		outputsFFI[i] = C.UnstakingOutputFFI{
+		outputsFFI[i] = C.TxOutFFI{
 			locking_script: C.ScriptBufFFI{
 				data: (*C.uint8_t)(scriptPtr),
 				len:  C.size_t(len(output.LockingScript)),
@@ -138,7 +138,7 @@ func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8,
 		C.uint8_t(network),
 		(*C.PreviousStakingUTXOFFI)(unsafe.Pointer(&inputsFFI[0])),
 		C.size_t(len(inputs)),
-		(*C.UnstakingOutputFFI)(unsafe.Pointer(&outputsFFI[0])),
+		(*C.TxOutFFI)(unsafe.Pointer(&outputsFFI[0])),
 		C.size_t(len(outputs)),
 		(*[33]C.uint8_t)(unsafe.Pointer(&custodianPubKeys[0])),
 		C.size_t(len(custodianPubKeys)),
@@ -149,7 +149,7 @@ func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8,
 	defer C.free_byte_buffer(result)
 
 	if result.data == nil || result.len == 0 {
-		return nil, ErrFailedToBuildCustodianOnlyUnstakingTx
+		return nil, ErrFailedToBuildCustodianOnlyUnlockingTx
 	}
 
 	return C.GoBytes(unsafe.Pointer(result.data), C.int(result.len)), nil
@@ -281,7 +281,7 @@ func BuildPoolingRedeemTx(tag []byte,
 	defer C.free_byte_buffer(result)
 
 	if result.data == nil || result.len == 0 {
-		return nil, ErrFailedToBuildCustodianOnlyUnstakingTx
+		return nil, ErrFailedToBuildCustodianOnlyUnlockingTx
 	}
 
 	return C.GoBytes(unsafe.Pointer(result.data), C.int(result.len)), nil

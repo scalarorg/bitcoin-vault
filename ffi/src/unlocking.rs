@@ -1,15 +1,13 @@
 use std::slice;
 
-use bitcoin::PublicKey;
+use bitcoin::{PublicKey, TxOut};
 use vault::{
-    CustodianOnlyUnstakingParams, PreviousStakingUTXO, UnstakingOutput, VaultManager, HASH_SIZE,
+    CustodianOnly, CustodianOnlyUnlockingParams, PreviousOutpoint, VaultManager, HASH_SIZE,
 };
-
-use vault::Unstaking;
 
 use crate::{
     create_null_buffer, ByteBuffer, PoolingRedeemParams, PreviousStakingUTXOFFI, PublicKeyFFI,
-    UnstakingOutputFFI,
+    TxOutFFI,
 };
 
 /// # Safety
@@ -27,7 +25,7 @@ pub unsafe extern "C" fn build_custodian_only(
 
     inputs_ptr: *const PreviousStakingUTXOFFI,
     inputs_len: usize,
-    outputs_ptr: *const UnstakingOutputFFI,
+    outputs_ptr: *const TxOutFFI,
     outputs_len: usize,
     custodian_pub_keys_ptr: *const PublicKeyFFI,
     custodian_pub_keys_len: usize,
@@ -48,12 +46,12 @@ pub unsafe extern "C" fn build_custodian_only(
     let outputs = slice::from_raw_parts(outputs_ptr, outputs_len);
     let custodian_pub_keys = slice::from_raw_parts(custodian_pub_keys_ptr, custodian_pub_keys_len);
 
-    let inputs: Vec<PreviousStakingUTXO> = inputs
+    let inputs: Vec<PreviousOutpoint> = inputs
         .iter()
         .map(|input| input.try_into().unwrap())
         .collect();
 
-    let outputs: Vec<UnstakingOutput> = outputs.iter().map(|output| output.into()).collect();
+    let outputs: Vec<TxOut> = outputs.iter().map(|output| output.into()).collect();
 
     let custodian_pub_keys: Vec<PublicKey> = custodian_pub_keys
         .iter()
@@ -61,9 +59,9 @@ pub unsafe extern "C" fn build_custodian_only(
         .collect();
 
     // Create parameters for the unstaking function
-    let params = CustodianOnlyUnstakingParams {
+    let params = CustodianOnlyUnlockingParams {
         inputs: inputs.to_vec(),
-        unstaking_outputs: outputs.to_vec(),
+        outputs: outputs.to_vec(),
         custodian_pub_keys: custodian_pub_keys.to_vec(),
         custodian_quorum,
         rbf,
@@ -77,7 +75,7 @@ pub unsafe extern "C" fn build_custodian_only(
         VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_kind); // Assuming a constructor exists
 
     // Call the build_custodian_only function
-    match vault_manager.build_custodian_only(&params) {
+    match <VaultManager as CustodianOnly>::build_unlocking_psbt(&vault_manager, &params) {
         Ok(psbt) => {
             // Serialize the PSBT and return it as a ByteBuffer
             let psbt_bytes = psbt.serialize();
@@ -127,9 +125,9 @@ pub unsafe extern "C" fn build_pooling_redeem_tx(buffer: *const u8, len: usize) 
                 VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_id);
 
             // Create parameters for the unstaking function
-            let params = CustodianOnlyUnstakingParams {
+            let params = CustodianOnlyUnlockingParams {
                 inputs,
-                unstaking_outputs: outputs,
+                outputs,
                 custodian_pub_keys,
                 custodian_quorum,
                 rbf,
@@ -138,7 +136,7 @@ pub unsafe extern "C" fn build_pooling_redeem_tx(buffer: *const u8, len: usize) 
                 custodian_group_uid: custodian_group_uid.try_into().unwrap(),
             };
             // Call the build_custodian_only function
-            match vault_manager.build_custodian_only(&params) {
+            match <VaultManager as CustodianOnly>::build_unlocking_psbt(&vault_manager, &params) {
                 Ok(psbt) => {
                     // Serialize the PSBT and return it as a ByteBuffer
                     let psbt_bytes = psbt.serialize();
