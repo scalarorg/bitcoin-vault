@@ -120,6 +120,7 @@ pub unsafe extern "C" fn build_pooling_redeem_tx(buffer: *const u8, len: usize) 
                 session_sequence,
                 custodian_group_uid,
             } = params;
+
             // Create a VaultManager instance
             let vault_manager =
                 VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_id);
