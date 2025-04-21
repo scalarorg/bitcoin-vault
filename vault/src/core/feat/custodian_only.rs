@@ -1,10 +1,11 @@
 use bitcoin::{opcodes::all::OP_RETURN, script::Builder, Psbt, PublicKey};
 
 use crate::{
-    get_global_secp, CoreError, CustodianOnly, CustodianOnlyLockingParams, CustodianOnlyTree,
-    CustodianOnlyUnlockingParams, DataScript, DestinationChain, DestinationRecipientAddress,
-    DestinationTokenAddress, LockingOutput, LockingScript, TaprootTree, TaprootTreeType,
-    UnlockingParams, UnlockingTaprootTreeType, VaultManager, EMBEDDED_DATA_SCRIPT_SIZE,
+    convert_pubkeys_to_x_only_keys, get_global_secp, CoreError, CustodianOnly,
+    CustodianOnlyLockingParams, CustodianOnlyTree, CustodianOnlyUnlockingParams, DataScript,
+    DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, LockingOutput,
+    LockingScript, TaprootTree, TaprootTreeType, UnlockingParams, UnlockingTaprootTreeType,
+    VaultManager, EMBEDDED_DATA_SCRIPT_SIZE,
 };
 
 impl CustodianOnly for VaultManager {
@@ -28,7 +29,7 @@ impl CustodianOnly for VaultManager {
         )?;
 
         Ok(LockingOutput::new(
-            params.staking_amount,
+            params.locking_amount,
             locking_script,
             data_script,
         ))
@@ -39,7 +40,7 @@ impl CustodianOnly for VaultManager {
         custodian_quorum: u8,
     ) -> Result<LockingScript, Self::Error> {
         let secp = get_global_secp();
-        let keys = Self::convert_to_x_only_keys(custodian_pub_keys);
+        let keys = convert_pubkeys_to_x_only_keys(custodian_pub_keys);
 
         let tree = TaprootTree::<CustodianOnlyTree>::new(secp, &keys, custodian_quorum)?;
 
@@ -88,7 +89,7 @@ impl CustodianOnly for VaultManager {
         let (total_input_value, total_output_value) = params.validate()?;
         let secp = get_global_secp();
 
-        let x_only_pub_keys = Self::convert_to_x_only_keys(&params.custodian_pub_keys);
+        let x_only_pub_keys = convert_pubkeys_to_x_only_keys(&params.custodian_pub_keys);
         let tree =
             TaprootTree::<CustodianOnlyTree>::new(secp, &x_only_pub_keys, params.custodian_quorum)?;
 

@@ -6,7 +6,7 @@ use vault::{
 };
 
 use crate::{
-    create_null_buffer, ByteBuffer, PoolingRedeemParams, PreviousStakingUTXOFFI, PublicKeyFFI,
+    create_null_buffer, ByteBuffer, PoolingRedeemParams, PreviousOutpointFFI, PublicKeyFFI,
     TxOutFFI,
 };
 
@@ -23,7 +23,7 @@ pub unsafe extern "C" fn build_custodian_only(
     version: u8,
     network_kind: u8,
 
-    inputs_ptr: *const PreviousStakingUTXOFFI,
+    inputs_ptr: *const PreviousOutpointFFI,
     inputs_len: usize,
     outputs_ptr: *const TxOutFFI,
     outputs_len: usize,

@@ -21,7 +21,7 @@ typedef struct {
     OutPointFFI outpoint;
     AmountFFI amount_in_sats;
     ScriptBufFFI script_pubkey;
-} PreviousStakingUTXOFFI;
+} PreviousOutpointFFI;
 
 
 typedef struct {
@@ -41,7 +41,7 @@ ByteBuffer build_custodian_only(
   size_t service_tag_len,
   uint8_t version,
   uint8_t network_kind,
-  const PreviousStakingUTXOFFI* inputs_ptr,
+  const PreviousOutpointFFI* inputs_ptr,
   size_t inputs_len,
   const TxOutFFI* outputs_ptr,
   size_t outputs_len,
@@ -68,8 +68,8 @@ import (
 	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func convertInputsToFFI(inputs []types.PreviousStakingUTXO) ([]C.PreviousStakingUTXOFFI, []unsafe.Pointer) {
-	inputsFFI := make([]C.PreviousStakingUTXOFFI, len(inputs))
+func convertInputsToFFI(inputs []types.PreviousStakingUTXO) ([]C.PreviousOutpointFFI, []unsafe.Pointer) {
+	inputsFFI := make([]C.PreviousOutpointFFI, len(inputs))
 	ptrs := make([]unsafe.Pointer, len(inputs))
 
 	for i, input := range inputs {
@@ -77,7 +77,7 @@ func convertInputsToFFI(inputs []types.PreviousStakingUTXO) ([]C.PreviousStaking
 		scriptPtr := C.CBytes(input.Script)
 		ptrs[i] = scriptPtr
 
-		inputsFFI[i] = C.PreviousStakingUTXOFFI{
+		inputsFFI[i] = C.PreviousOutpointFFI{
 			outpoint: C.OutPointFFI{
 				txid: *(*[32]C.uint8_t)(unsafe.Pointer(&input.OutPoint.Txid[0])),
 				vout: C.uint32_t(input.OutPoint.Vout),
@@ -136,7 +136,7 @@ func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8,
 		C.size_t(len(serviceTag)),
 		C.uint8_t(version),
 		C.uint8_t(network),
-		(*C.PreviousStakingUTXOFFI)(unsafe.Pointer(&inputsFFI[0])),
+		(*C.PreviousOutpointFFI)(unsafe.Pointer(&inputsFFI[0])),
 		C.size_t(len(inputs)),
 		(*C.TxOutFFI)(unsafe.Pointer(&outputsFFI[0])),
 		C.size_t(len(outputs)),

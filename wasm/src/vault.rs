@@ -137,7 +137,7 @@ impl TryFrom<UpcLockingParamsWasm> for UPCLockingParams {
         )?;
 
         Ok(UPCLockingParams {
-            staking_amount: params.staking_amount,
+            locking_amount: params.staking_amount,
             user_pub_key,
             protocol_pub_key,
             custodian_pub_keys,
@@ -298,7 +298,7 @@ impl VaultWasm {
     #[wasm_bindgen]
     pub fn build_custodian_only_locking(
         &self,
-        staking_amount: u64,
+        amount: u64,
         //33 bytes pubkey
         custodial_pubkeys: &[u8],
         custodian_quorum: u8,
@@ -314,7 +314,7 @@ impl VaultWasm {
             )?;
 
         let params = CustodianOnlyLockingParams {
-            staking_amount,
+            locking_amount: amount,
             custodian_pub_keys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
             custodian_quorum,
             destination_chain,

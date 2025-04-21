@@ -35,7 +35,7 @@ pub struct CustodianOnlyTree {
 }
 
 #[derive(Debug, Clone)]
-pub struct CSVCustodialTree {
+pub struct TimeGatedTree {
     pub csv_party_branch: PartyWithSequenceVerification,
     pub only_custodian_branch: CustodianOnlyBranch,
 }
@@ -159,8 +159,8 @@ impl TaprootTree<CustodianOnlyTree> {
     }
 }
 
-impl TaprootTree<CSVCustodialTree> {
-    /// Creates a Taproot locking script with only custodian spending path.
+impl TaprootTree<TimeGatedTree> {
+    /// Creates a Taproot locking script with only custodian spending path and a sequence locked path.
     ///
     /// ```text
     ///        Root
@@ -198,7 +198,7 @@ impl TaprootTree<CSVCustodialTree> {
 
         Ok(Self {
             root: taproot_spend_info,
-            raw: CSVCustodialTree {
+            raw: TimeGatedTree {
                 csv_party_branch: csv_branch,
                 only_custodian_branch,
             },

@@ -27,13 +27,13 @@ pub struct ScriptBufFFI {
 }
 
 #[repr(C)]
-pub struct PreviousStakingUTXOFFI {
+pub struct PreviousOutpointFFI {
     pub outpoint: OutPointFFI,
     pub amount_in_sats: AmountFFI,
     pub script_pubkey: ScriptBufFFI,
 }
 
-impl TryInto<PreviousOutpoint> for &PreviousStakingUTXOFFI {
+impl TryInto<PreviousOutpoint> for &PreviousOutpointFFI {
     type Error = FFIError;
 
     fn try_into(self) -> Result<PreviousOutpoint, Self::Error> {

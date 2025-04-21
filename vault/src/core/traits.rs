@@ -3,7 +3,8 @@ use bitcoin::{NetworkKind, Psbt, PublicKey, XOnlyPublicKey};
 use super::{
     CoreError, CustodianOnlyLockingParams, CustodianOnlyUnlockingParams, DataScript,
     DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, LockingOutput,
-    LockingScript, SigningKeyMap, TapScriptSigsMap, UPCLockingParams, UPCUnlockingParams,
+    LockingScript, SigningKeyMap, TapScriptSigsMap, TimeGatedLockingParams,
+    TimeGatedUnlockingParams, UPCLockingParams, UPCUnlockingParams,
 };
 
 pub trait UPC {
@@ -55,6 +56,17 @@ pub trait CustodianOnly {
     ) -> Result<DataScript, Self::Error>;
 }
 
+pub trait TimeGated {
+    type Error;
+    fn build_locking_psbt(&self, params: &TimeGatedLockingParams) -> Result<Psbt, Self::Error>;
+    fn build_unlocking_psbt(&self, params: &TimeGatedUnlockingParams) -> Result<Psbt, Self::Error>;
+    fn locking_script(
+        party_pub_key: &PublicKey,
+        custodian_pub_keys: &[PublicKey],
+        custodian_quorum: u8,
+        sequence: i64,
+    ) -> Result<LockingScript, Self::Error>;
+}
 pub trait Signing {
     type PsbtHex;
 

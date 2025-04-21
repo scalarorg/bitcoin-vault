@@ -159,12 +159,7 @@ impl VaultManager {
             .collect()
     }
 
-    pub fn convert_to_x_only_keys(pub_keys: &[PublicKey]) -> Vec<XOnlyPublicKey> {
-        pub_keys
-            .iter()
-            .map(|pk| XOnlyPublicKey::from(*pk))
-            .collect()
-    }
+    
 
     fn add_inputs_to_builder(
         &self,

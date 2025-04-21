@@ -144,7 +144,7 @@ impl TestSuite {
                     &CustodianOnlyLockingParams {
                         custodian_pub_keys: self.custodian_pubkeys(),
                         custodian_quorum: self.env.custodian_quorum,
-                        staking_amount: amount,
+                        locking_amount: amount,
                         destination_chain: dest.destination_chain,
                         destination_token_address: dest.destination_token_address,
                         destination_recipient_address: dest.destination_recipient_address,
@@ -160,7 +160,7 @@ impl TestSuite {
                     protocol_pub_key: self.protocol_pubkey(),
                     custodian_pub_keys: self.custodian_pubkeys(),
                     custodian_quorum: self.env.custodian_quorum,
-                    staking_amount: amount,
+                    locking_amount: amount,
                     destination_chain: dest.destination_chain,
                     destination_token_address: dest.destination_token_address,
                     destination_recipient_address: dest.destination_recipient_address,

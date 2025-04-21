@@ -1,10 +1,10 @@
 use bitcoin::{opcodes::all::OP_RETURN, script::Builder, Psbt, PublicKey, XOnlyPublicKey};
 
 use crate::{
-    convert_pubkey_to_x_only_key, get_global_secp, CoreError, DataScript, DestinationChain,
-    DestinationRecipientAddress, DestinationTokenAddress, LockingOutput, LockingScript,
-    TaprootTree, TaprootTreeType, UPCLockingParams, UPCTaprootTree, UPCUnlockingParams,
-    UnlockingParams, UnlockingTaprootTreeType, UnlockingType, VaultManager,
+    convert_pubkey_to_x_only_key, convert_pubkeys_to_x_only_keys, get_global_secp, CoreError,
+    DataScript, DestinationChain, DestinationRecipientAddress, DestinationTokenAddress,
+    LockingOutput, LockingScript, TaprootTree, TaprootTreeType, UPCLockingParams, UPCTaprootTree,
+    UPCUnlockingParams, UnlockingParams, UnlockingTaprootTreeType, UnlockingType, VaultManager,
     EMBEDDED_DATA_SCRIPT_SIZE, HASH_SIZE, UPC,
 };
 
@@ -31,7 +31,7 @@ impl UPC for VaultManager {
         )?;
 
         Ok(LockingOutput::new(
-            params.staking_amount,
+            params.locking_amount,
             locking_script,
             data_script,
         ))
@@ -148,17 +148,14 @@ impl UPC for VaultManager {
     }
 }
 
-pub fn convert_upc_to_x_only_keys(
+fn convert_upc_to_x_only_keys(
     user_pub_key: &PublicKey,
     protocol_pub_key: &PublicKey,
     custodian_pub_keys: &[PublicKey],
 ) -> (XOnlyPublicKey, XOnlyPublicKey, Vec<XOnlyPublicKey>) {
     let user_x_only = convert_pubkey_to_x_only_key(user_pub_key);
     let protocol_x_only = convert_pubkey_to_x_only_key(protocol_pub_key);
-    let custodian_x_only = custodian_pub_keys
-        .iter()
-        .map(convert_pubkey_to_x_only_key)
-        .collect();
+    let custodian_x_only = convert_pubkeys_to_x_only_keys(custodian_pub_keys);
 
     (user_x_only, protocol_x_only, custodian_x_only)
 }
