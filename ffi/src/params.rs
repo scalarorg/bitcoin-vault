@@ -3,7 +3,7 @@ use std::slice;
 use bitcoin::PublicKey;
 use vault::{PreviousStakingUTXO, UnstakingOutput};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PoolingRedeemParams<'a> {
     pub tag: &'a [u8],
     pub service_tag: &'a [u8],
@@ -72,7 +72,6 @@ impl PoolingRedeemParams<'_> {
             inputs.push(input);
             ptr += input_size;
         }
-
         //Unstaking outputs
         if ptr + 4 > len {
             return Err(anyhow::anyhow!("redeem outputs are not found"));
@@ -143,5 +142,99 @@ impl PoolingRedeemParams<'_> {
             session_sequence,
             custodian_group_uid,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ByteBuffer;
+
+    use super::*;
+    use bitcoin::consensus::serde::Hex;
+    use vault::{hex_to_vec, CustodianOnlyUnstakingParams, Unstaking, VaultManager};
+
+    #[test]
+    fn test_pooling_redeem_params_parse() {
+        //let params_hex = "065343414c415205706f6f6c730301000000010000004e52c0173d62c0c6a79ab2da183f059580fd996c24727894d3e0f6cf36a3cb77730000000000000000000003e85120a8fc50d87f16d892b4d4d087d259c0ab417e106b044b291a7728d2ae1343de7f000000020000001e00000000000003e8001463dc22751d9a7778aa4450ceeb0b5c3ee214401c0000001e00000000000003e8001463dc22751d9a7778aa4450ceeb0b5c3ee214401c000000050215da913b3e87b4932b1e1b87d9667c28e7250aa0ed60b3a31095f541e164148802f0f3d9beaf7a3945bcaa147e041ae1d5ca029bde7e40d8251f0783d6ecbe8fb503594e78c0a2968210d9c1550d4ad31b03d5e4b9659cf2f67842483bb3c2bb781103b59e575cef873ea95273afd55956c84590507200d410e693e4b079a426cc610203e2d226cfdaec93903c3f3b81a01a81b19137627cb26e621a0afb7bcd6efbcfff0300000000000000000100000000000000013e79326a9493896e13af62194e694dff4c9300700407449363564b0eaeaf07e8";
+        let params_hex = "065343414c415205706f6f6c730301000000010000004e52c0173d62c0c6a79ab2da183f059580fd996c24727894d3e0f6cf36a3cb77730000000000000000000003e85120a8fc50d87f16d892b4d4d087d259c0ab417e106b044b291a7728d2ae1343de7f000000010000001e00000000000003e8001463dc22751d9a7778aa4450ceeb0b5c3ee214401c000000050215da913b3e87b4932b1e1b87d9667c28e7250aa0ed60b3a31095f541e164148802f0f3d9beaf7a3945bcaa147e041ae1d5ca029bde7e40d8251f0783d6ecbe8fb503594e78c0a2968210d9c1550d4ad31b03d5e4b9659cf2f67842483bb3c2bb781103b59e575cef873ea95273afd55956c84590507200d410e693e4b079a426cc610203e2d226cfdaec93903c3f3b81a01a81b19137627cb26e621a0afb7bcd6efbcfff030000000000000000010000000000000001bffb71bf819ae4cb65188905ac54763a09144bc3a0629808d7142dd5dbd98693";
+        let params_bytes = hex_to_vec(params_hex);
+        let params_bytes_ptr = params_bytes.as_ptr();
+        let params = unsafe {
+            PoolingRedeemParams::from_buffer(params_bytes_ptr, params_bytes.len()).unwrap()
+        };
+        println!("tag: {:?}", params);
+    }
+    #[test]
+    fn test_build_pooling_redeem_tx() {
+        //let params_hex = "065343414c415205706f6f6c730301000000010000004e52c0173d62c0c6a79ab2da183f059580fd996c24727894d3e0f6cf36a3cb77730000000000000000000003e85120a8fc50d87f16d892b4d4d087d259c0ab417e106b044b291a7728d2ae1343de7f000000020000001e00000000000003e8001463dc22751d9a7778aa4450ceeb0b5c3ee214401c0000001e00000000000003e8001463dc22751d9a7778aa4450ceeb0b5c3ee214401c000000050215da913b3e87b4932b1e1b87d9667c28e7250aa0ed60b3a31095f541e164148802f0f3d9beaf7a3945bcaa147e041ae1d5ca029bde7e40d8251f0783d6ecbe8fb503594e78c0a2968210d9c1550d4ad31b03d5e4b9659cf2f67842483bb3c2bb781103b59e575cef873ea95273afd55956c84590507200d410e693e4b079a426cc610203e2d226cfdaec93903c3f3b81a01a81b19137627cb26e621a0afb7bcd6efbcfff0300000000000000000100000000000000013e79326a9493896e13af62194e694dff4c9300700407449363564b0eaeaf07e8";
+        let params_hex = "065343414c415205706f6f6c730301000000010000004e52c0173d62c0c6a79ab2da183f059580fd996c24727894d3e0f6cf36a3cb77730000000000000000000003e85120a8fc50d87f16d892b4d4d087d259c0ab417e106b044b291a7728d2ae1343de7f000000010000001e00000000000003e8001463dc22751d9a7778aa4450ceeb0b5c3ee214401c000000050215da913b3e87b4932b1e1b87d9667c28e7250aa0ed60b3a31095f541e164148802f0f3d9beaf7a3945bcaa147e041ae1d5ca029bde7e40d8251f0783d6ecbe8fb503594e78c0a2968210d9c1550d4ad31b03d5e4b9659cf2f67842483bb3c2bb781103b59e575cef873ea95273afd55956c84590507200d410e693e4b079a426cc610203e2d226cfdaec93903c3f3b81a01a81b19137627cb26e621a0afb7bcd6efbcfff030000000000000000010000000000000001bffb71bf819ae4cb65188905ac54763a09144bc3a0629808d7142dd5dbd98693";
+        let params_bytes = hex_to_vec(params_hex);
+        let params_bytes_ptr = params_bytes.as_ptr();
+        let PoolingRedeemParams {
+            tag,
+            service_tag,
+            version,
+            network_id,
+            inputs,
+            outputs,
+            custodian_pub_keys,
+            custodian_quorum,
+            rbf,
+            fee_rate,
+            session_sequence,
+            custodian_group_uid,
+        } = unsafe {
+            PoolingRedeemParams::from_buffer(params_bytes_ptr, params_bytes.len()).unwrap()
+        };
+        // println!("tag: {:?}", tag);
+        // println!("service_tag: {:?}", service_tag);
+        // println!("version: {:?}", version);
+        // println!("network_id: {:?}", network_id);
+        // println!("inputs: {:?}", inputs);
+        // println!("outputs: {:?}", outputs);
+        // println!("custodian_pub_keys: {:?}", custodian_pub_keys);
+        // println!("custodian_quorum: {:?}", custodian_quorum);
+        // println!("rbf: {:?}", rbf);
+        // println!("fee_rate: {:?}", fee_rate);
+        // println!("session_sequence: {:?}", session_sequence);
+        // println!("custodian_group_uid: {:?}", custodian_group_uid);
+
+        // Create a VaultManager instance
+        let vault_manager =
+            VaultManager::new(tag.to_vec(), service_tag.to_vec(), version, network_id);
+
+        // Create parameters for the unstaking function
+        let params = CustodianOnlyUnstakingParams {
+            inputs,
+            unstaking_outputs: outputs,
+            custodian_pub_keys,
+            custodian_quorum,
+            rbf,
+            fee_rate,
+            session_sequence,
+            custodian_group_uid: custodian_group_uid.try_into().unwrap(),
+        };
+        // Call the build_custodian_only function
+        match vault_manager.build_custodian_only(&params) {
+            Ok(psbt) => {
+                // Serialize the PSBT and return it as a ByteBuffer
+                let psbt_bytes = psbt.serialize();
+                let mut output = Vec::with_capacity(psbt_bytes.len());
+                output.extend_from_slice(&psbt_bytes);
+                // let buffer = ByteBuffer {
+                //     data: output.as_mut_ptr(),
+                //     len: output.len(),
+                // };
+                let hex_string: String = output
+                    .iter()
+                    .map(|b| format!("{:02x}", b)) // use `{:02X}` for uppercase
+                    .collect();
+                println!("Psbt {}", hex_string); // Outputs: baadf00d
+                std::mem::forget(output); // Prevent deallocation
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+            }
+        }
     }
 }

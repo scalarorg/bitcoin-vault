@@ -155,6 +155,65 @@ func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8,
 	return C.GoBytes(unsafe.Pointer(result.data), C.int(result.len)), nil
 }
 
+func EncodePoolingRedeemParams(tag []byte,
+	serviceTag []byte,
+	version uint8,
+	network types.NetworkKind,
+	inputs []types.PreviousStakingUTXO,
+	outputs []types.UnstakingOutput,
+	custodianPubKeys []types.PublicKey,
+	custodianQuorum uint8,
+	rbf bool,
+	feeRate uint64,
+	sessionSequence uint64,
+	custodianGroupUID []byte,
+) []byte {
+	buffer := bytes.Buffer{}
+	//Tag
+	buffer.WriteByte(uint8(len(tag)))
+	buffer.Write(tag)
+	//Service tag
+	buffer.WriteByte(uint8(len(serviceTag)))
+	buffer.Write(serviceTag)
+	//Version
+	buffer.WriteByte(version)
+	//Network
+	buffer.WriteByte(uint8(network))
+	//Inputs
+	binary.Write(&buffer, binary.BigEndian, uint32(len(inputs)))
+	for _, input := range inputs {
+		data := input.MarshalBinary()
+		binary.Write(&buffer, binary.BigEndian, uint32(len(data)))
+		buffer.Write(data)
+	}
+	//Outputs
+	binary.Write(&buffer, binary.BigEndian, uint32(len(outputs)))
+	for _, output := range outputs {
+		data := output.MarshalBinary()
+		binary.Write(&buffer, binary.BigEndian, uint32(len(data)))
+		buffer.Write(data)
+	}
+	//Custodian pub keys
+	binary.Write(&buffer, binary.BigEndian, uint32(len(custodianPubKeys)))
+	for _, pubKey := range custodianPubKeys {
+		buffer.Write(pubKey[:])
+	}
+	//Custodian quorum
+	buffer.WriteByte(custodianQuorum)
+	//RBF
+	if rbf {
+		buffer.WriteByte(1)
+	} else {
+		buffer.WriteByte(0)
+	}
+	binary.Write(&buffer, binary.BigEndian, feeRate)
+	binary.Write(&buffer, binary.BigEndian, sessionSequence)
+	//Custodian group UID
+	buffer.Write(custodianGroupUID)
+
+	data := buffer.Bytes()
+	return data
+}
 func BuildPoolingRedeemTx(tag []byte,
 	serviceTag []byte,
 	version uint8,

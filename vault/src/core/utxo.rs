@@ -23,11 +23,11 @@ impl TryFrom<&[u8]> for PreviousStakingUTXO {
         let txid = Txid::consensus_decode(&mut txid.as_slice())
             .map_err(|_| anyhow::anyhow!("Invalid txid"))?;
         let vout = u32::from_be_bytes(value[32..36].try_into().unwrap());
-        let amount = u64::from_be_bytes(value[33..41].try_into().unwrap());
+        let amount = u64::from_be_bytes(value[36..44].try_into().unwrap());
         Ok(PreviousStakingUTXO {
             outpoint: OutPoint::new(txid, vout),
             amount_in_sats: Amount::from_sat(amount),
-            script_pubkey: ScriptBuf::from_bytes(value[41..].to_vec()),
+            script_pubkey: ScriptBuf::from_bytes(value[44..].to_vec()),
         })
     }
 }

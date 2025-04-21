@@ -16,4 +16,4 @@ pub use signing::*;
 pub use taproot::*;
 pub use types::*;
 pub use unstaking::*;
-use utils::*;
+pub use utils::*;
