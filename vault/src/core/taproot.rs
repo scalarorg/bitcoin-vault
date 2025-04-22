@@ -31,13 +31,13 @@ pub struct UPCTaprootTree {
 
 #[derive(Debug, Clone)]
 pub struct CustodianOnlyTree {
-    pub only_custodian_branch: CustodianOnlyBranch,
+    pub custodian_only_branch: CustodianOnlyBranch,
 }
 
 #[derive(Debug, Clone)]
 pub struct TimeGatedTree {
     pub csv_party_branch: PartyWithSequenceVerification,
-    pub only_custodian_branch: CustodianOnlyBranch,
+    pub custodian_only_branch: CustodianOnlyBranch,
 }
 
 #[derive(Debug, Clone)]
@@ -74,8 +74,8 @@ impl TaprootTree<UPCTaprootTree> {
     ///
     /// ### Arguments
     /// * `secp` - The secp256k1 context
-    /// * `party_pub_keys` - The party's public keys
-    /// * `custodian_pub_keys` - The custodian's public keys
+    /// * `party_pubkeys` - The party's public keys
+    /// * `custodian_pubkeys` - The custodian's public keys
     /// * `custodian_quorum` - The number of custodian signatures required
     ///
     /// ### Returns
@@ -83,25 +83,24 @@ impl TaprootTree<UPCTaprootTree> {
     ///
     pub fn new(
         secp: &Secp256k1<All>,
-        user_pub_key: XOnlyPublicKey,
-        protocol_pub_key: XOnlyPublicKey,
-        custodian_pub_keys: Vec<XOnlyPublicKey>,
+        user_pubkey: XOnlyPublicKey,
+        protocol_pubkey: XOnlyPublicKey,
+        custodian_pubkeys: Vec<XOnlyPublicKey>,
         custodian_quorum: u8,
     ) -> Result<Self, CoreError> {
         let mut builder = TaprootBuilder::new();
 
-        let up_branch =
-            <ScriptBuf as BuildTwoPartyBranch>::build(&user_pub_key, &protocol_pub_key)?;
+        let up_branch = <ScriptBuf as BuildTwoPartyBranch>::build(&user_pubkey, &protocol_pubkey)?;
 
         let uc_branch = <ScriptBuf as BuildCustodianAndPartyBranch>::build(
-            &user_pub_key,
-            &custodian_pub_keys,
+            &user_pubkey,
+            &custodian_pubkeys,
             custodian_quorum,
         )?;
 
         let pc_branch = <ScriptBuf as BuildCustodianAndPartyBranch>::build(
-            &protocol_pub_key,
-            &custodian_pub_keys,
+            &protocol_pubkey,
+            &custodian_pubkeys,
             custodian_quorum,
         )?;
 
@@ -136,13 +135,13 @@ impl TaprootTree<CustodianOnlyTree> {
     /// ```
     pub fn new(
         secp: &Secp256k1<All>,
-        custodian_pub_keys: &[XOnlyPublicKey],
+        custodian_pubkeys: &[XOnlyPublicKey],
         custodian_quorum: u8,
     ) -> Result<Self, CoreError> {
         let mut builder = TaprootBuilder::new();
 
         let only_custodian_branch =
-            <ScriptBuf as BuildCustodianOnlyBranch>::build(custodian_pub_keys, custodian_quorum)?;
+            <ScriptBuf as BuildCustodianOnlyBranch>::build(custodian_pubkeys, custodian_quorum)?;
 
         builder = builder.add_leaf(0, only_custodian_branch.clone())?;
 
@@ -153,7 +152,7 @@ impl TaprootTree<CustodianOnlyTree> {
         Ok(Self {
             root: taproot_spend_info,
             raw: CustodianOnlyTree {
-                only_custodian_branch,
+                custodian_only_branch: only_custodian_branch,
             },
         })
     }
@@ -178,14 +177,14 @@ impl TaprootTree<TimeGatedTree> {
     pub fn new(
         secp: &Secp256k1<All>,
         party: &XOnlyPublicKey,
-        custodian_pub_keys: &[XOnlyPublicKey],
+        custodian_pubkeys: &[XOnlyPublicKey],
         custodian_quorum: u8,
         sequence: i64,
     ) -> Result<Self, CoreError> {
         let mut builder = TaprootBuilder::new();
 
         let only_custodian_branch =
-            <ScriptBuf as BuildCustodianOnlyBranch>::build(custodian_pub_keys, custodian_quorum)?;
+            <ScriptBuf as BuildCustodianOnlyBranch>::build(custodian_pubkeys, custodian_quorum)?;
 
         let csv_branch = <ScriptBuf as BuildPartyWithSequenceVerification>::build(party, sequence)?;
 
@@ -200,7 +199,7 @@ impl TaprootTree<TimeGatedTree> {
             root: taproot_spend_info,
             raw: TimeGatedTree {
                 csv_party_branch: csv_branch,
-                only_custodian_branch,
+                custodian_only_branch: only_custodian_branch,
             },
         })
     }

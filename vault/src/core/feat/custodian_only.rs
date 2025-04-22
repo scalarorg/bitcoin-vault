@@ -16,7 +16,7 @@ impl CustodianOnly for VaultManager {
         params: &CustodianOnlyLockingParams,
     ) -> Result<LockingOutput, Self::Error> {
         let locking_script = <Self as CustodianOnly>::locking_script(
-            &params.custodian_pub_keys,
+            &params.custodian_pubkeys,
             params.custodian_quorum,
         )?;
 
@@ -36,11 +36,11 @@ impl CustodianOnly for VaultManager {
     }
 
     fn locking_script(
-        custodian_pub_keys: &[PublicKey],
+        custodian_pubkeys: &[PublicKey],
         custodian_quorum: u8,
     ) -> Result<LockingScript, Self::Error> {
         let secp = get_global_secp();
-        let keys = convert_pubkeys_to_x_only_keys(custodian_pub_keys);
+        let keys = convert_pubkeys_to_x_only_keys(custodian_pubkeys);
 
         let tree = TaprootTree::<CustodianOnlyTree>::new(secp, &keys, custodian_quorum)?;
 
@@ -89,9 +89,9 @@ impl CustodianOnly for VaultManager {
         let (total_input_value, total_output_value) = params.validate()?;
         let secp = get_global_secp();
 
-        let x_only_pub_keys = convert_pubkeys_to_x_only_keys(&params.custodian_pub_keys);
+        let x_only_pubkeys = convert_pubkeys_to_x_only_keys(&params.custodian_pubkeys);
         let tree =
-            TaprootTree::<CustodianOnlyTree>::new(secp, &x_only_pub_keys, params.custodian_quorum)?;
+            TaprootTree::<CustodianOnlyTree>::new(secp, &x_only_pubkeys, params.custodian_quorum)?;
 
         let unsigned_tx = self.build_unlocking_transaction(&UnlockingParams {
             total_input_value,
@@ -110,14 +110,9 @@ impl CustodianOnly for VaultManager {
         let mut psbt =
             Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
 
-        let (branch, keys) = (tree.raw, x_only_pub_keys);
+        let (branch, keys) = (tree.raw.custodian_only_branch, x_only_pubkeys);
 
-        psbt.inputs = self.prepare_psbt_inputs(
-            &params.inputs,
-            &tree.root,
-            &branch.only_custodian_branch,
-            &keys,
-        );
+        psbt.inputs = self.prepare_psbt_inputs(&params.inputs, &tree.root, &branch, &keys);
 
         Ok(psbt)
     }

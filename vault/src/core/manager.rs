@@ -8,7 +8,7 @@ use bitcoin::{
     script,
     secp256k1::All,
     taproot::{LeafVersion, TaprootSpendInfo},
-    Amount, PublicKey, ScriptBuf, TapLeafHash, TapSighashType, Transaction, TxOut, XOnlyPublicKey,
+    Amount, ScriptBuf, TapLeafHash, TapSighashType, Transaction, TxOut, XOnlyPublicKey,
 };
 use lazy_static::lazy_static;
 
@@ -158,8 +158,6 @@ impl VaultManager {
             })
             .collect()
     }
-
-    
 
     pub fn add_inputs_to_builder(
         &self,

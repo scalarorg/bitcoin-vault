@@ -6,7 +6,7 @@ use bitcoin::{Amount, NetworkKind, OutPoint, PublicKey, TxOut};
 use vault::{
     CustodianOnly, CustodianOnlyLockingParams, DestinationChain, DestinationRecipientAddress,
     DestinationTokenAddress, PreviousOutpoint, Signing, UPCLockingParams, UPCUnlockingParams,
-    UnlockingType, VaultManager, UPC,
+    UPCUnlockingType, VaultManager, UPC,
 };
 
 use wasm_bindgen::prelude::*;
@@ -24,13 +24,13 @@ pub enum UnlockingTypeWasm {
     CustodianUser,
 }
 
-impl TryFrom<UnlockingTypeWasm> for UnlockingType {
+impl TryFrom<UnlockingTypeWasm> for UPCUnlockingType {
     type Error = VaultABIError;
     fn try_from(value: UnlockingTypeWasm) -> Result<Self, Self::Error> {
         match value {
-            UnlockingTypeWasm::UserProtocol => Ok(UnlockingType::UserProtocol),
-            UnlockingTypeWasm::CustodianProtocol => Ok(UnlockingType::CustodianProtocol),
-            UnlockingTypeWasm::CustodianUser => Ok(UnlockingType::CustodianUser),
+            UnlockingTypeWasm::UserProtocol => Ok(UPCUnlockingType::UserProtocol),
+            UnlockingTypeWasm::CustodianProtocol => Ok(UPCUnlockingType::CustodianProtocol),
+            UnlockingTypeWasm::CustodianUser => Ok(UPCUnlockingType::CustodianUser),
         }
     }
 }
@@ -130,7 +130,7 @@ impl TryFrom<UpcLockingParamsWasm> for UPCLockingParams {
                 &params.destination_recipient_address,
             )?;
 
-        let (user_pub_key, protocol_pub_key, custodian_pub_keys) = VaultWasm::parse_pubkeys(
+        let (user_pubkey, protocol_pubkey, custodian_pubkeys) = VaultWasm::parse_pubkeys(
             &params.staker_pubkey,
             &params.protocol_pubkey,
             &params.custodial_pubkeys,
@@ -138,9 +138,9 @@ impl TryFrom<UpcLockingParamsWasm> for UPCLockingParams {
 
         Ok(UPCLockingParams {
             locking_amount: params.staking_amount,
-            user_pub_key,
-            protocol_pub_key,
-            custodian_pub_keys,
+            user_pubkey,
+            protocol_pubkey,
+            custodian_pubkeys,
             custodian_quorum: params.custodian_quorum,
             destination_chain,
             destination_token_address,
@@ -155,7 +155,7 @@ pub struct UpcUnlockingParamsWasm {
     output: TxOutWasm,
     staker_pubkey: Vec<u8>,
     protocol_pubkey: Vec<u8>,
-    custodian_pub_keys: Vec<u8>,
+    custodian_pubkeys: Vec<u8>,
     custodian_quorum: u8,
     fee_rate: u64,
     rbf: bool,
@@ -165,10 +165,10 @@ pub struct UpcUnlockingParamsWasm {
 impl TryFrom<UpcUnlockingParamsWasm> for UPCUnlockingParams {
     type Error = JsValue;
     fn try_from(params: UpcUnlockingParamsWasm) -> Result<Self, Self::Error> {
-        let (user_pub_key, protocol_pub_key, custodian_pub_keys) = VaultWasm::parse_pubkeys(
+        let (user_pubkey, protocol_pubkey, custodian_pubkeys) = VaultWasm::parse_pubkeys(
             &params.staker_pubkey,
             &params.protocol_pubkey,
-            &params.custodian_pub_keys,
+            &params.custodian_pubkeys,
         )?;
 
         let inputs: Vec<PreviousOutpoint> = params
@@ -180,13 +180,13 @@ impl TryFrom<UpcUnlockingParamsWasm> for UPCUnlockingParams {
         Ok(UPCUnlockingParams {
             inputs,
             output: params.output.try_into()?,
-            user_pub_key,
-            protocol_pub_key,
-            custodian_pub_keys,
+            user_pubkey,
+            protocol_pubkey,
+            custodian_pubkeys,
             custodian_quorum: params.custodian_quorum,
             rbf: params.rbf,
             fee_rate: params.fee_rate,
-            typ: UnlockingType::try_from(params.unlocking_type)?,
+            typ: UPCUnlockingType::try_from(params.unlocking_type)?,
         })
     }
 }
@@ -200,12 +200,12 @@ impl VaultWasm {
     fn parse_pubkeys(
         staker_pubkey: &[u8],
         protocol_pubkey: &[u8],
-        custodian_pub_keys: &[u8],
+        custodian_pubkeys: &[u8],
     ) -> Result<(PublicKey, PublicKey, Vec<PublicKey>), VaultABIError> {
         Ok((
             Decoder::decode_33bytes_pubkey(staker_pubkey)?,
             Decoder::decode_33bytes_pubkey(protocol_pubkey)?,
-            Decoder::decode_33bytes_pubkey_list(custodian_pub_keys)?,
+            Decoder::decode_33bytes_pubkey_list(custodian_pubkeys)?,
         ))
     }
 
@@ -315,7 +315,7 @@ impl VaultWasm {
 
         let params = CustodianOnlyLockingParams {
             locking_amount: amount,
-            custodian_pub_keys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
+            custodian_pubkeys: Decoder::decode_33bytes_pubkey_list(custodial_pubkeys)?,
             custodian_quorum,
             destination_chain,
             destination_token_address,
@@ -331,13 +331,13 @@ impl VaultWasm {
     #[wasm_bindgen]
     pub fn custodian_only_locking_script(
         &self,
-        custodian_pub_keys: &[u8],
+        custodian_pubkeys: &[u8],
         custodian_quorum: u8,
     ) -> Result<Vec<u8>, JsValue> {
-        let custodian_pub_keys = Decoder::decode_33bytes_pubkey_list(custodian_pub_keys)?;
+        let custodian_pubkeys = Decoder::decode_33bytes_pubkey_list(custodian_pubkeys)?;
 
         let script =
-            <VaultManager as CustodianOnly>::locking_script(&custodian_pub_keys, custodian_quorum)
+            <VaultManager as CustodianOnly>::locking_script(&custodian_pubkeys, custodian_quorum)
                 .map_err(|e| JsValue::from(format!("{:?}", e)))?;
         Ok(script.into_script().to_bytes())
     }
@@ -345,18 +345,18 @@ impl VaultWasm {
     #[wasm_bindgen]
     pub fn upc_locking_script(
         &self,
-        user_pub_key: &[u8],
-        protocol_pub_key: &[u8],
-        custodian_pub_keys: &[u8],
+        user_pubkey: &[u8],
+        protocol_pubkey: &[u8],
+        custodian_pubkeys: &[u8],
         custodian_quorum: u8,
     ) -> Result<Vec<u8>, JsValue> {
-        let user_pub_key = Decoder::decode_33bytes_pubkey(user_pub_key)?;
-        let protocol_pub_key = Decoder::decode_33bytes_pubkey(protocol_pub_key)?;
-        let custodian_pub_keys = Decoder::decode_33bytes_pubkey_list(custodian_pub_keys)?;
+        let user_pubkey = Decoder::decode_33bytes_pubkey(user_pubkey)?;
+        let protocol_pubkey = Decoder::decode_33bytes_pubkey(protocol_pubkey)?;
+        let custodian_pubkeys = Decoder::decode_33bytes_pubkey_list(custodian_pubkeys)?;
         let script = <VaultManager as UPC>::locking_script(
-            &user_pub_key,
-            &protocol_pub_key,
-            &custodian_pub_keys,
+            &user_pubkey,
+            &protocol_pubkey,
+            &custodian_pubkeys,
             custodian_quorum,
         )
         .map_err(|e| JsValue::from(format!("{:?}", e)))?;

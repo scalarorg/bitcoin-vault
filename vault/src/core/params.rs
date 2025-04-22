@@ -3,15 +3,15 @@ use validator::Validate;
 
 use super::{
     CoreError, DestinationChain, DestinationRecipientAddress, DestinationTokenAddress,
-    PreviousOutpoint, UnlockingType, HASH_SIZE,
+    PreviousOutpoint, TimeGatedUnlockingType, UPCUnlockingType, HASH_SIZE,
 };
 
 // TODO: Add validate for params
 #[derive(Debug, Validate)]
 pub struct UPCLockingParams {
-    pub user_pub_key: PublicKey,
-    pub protocol_pub_key: PublicKey,
-    pub custodian_pub_keys: Vec<PublicKey>,
+    pub user_pubkey: PublicKey,
+    pub protocol_pubkey: PublicKey,
+    pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
     pub locking_amount: u64,
     pub destination_chain: DestinationChain,
@@ -25,13 +25,13 @@ pub struct UPCLockingParams {
 pub struct UPCUnlockingParams {
     pub inputs: Vec<PreviousOutpoint>,
     pub output: TxOut,
-    pub user_pub_key: PublicKey,
-    pub protocol_pub_key: PublicKey,
-    pub custodian_pub_keys: Vec<PublicKey>,
+    pub user_pubkey: PublicKey,
+    pub protocol_pubkey: PublicKey,
+    pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
     pub rbf: bool,
     pub fee_rate: u64,
-    pub typ: UnlockingType,
+    pub typ: UPCUnlockingType,
 }
 
 impl UPCUnlockingParams {
@@ -65,7 +65,7 @@ impl UPCUnlockingParams {
 #[derive(Debug, Validate)]
 pub struct CustodianOnlyLockingParams {
     pub locking_amount: u64,
-    pub custodian_pub_keys: Vec<PublicKey>,
+    pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
     pub destination_chain: DestinationChain,
     pub destination_token_address: DestinationTokenAddress,
@@ -76,7 +76,7 @@ pub struct CustodianOnlyLockingParams {
 pub struct CustodianOnlyUnlockingParams {
     pub inputs: Vec<PreviousOutpoint>,
     pub outputs: Vec<TxOut>,
-    pub custodian_pub_keys: Vec<PublicKey>,
+    pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
     pub rbf: bool,
     pub fee_rate: u64,
@@ -120,7 +120,7 @@ pub struct TimeGatedLockingParams {
     pub locking_amount: u64,
     pub sequence: i64,
     pub party_pubkey: PublicKey,
-    pub custodian_pub_keys: Vec<PublicKey>,
+    pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
 }
 
@@ -129,11 +129,12 @@ pub struct TimeGatedUnlockingParams {
     pub input: PreviousOutpoint,
     pub party_pubkey: PublicKey,
     pub script_pubkey: ScriptBuf,
-    pub custodian_pub_keys: Vec<PublicKey>,
+    pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
     pub sequence: i64,
     pub rbf: bool,
     pub fee_rate: u64,
+    pub typ: TimeGatedUnlockingType,
 }
 
 impl TimeGatedUnlockingParams {

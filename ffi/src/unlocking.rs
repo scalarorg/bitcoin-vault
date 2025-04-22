@@ -27,14 +27,14 @@ pub unsafe extern "C" fn build_custodian_only(
     inputs_len: usize,
     outputs_ptr: *const TxOutFFI,
     outputs_len: usize,
-    custodian_pub_keys_ptr: *const PublicKeyFFI,
-    custodian_pub_keys_len: usize,
+    custodian_pubkeys_ptr: *const PublicKeyFFI,
+    custodian_pubkeys_len: usize,
     custodian_quorum: u8,
     rbf: bool,
     fee_rate: u64,
 ) -> ByteBuffer {
     // Safety checks for null pointers
-    if inputs_ptr.is_null() || outputs_ptr.is_null() || custodian_pub_keys_ptr.is_null() {
+    if inputs_ptr.is_null() || outputs_ptr.is_null() || custodian_pubkeys_ptr.is_null() {
         return create_null_buffer();
     }
 
@@ -44,7 +44,7 @@ pub unsafe extern "C" fn build_custodian_only(
 
     let inputs = slice::from_raw_parts(inputs_ptr, inputs_len);
     let outputs = slice::from_raw_parts(outputs_ptr, outputs_len);
-    let custodian_pub_keys = slice::from_raw_parts(custodian_pub_keys_ptr, custodian_pub_keys_len);
+    let custodian_pubkeys = slice::from_raw_parts(custodian_pubkeys_ptr, custodian_pubkeys_len);
 
     let inputs: Vec<PreviousOutpoint> = inputs
         .iter()
@@ -53,7 +53,7 @@ pub unsafe extern "C" fn build_custodian_only(
 
     let outputs: Vec<TxOut> = outputs.iter().map(|output| output.into()).collect();
 
-    let custodian_pub_keys: Vec<PublicKey> = custodian_pub_keys
+    let custodian_pubkeys: Vec<PublicKey> = custodian_pubkeys
         .iter()
         .map(|key| PublicKey::from_slice(key.as_slice()).unwrap())
         .collect();
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn build_custodian_only(
     let params = CustodianOnlyUnlockingParams {
         inputs: inputs.to_vec(),
         outputs: outputs.to_vec(),
-        custodian_pub_keys: custodian_pub_keys.to_vec(),
+        custodian_pubkeys: custodian_pubkeys.to_vec(),
         custodian_quorum,
         rbf,
         fee_rate,
@@ -113,7 +113,7 @@ pub unsafe extern "C" fn build_pooling_redeem_tx(buffer: *const u8, len: usize) 
                 network_id,
                 inputs,
                 outputs,
-                custodian_pub_keys,
+                custodian_pubkeys,
                 custodian_quorum,
                 rbf,
                 fee_rate,
@@ -129,7 +129,7 @@ pub unsafe extern "C" fn build_pooling_redeem_tx(buffer: *const u8, len: usize) 
             let params = CustodianOnlyUnlockingParams {
                 inputs,
                 outputs,
-                custodian_pub_keys,
+                custodian_pubkeys,
                 custodian_quorum,
                 rbf,
                 fee_rate,

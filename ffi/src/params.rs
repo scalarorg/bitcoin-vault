@@ -13,7 +13,7 @@ pub struct PoolingRedeemParams<'a> {
     pub network_id: u8,
     pub inputs: Vec<PreviousOutpoint>,
     pub outputs: Vec<TxOut>,
-    pub custodian_pub_keys: Vec<PublicKey>,
+    pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
     pub rbf: bool,
     pub fee_rate: u64,
@@ -92,12 +92,12 @@ impl PoolingRedeemParams<'_> {
         if ptr + 4 > len {
             return Err(anyhow::anyhow!("Custodian pub keys are not found"));
         }
-        let pub_keys_len = u32::from_be_bytes(data[ptr..ptr + 4].try_into().unwrap()) as usize;
+        let pubkeys_len = u32::from_be_bytes(data[ptr..ptr + 4].try_into().unwrap()) as usize;
         ptr += 4;
-        let mut custodian_pub_keys = Vec::new();
-        for _ in 0..pub_keys_len {
-            let pub_key = PublicKey::from_slice(&data[ptr..ptr + 33])?;
-            custodian_pub_keys.push(pub_key);
+        let mut custodian_pubkeys = Vec::new();
+        for _ in 0..pubkeys_len {
+            let pubkey = PublicKey::from_slice(&data[ptr..ptr + 33])?;
+            custodian_pubkeys.push(pubkey);
             ptr += 33;
         }
         //Custodian quorum
@@ -137,7 +137,7 @@ impl PoolingRedeemParams<'_> {
             network_id,
             inputs,
             outputs,
-            custodian_pub_keys,
+            custodian_pubkeys,
             custodian_quorum,
             rbf: rbf == 1,
             fee_rate,

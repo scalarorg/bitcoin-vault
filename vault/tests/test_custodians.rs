@@ -521,7 +521,7 @@ mod test_custodians {
                             value: Amount::from_sat(total),
                             script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
                         }],
-                        custodian_pub_keys: TEST_SUITE.custodian_pubkeys(),
+                        custodian_pubkeys: TEST_SUITE.custodian_pubkeys(),
                         custodian_quorum: TEST_SUITE.env().custodian_quorum,
                         fee_rate: 2,
                         rbf: false,

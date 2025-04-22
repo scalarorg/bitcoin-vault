@@ -1,9 +1,10 @@
-use bitcoin::{Psbt, PublicKey, TxOut};
+use bitcoin::{Psbt, PublicKey, Sequence, TxOut};
 
 use crate::{
     convert_pubkey_to_x_only_key, convert_pubkeys_to_x_only_keys, get_global_secp, CoreError,
     LockingOutput, LockingScript, TaprootTree, TimeGated, TimeGatedLockingParams, TimeGatedTree,
-    TimeGatedUnlockingParams, TransactionBuilder, UnlockingParams, VaultManager,
+    TimeGatedUnlockingParams, TimeGatedUnlockingType, TransactionBuilder, UnlockingFeeParams,
+    VaultManager,
 };
 
 impl TimeGated for VaultManager {
@@ -15,7 +16,7 @@ impl TimeGated for VaultManager {
     ) -> Result<LockingOutput, Self::Error> {
         let locking_script = <Self as TimeGated>::locking_script(
             &params.party_pubkey,
-            &params.custodian_pub_keys,
+            &params.custodian_pubkeys,
             params.custodian_quorum,
             params.sequence,
         )?;
@@ -29,12 +30,12 @@ impl TimeGated for VaultManager {
 
     fn locking_script(
         party: &PublicKey,
-        custodian_pub_keys: &[PublicKey],
+        custodian_pubkeys: &[PublicKey],
         custodian_quorum: u8,
         sequence: i64,
     ) -> Result<LockingScript, Self::Error> {
         let secp = get_global_secp();
-        let keys = convert_pubkeys_to_x_only_keys(custodian_pub_keys);
+        let keys = convert_pubkeys_to_x_only_keys(custodian_pubkeys);
         let party = convert_pubkey_to_x_only_key(party);
 
         let tree =
@@ -47,57 +48,55 @@ impl TimeGated for VaultManager {
         &self,
         params: &TimeGatedUnlockingParams,
     ) -> Result<bitcoin::Psbt, Self::Error> {
-        unimplemented!()
-        // let secp = get_global_secp();
-        // let (total_input_value, total_output_value) = params.validate()?;
+        let secp = get_global_secp();
+        let party_x_only_pubkey = convert_pubkey_to_x_only_key(&params.party_pubkey);
+        let x_only_pubkeys = convert_pubkeys_to_x_only_keys(&params.custodian_pubkeys);
 
-        // let party = convert_pubkey_to_x_only_key(&params.party_pubkey);
-        // let keys = convert_pubkeys_to_x_only_keys(&params.custodian_pub_keys);
+        let tree = TaprootTree::<TimeGatedTree>::new(
+            secp,
+            &party_x_only_pubkey,
+            &x_only_pubkeys,
+            params.custodian_quorum,
+            params.sequence,
+        )?;
 
-        // let tree = TaprootTree::<TimeGatedTree>::new(
-        //     secp,
-        //     &party,
-        //     &keys,
-        //     params.custodian_quorum,
-        //     params.sequence,
-        // )?;
+        let mut tx_builder = TransactionBuilder::new(params.rbf);
 
-        // let mut tx_builder = TransactionBuilder::new(params.rbf);
+        tx_builder.add_input_with_sequence(
+            params.input.outpoint,
+            Sequence::from_consensus(params.sequence.try_into().unwrap()),
+        );
 
-        // self.add_inputs_to_builder(&mut tx_builder, &params.inputs);
+        tx_builder.add_raw_output(TxOut {
+            script_pubkey: params.script_pubkey.clone(),
+            value: params.input.amount_in_sats,
+        });
 
-        // tx_builder.add_raw_output(&TxOut {
-        //     script_pubkey:
-        //     value:
-        // });
+        let mut unsigned_tx = tx_builder.build();
 
-        // let mut unsigned_tx = tx_builder.build();
+        let fee = self.calculate_unlocking_fee(UnlockingFeeParams {
+            n_inputs: unsigned_tx.input.len() as u64,
+            n_outputs: unsigned_tx.output.len() as u64,
+            fee_rate: params.fee_rate,
+            quorum: params.custodian_quorum,
+        });
 
-        // let fee = self.calculate_unlocking_fee(UnlockingFeeParams {
-        //     n_inputs: unsigned_tx.input.len() as u64,
-        //     n_outputs: unsigned_tx.output.len() as u64,
-        //     fee_rate: params.fee_rate,
-        //     quorum: params.custodian_quorum,
-        // });
+        self.distribute_fee(&mut unsigned_tx, params.input.amount_in_sats, fee)?;
 
-        // self.distribute_fee(&mut unsigned_tx, params.total_output_value, fee)?;
+        let mut psbt =
+            Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
 
-        // if change > Amount::ZERO {
-        //     self.replace_change_output(&mut unsigned_tx, change, params.script);
-        // }
+        let (branch, keys) = match params.typ {
+            TimeGatedUnlockingType::CustodianOnly => {
+                (&tree.raw.custodian_only_branch, x_only_pubkeys)
+            }
+            TimeGatedUnlockingType::PartyTimeGated => {
+                (&tree.raw.csv_party_branch, vec![party_x_only_pubkey])
+            }
+        };
 
-        // let mut psbt =
-        //     Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
+        psbt.inputs = self.prepare_psbt_inputs(&[params.input.clone()], &tree.root, branch, &keys);
 
-        // let (branch, keys) = (tree.raw, x_only_pub_keys);
-
-        // psbt.inputs = self.prepare_psbt_inputs(
-        //     &params.inputs,
-        //     &tree.root,
-        //     &branch.only_custodian_branch,
-        //     &keys,
-        // );
-
-        // Ok(psbt)
+        Ok(psbt)
     }
 }

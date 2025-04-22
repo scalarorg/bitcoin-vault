@@ -1,7 +1,7 @@
 use crate::{
     get_basic_fee, log_tx_result, CustodianOnly, CustodianOnlyLockingParams,
     CustodianOnlyUnlockingParams, PreviousOutpoint, Signing, TaprootTreeType, UPCLockingParams,
-    UPCUnlockingParams, UnlockingType, VaultManager, HASH_SIZE, UPC,
+    UPCUnlockingParams, UPCUnlockingType, VaultManager, HASH_SIZE, UPC,
 };
 use anyhow::{anyhow, Result};
 use bitcoin::bip32::DerivationPath;
@@ -142,7 +142,7 @@ impl TestSuite {
                 <VaultManager as CustodianOnly>::build_locking_output(
                     &self.manager,
                     &CustodianOnlyLockingParams {
-                        custodian_pub_keys: self.custodian_pubkeys(),
+                        custodian_pubkeys: self.custodian_pubkeys(),
                         custodian_quorum: self.env.custodian_quorum,
                         locking_amount: amount,
                         destination_chain: dest.destination_chain,
@@ -156,9 +156,9 @@ impl TestSuite {
             TaprootTreeType::UPCBranch => <VaultManager as UPC>::build_locking_output(
                 &self.manager,
                 &UPCLockingParams {
-                    user_pub_key: account.public_key(),
-                    protocol_pub_key: self.protocol_pubkey(),
-                    custodian_pub_keys: self.custodian_pubkeys(),
+                    user_pubkey: account.public_key(),
+                    protocol_pubkey: self.protocol_pubkey(),
+                    custodian_pubkeys: self.custodian_pubkeys(),
                     custodian_quorum: self.env.custodian_quorum,
                     locking_amount: amount,
                     destination_chain: dest.destination_chain,
@@ -269,7 +269,7 @@ impl TestSuite {
     pub fn build_upc_unstaking_tx(
         &self,
         staking_tx: &Transaction,
-        unstaking_type: UnlockingType,
+        unstaking_type: UPCUnlockingType,
         account: SuiteAccount,
         amount: u64,
     ) -> Psbt {
@@ -285,9 +285,9 @@ impl TestSuite {
                     value: Amount::from_sat(amount),
                     script_pubkey: account.address().script_pubkey(),
                 },
-                user_pub_key: account.public_key(),
-                protocol_pub_key: self.protocol_pubkey(),
-                custodian_pub_keys: self.custodian_pubkeys(),
+                user_pubkey: account.public_key(),
+                protocol_pubkey: self.protocol_pubkey(),
+                custodian_pubkeys: self.custodian_pubkeys(),
                 custodian_quorum: self.env.custodian_quorum,
                 fee_rate: get_fee_rate(),
                 rbf: true,
@@ -315,7 +315,7 @@ impl TestSuite {
                     })
                     .collect(),
                 outputs,
-                custodian_pub_keys: self.custodian_pubkeys(),
+                custodian_pubkeys: self.custodian_pubkeys(),
                 custodian_quorum: self.env.custodian_quorum,
                 fee_rate: get_fee_rate(),
                 rbf: true,

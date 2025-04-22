@@ -26,10 +26,16 @@ pub type DestinationRecipientAddress = [u8; DEST_RECIPIENT_ADDRESS_SIZE];
 pub type DestinationChain = [u8; DEST_CHAIN_SIZE];
 
 #[derive(Debug, PartialEq)]
-pub enum UnlockingType {
+pub enum UPCUnlockingType {
     UserProtocol,
     CustodianProtocol,
     CustodianUser,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum TimeGatedUnlockingType {
+    PartyTimeGated,
+    CustodianOnly,
 }
 
 #[derive(Debug, Clone)]

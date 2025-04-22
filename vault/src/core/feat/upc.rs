@@ -4,7 +4,7 @@ use crate::{
     convert_pubkey_to_x_only_key, convert_pubkeys_to_x_only_keys, get_global_secp, CoreError,
     DataScript, DestinationChain, DestinationRecipientAddress, DestinationTokenAddress,
     LockingOutput, LockingScript, TaprootTree, TaprootTreeType, UPCLockingParams, UPCTaprootTree,
-    UPCUnlockingParams, UnlockingParams, UnlockingTaprootTreeType, UnlockingType, VaultManager,
+    UPCUnlockingParams, UPCUnlockingType, UnlockingParams, UnlockingTaprootTreeType, VaultManager,
     EMBEDDED_DATA_SCRIPT_SIZE, HASH_SIZE, UPC,
 };
 
@@ -16,9 +16,9 @@ impl UPC for VaultManager {
         params: &UPCLockingParams,
     ) -> Result<LockingOutput, Self::Error> {
         let locking_script = <Self as UPC>::locking_script(
-            &params.user_pub_key,
-            &params.protocol_pub_key,
-            &params.custodian_pub_keys,
+            &params.user_pubkey,
+            &params.protocol_pubkey,
+            &params.custodian_pubkeys,
             params.custodian_quorum,
         )?;
 
@@ -38,14 +38,14 @@ impl UPC for VaultManager {
     }
 
     fn locking_script(
-        user_pub_key: &PublicKey,
-        protocol_pub_key: &PublicKey,
-        custodian_pub_keys: &[PublicKey],
+        user_pubkey: &PublicKey,
+        protocol_pubkey: &PublicKey,
+        custodian_pubkeys: &[PublicKey],
         custodian_quorum: u8,
     ) -> Result<LockingScript, Self::Error> {
         let secp = get_global_secp();
         let (user, protocol, custodians) =
-            convert_upc_to_x_only_keys(user_pub_key, protocol_pub_key, custodian_pub_keys);
+            convert_upc_to_x_only_keys(user_pubkey, protocol_pubkey, custodian_pubkeys);
 
         let tree =
             TaprootTree::<UPCTaprootTree>::new(secp, user, protocol, custodians, custodian_quorum)?;
@@ -98,9 +98,9 @@ impl UPC for VaultManager {
         let secp = get_global_secp();
 
         let (user, protocol, custodians) = convert_upc_to_x_only_keys(
-            &params.user_pub_key,
-            &params.protocol_pub_key,
-            &params.custodian_pub_keys,
+            &params.user_pubkey,
+            &params.protocol_pubkey,
+            &params.custodian_pubkeys,
         );
 
         let tree = TaprootTree::<UPCTaprootTree>::new(
@@ -129,13 +129,15 @@ impl UPC for VaultManager {
             Psbt::from_unsigned_tx(unsigned_tx).map_err(|_| CoreError::FailedToCreatePSBT)?;
 
         let (branch, keys) = match params.typ {
-            UnlockingType::UserProtocol => (&tree.raw.user_protocol_branch, vec![user, protocol]),
-            UnlockingType::CustodianProtocol => {
+            UPCUnlockingType::UserProtocol => {
+                (&tree.raw.user_protocol_branch, vec![user, protocol])
+            }
+            UPCUnlockingType::CustodianProtocol => {
                 let mut keys = vec![protocol];
                 keys.extend_from_slice(&custodians);
                 (&tree.raw.custodian_protocol_branch, keys)
             }
-            UnlockingType::CustodianUser => {
+            UPCUnlockingType::CustodianUser => {
                 let mut keys = vec![user];
                 keys.extend_from_slice(&custodians);
                 (&tree.raw.custodian_user_branch, keys)
@@ -149,13 +151,13 @@ impl UPC for VaultManager {
 }
 
 fn convert_upc_to_x_only_keys(
-    user_pub_key: &PublicKey,
-    protocol_pub_key: &PublicKey,
-    custodian_pub_keys: &[PublicKey],
+    user_pubkey: &PublicKey,
+    protocol_pubkey: &PublicKey,
+    custodian_pubkeys: &[PublicKey],
 ) -> (XOnlyPublicKey, XOnlyPublicKey, Vec<XOnlyPublicKey>) {
-    let user_x_only = convert_pubkey_to_x_only_key(user_pub_key);
-    let protocol_x_only = convert_pubkey_to_x_only_key(protocol_pub_key);
-    let custodian_x_only = convert_pubkeys_to_x_only_keys(custodian_pub_keys);
+    let user_x_only = convert_pubkey_to_x_only_key(user_pubkey);
+    let protocol_x_only = convert_pubkey_to_x_only_key(protocol_pubkey);
+    let custodian_x_only = convert_pubkeys_to_x_only_keys(custodian_pubkeys);
 
     (user_x_only, protocol_x_only, custodian_x_only)
 }
