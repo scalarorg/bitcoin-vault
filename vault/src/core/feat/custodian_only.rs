@@ -31,7 +31,7 @@ impl CustodianOnly for VaultManager {
         Ok(LockingOutput::new(
             params.locking_amount,
             locking_script,
-            data_script,
+            Some(data_script),
         ))
     }
 

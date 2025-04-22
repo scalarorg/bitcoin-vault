@@ -161,7 +161,7 @@ impl VaultManager {
 
     
 
-    fn add_inputs_to_builder(
+    pub fn add_inputs_to_builder(
         &self,
         tx_builder: &mut TransactionBuilder,
         inputs: &[PreviousOutpoint],

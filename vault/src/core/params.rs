@@ -1,4 +1,4 @@
-use bitcoin::{Amount, PublicKey, TxOut};
+use bitcoin::{Amount, PublicKey, ScriptBuf, TxOut};
 use validator::Validate;
 
 use super::{
@@ -117,7 +117,6 @@ impl CustodianOnlyUnlockingParams {
 // TODO: Add validate for params
 #[derive(Debug, Validate)]
 pub struct TimeGatedLockingParams {
-    pub inputs: Vec<PreviousOutpoint>,
     pub locking_amount: u64,
     pub sequence: i64,
     pub party_pubkey: PublicKey,
@@ -127,9 +126,9 @@ pub struct TimeGatedLockingParams {
 
 #[derive(Debug, Validate)]
 pub struct TimeGatedUnlockingParams {
-    pub inputs: Vec<PreviousOutpoint>,
-    pub output: TxOut,
+    pub input: PreviousOutpoint,
     pub party_pubkey: PublicKey,
+    pub script_pubkey: ScriptBuf,
     pub custodian_pub_keys: Vec<PublicKey>,
     pub custodian_quorum: u8,
     pub sequence: i64,
@@ -138,29 +137,12 @@ pub struct TimeGatedUnlockingParams {
 }
 
 impl TimeGatedUnlockingParams {
-    pub fn validate(&self) -> Result<(Amount, Amount), CoreError> {
-        if self.inputs.is_empty() {
-            return Err(CoreError::InvalidParams(
-                "input must have at least one input".to_string(),
-            ));
-        }
-
-        if self.output.value == Amount::ZERO {
+    pub fn validate(&self) -> Result<(), CoreError> {
+        if self.input.amount_in_sats == Amount::ZERO {
             return Err(CoreError::InvalidParams(
                 "output amount must be greater than 0".to_string(),
             ));
         }
-
-        let total_input_value: Amount = self.inputs.iter().map(|input| input.amount_in_sats).sum();
-
-        // Note: because of the fee will be deducted from the total output value, so we not need to satify the equation
-        if total_input_value < self.output.value {
-            return Err(CoreError::InvalidParams(format!(
-                "Total input value must be greater than unlocking output value: {} <= {}",
-                total_input_value, self.output.value
-            )));
-        }
-
-        Ok((total_input_value, self.output.value))
+        Ok(())
     }
 }

@@ -1,8 +1,8 @@
 use crate::{
     DestinationChain, DestinationRecipientAddress, DestinationTokenAddress, TaprootTreeType,
     UnlockingTaprootTreeType, CUSTODIAN_QUORUM_SIZE, DEST_CHAIN_SIZE, DEST_RECIPIENT_ADDRESS_SIZE,
-    DEST_TOKEN_ADDRESS_SIZE, FLAGS_SIZE, HASH_SIZE, NETWORK_ID_SIZE, SERVICE_TAG_HASH_SIZE,
-    TAG_HASH_SIZE, VERSION_SIZE,
+    DEST_TOKEN_ADDRESS_SIZE, FLAGS_SIZE, HASH_SIZE, NETWORK_ID_SIZE, SEQUENCE_SIZE,
+    SERVICE_TAG_HASH_SIZE, TAG_HASH_SIZE, VERSION_SIZE,
 };
 use bitcoin::{consensus::Encodable, Amount, ScriptBuf, Transaction, TxIn, TxOut, Txid};
 use log::debug;
@@ -27,13 +27,13 @@ impl From<&TxOut> for VaultLockTxOutput {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum VaultReturnTxOutputType {
-    Unstaking,
-    Staking,
+    Unlocking,
+    Locking,
 }
 
 impl Default for VaultReturnTxOutputType {
     fn default() -> Self {
-        Self::Unstaking
+        Self::Unlocking
     }
 }
 
@@ -93,7 +93,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
         match UnlockingTaprootTreeType::try_from(flags) {
             Ok(UnlockingTaprootTreeType::CustodianOnlyBranch) => {
                 let service_tag = read_bytes(bytes, &mut cursor, SERVICE_TAG_HASH_SIZE)?;
-                let session_sequence = read_bytes(bytes, &mut cursor, 4)?;
+                let session_sequence = read_bytes(bytes, &mut cursor, SEQUENCE_SIZE)?;
                 let session_sequence = u64::from_be_bytes(session_sequence.try_into().unwrap());
                 let custodian_group_uid = read_bytes(bytes, &mut cursor, HASH_SIZE)?;
                 Ok(VaultReturnTxOutput {
@@ -102,7 +102,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     network_id,
                     flags,
                     service_tag: service_tag.try_into().unwrap(),
-                    transaction_type: VaultReturnTxOutputType::Unstaking,
+                    transaction_type: VaultReturnTxOutputType::Unlocking,
                     session_sequence,
                     custodian_group_uid: custodian_group_uid.try_into().unwrap(),
                     ..Default::default()
@@ -116,7 +116,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     network_id,
                     flags,
                     service_tag: service_tag.try_into().unwrap(),
-                    transaction_type: VaultReturnTxOutputType::Unstaking,
+                    transaction_type: VaultReturnTxOutputType::Unlocking,
                     ..Default::default()
                 })
             }
@@ -169,7 +169,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     version,
                     network_id,
                     flags,
-                    transaction_type: VaultReturnTxOutputType::Staking,
+                    transaction_type: VaultReturnTxOutputType::Locking,
                     custodian_quorum,
                     destination_chain,
                     destination_token_address,
@@ -230,7 +230,7 @@ impl TryFrom<&Transaction> for VaultTransaction {
         let return_tx = VaultReturnTxOutput::try_from(&tx.output[0])?;
 
         match return_tx.transaction_type {
-            VaultReturnTxOutputType::Unstaking => Ok(VaultTransaction {
+            VaultReturnTxOutputType::Unlocking => Ok(VaultTransaction {
                 txid,
                 tx_content: hex::encode(tx_content),
                 inputs: tx.input.clone(),
@@ -238,7 +238,7 @@ impl TryFrom<&Transaction> for VaultTransaction {
                 lock_tx: None,
                 change_tx: None,
             }),
-            VaultReturnTxOutputType::Staking => {
+            VaultReturnTxOutputType::Locking => {
                 //2. Parse the transaction locking outputs
                 let lock_tx = VaultLockTxOutput::from(&tx.output[1]);
 
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_op_return_data() {
-        let script_pubkey = "6a3f5343414c41520201807472616e73030100000000aa36a7390e831349f34e8a7f323cb7350bf04a021d3c1272d3fa31e9fdd2f2ce195bdf9aba8393a717fe01";
+        let script_pubkey = "6a365343414c4152030141706f6f6c730000000000000001bffb71bf819ae4cb65188905ac54763a09144bc3a0629808d7142dd5dbd98693";
 
         let script_pubkey = hex::decode(script_pubkey).unwrap();
 

@@ -58,7 +58,10 @@ pub trait CustodianOnly {
 
 pub trait TimeGated {
     type Error;
-    fn build_locking_psbt(&self, params: &TimeGatedLockingParams) -> Result<Psbt, Self::Error>;
+    fn build_locking_output(
+        &self,
+        params: &TimeGatedLockingParams,
+    ) -> Result<LockingOutput, Self::Error>;
     fn build_unlocking_psbt(&self, params: &TimeGatedUnlockingParams) -> Result<Psbt, Self::Error>;
     fn locking_script(
         party_pub_key: &PublicKey,

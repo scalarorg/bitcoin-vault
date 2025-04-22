@@ -36,11 +36,11 @@ pub enum UnlockingType {
 pub struct LockingOutput {
     amount: u64,
     script: LockingScript,
-    data: DataScript,
+    data: Option<DataScript>,
 }
 
 impl LockingOutput {
-    pub fn new(amount: u64, script: LockingScript, data: DataScript) -> Self {
+    pub fn new(amount: u64, script: LockingScript, data: Option<DataScript>) -> Self {
         Self {
             amount,
             script,
@@ -56,10 +56,17 @@ impl LockingOutput {
     }
 
     pub fn into_tx_outs(self) -> Vec<TxOut> {
+        if self.data.is_none() {
+            return vec![TxOut {
+                value: Amount::from_sat(self.amount),
+                script_pubkey: self.script.into_script(),
+            }];
+        }
+
         vec![
             TxOut {
                 value: Amount::from_sat(0),
-                script_pubkey: self.data.into_script(),
+                script_pubkey: self.data.unwrap().into_script(),
             },
             TxOut {
                 value: Amount::from_sat(self.amount),
