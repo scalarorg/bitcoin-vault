@@ -68,7 +68,7 @@ import (
 	"github.com/scalarorg/bitcoin-vault/go-utils/types"
 )
 
-func convertInputsToFFI(inputs []types.PreviousStakingUTXO) ([]C.PreviousOutpointFFI, []unsafe.Pointer) {
+func convertInputsToFFI(inputs []types.PreviousOutpoint) ([]C.PreviousOutpointFFI, []unsafe.Pointer) {
 	inputsFFI := make([]C.PreviousOutpointFFI, len(inputs))
 	ptrs := make([]unsafe.Pointer, len(inputs))
 
@@ -92,7 +92,7 @@ func convertInputsToFFI(inputs []types.PreviousStakingUTXO) ([]C.PreviousOutpoin
 	return inputsFFI, ptrs
 }
 
-func convertOutputsToFFI(outputs []types.UnstakingOutput) ([]C.TxOutFFI, []unsafe.Pointer) {
+func convertOutputsToFFI(outputs []types.UnlockingOutput) ([]C.TxOutFFI, []unsafe.Pointer) {
 	outputsFFI := make([]C.TxOutFFI, len(outputs))
 	ptrs := make([]unsafe.Pointer, len(outputs))
 
@@ -111,7 +111,7 @@ func convertOutputsToFFI(outputs []types.UnstakingOutput) ([]C.TxOutFFI, []unsaf
 	return outputsFFI, ptrs
 }
 
-func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, network types.NetworkKind, inputs []types.PreviousStakingUTXO, outputs []types.UnstakingOutput, custodianPubKeys []types.PublicKey, custodianQuorum uint8, rbf bool, feeRate uint64) ([]byte, error) {
+func BuildCustodianOnlyUnstakingTx(tag []byte, serviceTag []byte, version uint8, network types.NetworkKind, inputs []types.PreviousOutpoint, outputs []types.UnlockingOutput, custodianPubKeys []types.PublicKey, custodianQuorum uint8, rbf bool, feeRate uint64) ([]byte, error) {
 	if !network.Valid() {
 		return nil, ErrInvalidNetwork
 	}
@@ -159,8 +159,8 @@ func EncodePoolingRedeemParams(tag []byte,
 	serviceTag []byte,
 	version uint8,
 	network types.NetworkKind,
-	inputs []types.PreviousStakingUTXO,
-	outputs []types.UnstakingOutput,
+	inputs []types.PreviousOutpoint,
+	outputs []types.UnlockingOutput,
 	custodianPubKeys []types.PublicKey,
 	custodianQuorum uint8,
 	rbf bool,
@@ -219,8 +219,8 @@ func BuildPoolingRedeemTx(tag []byte,
 	serviceTag []byte,
 	version uint8,
 	network types.NetworkKind,
-	inputs []types.PreviousStakingUTXO,
-	outputs []types.UnstakingOutput,
+	inputs []types.PreviousOutpoint,
+	outputs []types.UnlockingOutput,
 	custodianPubKeys []types.PublicKey,
 	custodianQuorum uint8,
 	rbf bool,

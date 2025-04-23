@@ -18,7 +18,7 @@ func TestUnstaking(t *testing.T) {
 	serviceTag := []byte("proto")
 	version := uint8(1)
 	network := types.NetworkKindTestnet
-	inputs := []types.PreviousStakingUTXO{
+	inputs := []types.PreviousOutpoint{
 		{
 			OutPoint: types.OutPoint{
 				Txid: func() [32]byte {
@@ -32,7 +32,7 @@ func TestUnstaking(t *testing.T) {
 			Script: []byte{0x01, 0x02, 0x03},
 		},
 	}
-	outputs := []types.UnstakingOutput{
+	outputs := []types.UnlockingOutput{
 		{
 			LockingScript: []byte{0x01, 0x02, 0x03},
 			Amount:        10_000,
@@ -64,7 +64,7 @@ func TestPoolingRedeem(t *testing.T) {
 	serviceTag := []byte("proto")
 	version := uint8(1)
 	network := types.NetworkKindTestnet
-	inputs := []types.PreviousStakingUTXO{
+	inputs := []types.PreviousOutpoint{
 		{
 			OutPoint: types.OutPoint{
 				Txid: func() [32]byte {
@@ -78,7 +78,7 @@ func TestPoolingRedeem(t *testing.T) {
 			Script: []byte{0x01, 0x02, 0x03},
 		},
 	}
-	outputs := []types.UnstakingOutput{
+	outputs := []types.UnlockingOutput{
 		{
 			LockingScript: []byte{0x01, 0x02, 0x03},
 			Amount:        10_000,
@@ -130,7 +130,7 @@ func TestEncodePoolingRedeemParams(t *testing.T) {
 	serviceTag := []byte("pools")
 	version := uint8(3)
 	network := types.NetworkKindTestnet
-	inputs := []types.PreviousStakingUTXO{
+	inputs := []types.PreviousOutpoint{
 		{
 			OutPoint: types.OutPoint{
 				Txid: [32]byte{82, 192, 23, 61, 98, 192, 198, 167, 154, 178, 218, 24, 63, 5, 149, 128, 253, 153, 108, 36, 114, 120, 148, 211, 224, 246, 207, 54, 163, 203, 119, 115},
@@ -140,7 +140,7 @@ func TestEncodePoolingRedeemParams(t *testing.T) {
 			Script: []byte{81, 32, 168, 252, 80, 216, 127, 22, 216, 146, 180, 212, 208, 135, 210, 89, 192, 171, 65, 126, 16, 107, 4, 75, 41, 26, 119, 40, 210, 174, 19, 67, 222, 127},
 		},
 	}
-	outputs := []types.UnstakingOutput{
+	outputs := []types.UnlockingOutput{
 		{
 			LockingScript: []byte{0, 20, 99, 220, 34, 117, 29, 154, 119, 120, 170, 68, 80, 206, 235, 11, 92, 62, 226, 20, 64, 28},
 			Amount:        1000,
@@ -185,7 +185,7 @@ func TestEncodePoolingRedeemParamsV33(t *testing.T) {
 	serviceTag := []byte("pools")
 	version := uint8(3)
 	network := types.NetworkKindTestnet
-	inputs := []types.PreviousStakingUTXO{
+	inputs := []types.PreviousOutpoint{
 		{
 			OutPoint: types.OutPoint{
 				Txid: [32]byte{82, 192, 23, 61, 98, 192, 198, 167, 154, 178, 218, 24, 63, 5, 149, 128, 253, 153, 108, 36, 114, 120, 148, 211, 224, 246, 207, 54, 163, 203, 119, 115},
@@ -195,7 +195,7 @@ func TestEncodePoolingRedeemParamsV33(t *testing.T) {
 			Script: []byte{81, 32, 168, 252, 80, 216, 127, 22, 216, 146, 180, 212, 208, 135, 210, 89, 192, 171, 65, 126, 16, 107, 4, 75, 41, 26, 119, 40, 210, 174, 19, 67, 222, 127},
 		},
 	}
-	outputs := []types.UnstakingOutput{
+	outputs := []types.UnlockingOutput{
 		{
 			LockingScript: []byte{0, 20, 99, 220, 34, 117, 29, 154, 119, 120, 170, 68, 80, 206, 235, 11, 92, 62, 226, 20, 64, 28},
 			Amount:        1000,

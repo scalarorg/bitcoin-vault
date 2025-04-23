@@ -54,13 +54,13 @@ type OutPoint struct {
 
 type ScriptBuf = []byte
 
-type PreviousStakingUTXO struct {
+type PreviousOutpoint struct {
 	OutPoint OutPoint
 	Amount   uint64
 	Script   ScriptBuf
 }
 
-func (p *PreviousStakingUTXO) MarshalBinary() []byte {
+func (p *PreviousOutpoint) MarshalBinary() []byte {
 	var buf bytes.Buffer
 	buf.Write(p.OutPoint.Txid[:])
 	binary.Write(&buf, binary.BigEndian, p.OutPoint.Vout)
@@ -69,7 +69,7 @@ func (p *PreviousStakingUTXO) MarshalBinary() []byte {
 	return buf.Bytes()
 }
 
-func (p *PreviousStakingUTXO) UnmarshalBinary(data []byte) error {
+func (p *PreviousOutpoint) UnmarshalBinary(data []byte) error {
 	if len(data) < 44 {
 		return fmt.Errorf("data is too short to unmarshal PreviousStakingUTXO")
 	}
@@ -80,19 +80,19 @@ func (p *PreviousStakingUTXO) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-type UnstakingOutput struct {
+type UnlockingOutput struct {
 	LockingScript ScriptBuf
 	Amount        uint64
 }
 
-func (u *UnstakingOutput) MarshalBinary() []byte {
+func (u *UnlockingOutput) MarshalBinary() []byte {
 	var buf bytes.Buffer
 	binary.Write(&buf, binary.BigEndian, u.Amount)
 	buf.Write(u.LockingScript)
 	return buf.Bytes()
 }
 
-func (u *UnstakingOutput) UnmarshalBinary(data []byte) error {
+func (u *UnlockingOutput) UnmarshalBinary(data []byte) error {
 	if len(data) < 8 {
 		return fmt.Errorf("data is too short to unmarshal UnstakingOutput")
 	}
@@ -105,8 +105,8 @@ func (u *UnstakingOutput) UnmarshalBinary(data []byte) error {
 type TransactionType string
 
 const (
-	TransactionTypeUnstaking TransactionType = "Unstaking"
-	TransactionTypeStaking   TransactionType = "Staking"
+	TransactionTypeUnlocking TransactionType = "Unlocking"
+	TransactionTypeLocking   TransactionType = "Locking"
 )
 
 func (t TransactionType) String() string {
