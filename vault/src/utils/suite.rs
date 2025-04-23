@@ -1,7 +1,8 @@
 use crate::{
     get_basic_fee, log_tx_result, CustodianOnly, CustodianOnlyLockingParams,
-    CustodianOnlyUnlockingParams, PreviousOutpoint, Signing, TaprootTreeType, UPCLockingParams,
-    UPCUnlockingParams, UPCUnlockingType, VaultManager, HASH_SIZE, UPC,
+    CustodianOnlyUnlockingParams, LockingOutput, PreviousOutpoint, Signing, TaprootTreeType,
+    TimeGated, TimeGatedLockingParams, TimeGatedUnlockingParams, TimeGatedUnlockingType,
+    UPCLockingParams, UPCUnlockingParams, UPCUnlockingType, VaultManager, HASH_SIZE, UPC,
 };
 use anyhow::{anyhow, Result};
 use bitcoin::bip32::DerivationPath;
@@ -308,7 +309,7 @@ impl TestSuite {
             &CustodianOnlyUnlockingParams {
                 inputs: staking_txs
                     .iter()
-                    .map(|t| PreviousOutpoint {
+                    .map(|t: &Transaction| PreviousOutpoint {
                         outpoint: OutPoint::new(t.compute_txid(), VOUT as u32),
                         amount_in_sats: t.output[VOUT].value,
                         script_pubkey: t.output[VOUT].script_pubkey.clone(),
@@ -321,6 +322,49 @@ impl TestSuite {
                 rbf: true,
                 session_sequence: 0,
                 custodian_group_uid: [0u8; HASH_SIZE],
+            },
+        )
+        .unwrap()
+    }
+
+    pub fn build_time_gated_locking_output(
+        &self,
+        party_pubkey: PublicKey,
+        amount: u64,
+        sequence: i64,
+    ) -> LockingOutput {
+        <VaultManager as TimeGated>::build_locking_output(
+            &self.manager(),
+            &TimeGatedLockingParams {
+                party_pubkey,
+                custodian_pubkeys: self.custodian_pubkeys(),
+                custodian_quorum: self.env.custodian_quorum,
+                locking_amount: amount,
+                sequence,
+            },
+        )
+        .unwrap()
+    }
+
+    pub fn build_time_gated_unlocking_psbt(
+        &self,
+        input: PreviousOutpoint,
+        party_pubkey: PublicKey,
+        script_pubkey: ScriptBuf,
+        sequence: i64,
+        typ: TimeGatedUnlockingType,
+    ) -> Psbt {
+        <VaultManager as TimeGated>::build_unlocking_psbt(
+            &self.manager,
+            &TimeGatedUnlockingParams {
+                input,
+                party_pubkey,
+                script_pubkey,
+                custodian_pubkeys: self.custodian_pubkeys(),
+                custodian_quorum: self.env.custodian_quorum,
+                sequence,
+                fee_rate: get_fee_rate(),
+                typ,
             },
         )
         .unwrap()
@@ -339,6 +383,9 @@ impl TestSuite {
     ) -> Result<Option<GetRawTransactionResult>, anyhow::Error> {
         let finalized_tx = psbt.extract_tx().unwrap();
         let tx_hex = bitcoin::consensus::serialize(&finalized_tx);
+
+        println!("tx hex: {}", tx_hex.to_lower_hex_string());
+
         // Add retry logic with backoff for mempool chain errors
         let mut retry_count = 0;
         const MAX_RETRIES: u32 = 5;

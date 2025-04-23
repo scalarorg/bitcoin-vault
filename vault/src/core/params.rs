@@ -132,7 +132,6 @@ pub struct TimeGatedUnlockingParams {
     pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
     pub sequence: i64,
-    pub rbf: bool,
     pub fee_rate: u64,
     pub typ: TimeGatedUnlockingType,
 }

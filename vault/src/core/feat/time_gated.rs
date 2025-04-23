@@ -35,12 +35,16 @@ impl TimeGated for VaultManager {
         sequence: i64,
     ) -> Result<LockingScript, Self::Error> {
         let secp = get_global_secp();
-        let keys = convert_pubkeys_to_x_only_keys(custodian_pubkeys);
-        let party = convert_pubkey_to_x_only_key(party);
+        let party_x_only_pubkey = convert_pubkey_to_x_only_key(party);
+        let x_only_pubkeys = convert_pubkeys_to_x_only_keys(custodian_pubkeys);
 
-        let tree =
-            TaprootTree::<TimeGatedTree>::new(secp, &party, &keys, custodian_quorum, sequence)?;
-
+        let tree = TaprootTree::<TimeGatedTree>::new(
+            secp,
+            &party_x_only_pubkey,
+            &x_only_pubkeys,
+            custodian_quorum,
+            sequence,
+        )?;
         Ok(LockingScript(tree.into_script(secp)))
     }
 
@@ -60,7 +64,7 @@ impl TimeGated for VaultManager {
             params.sequence,
         )?;
 
-        let mut tx_builder = TransactionBuilder::new(params.rbf);
+        let mut tx_builder = TransactionBuilder::new(true);
 
         tx_builder.add_input_with_sequence(
             params.input.outpoint,

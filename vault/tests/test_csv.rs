@@ -1,18 +1,18 @@
 #[cfg(test)]
 mod test_csv {
-    use std::collections::BTreeMap;
 
     use bitcoin::{
-        bip32::DerivationPath,
-        hex::DisplayHex,
-        opcodes::all::{OP_CHECKSIG, OP_CSV, OP_DROP, OP_ELSE, OP_ENDIF, OP_IF},
-        psbt::Input,
-        script::Builder,
-        AddressType, Amount, OutPoint, Psbt, TxOut, XOnlyPublicKey,
+        key::Secp256k1,
+        secp256k1::{schnorr::Signature, All, Message},
+        sighash::SighashCache,
+        taproot::{ControlBlock, LeafVersion},
+        OutPoint, Psbt, ScriptBuf, TapLeafHash, XOnlyPublicKey,
     };
+    use bitcoincore_rpc::jsonrpc::base64;
     use vault::{
-        get_approvable_utxo, log_tx_result, AccountEnv, DestinationInfo, DestinationInfoEnv,
-        Signing, SuiteAccount, TestSuite, TransactionBuilder, VaultManager,
+        get_approvable_utxos, log_tx_result, AccountEnv, DestinationInfo, DestinationInfoEnv,
+        PreviousOutpoint, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType, TestSuite,
+        TimeGatedUnlockingType, VaultManager,
     };
 
     use lazy_static::lazy_static;
@@ -27,154 +27,122 @@ mod test_csv {
 
     #[test]
     fn test_simple() {
-        let lock_time: u16 = 0;
-        let mut tx_builder = TransactionBuilder::new(false);
+        let amount = 10000;
+        let sequence = 0;
+        let utxos = get_approvable_utxos(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), amount).unwrap();
 
-        let utxo = get_approvable_utxo(&TEST_SUITE.rpc, &TEST_ACCOUNT.address(), 2000).unwrap();
+        let staking_tx = TEST_SUITE
+            .prepare_staking_tx(
+                amount,
+                TaprootTreeType::CustodianOnly,
+                TEST_ACCOUNT.clone(),
+                TEST_DESTINATION_INFO.clone(),
+                utxos,
+            )
+            .unwrap();
 
-        let script_pubkey = TEST_ACCOUNT.address().script_pubkey();
-        // add inputs to builder
+        let output =
+            TEST_SUITE.build_time_gated_locking_output(TEST_ACCOUNT.public_key(), amount, sequence);
 
-        // let custodians_x_only: Vec<XOnlyPublicKey> = TEST_SUITE
-        //     .custodian_pubkeys()
-        //     .iter()
-        //     .map(|pk| XOnlyPublicKey::from(*pk))
-        //     .collect();
+        let mut unstaked_psbt = TEST_SUITE
+            .build_batch_custodian_only_unstaking_tx(&[staking_tx], output.into_tx_outs());
 
-        // let only_custodian_branch =
-        //     <ScriptBuf as BuildCustodianOnlyBranch>::build(&custodians_x_only, 3).unwrap();
-        // let only_custodian_branch_slice = only_custodian_branch.as_bytes().iter().as_slice();
+        let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
 
-        let x = TEST_ACCOUNT.address().script_pubkey();
+        for privkey in signing_privkeys {
+            <VaultManager as Signing>::sign_psbt_by_single_key(
+                &mut unstaked_psbt,
+                privkey.as_slice(),
+                TEST_SUITE.network_id(),
+                false,
+            )
+            .unwrap();
+        }
 
-        println!("x: {:?}", x.as_bytes().to_lower_hex_string());
+        let cloned_psbt = unstaked_psbt.clone();
 
-        let data_slice: &[u8; 34] = x.as_bytes().try_into().unwrap();
+        // Finalize the PSBT
+        <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
-        let script = Builder::new()
-            .push_opcode(OP_IF)
-            .push_int(lock_time as i64)
-            .push_opcode(OP_CSV)
-            .push_opcode(OP_DROP)
-            .push_key(&TEST_ACCOUNT.public_key())
-            .push_opcode(OP_CHECKSIG)
-            .push_opcode(OP_ELSE)
-            .push_slice([0u8; 30])
-            .push_opcode(OP_ENDIF)
-            .into_script();
+        //  send unstaking tx
+        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap().unwrap();
 
-        println!("script: {:?}", script);
-        println!("utxo: {:?}", utxo);
+        println!("\n====== TIME GATED TX RESULT ======\n");
+        log_tx_result(&result);
 
-        let output = TxOut {
-            value: utxo.amount - Amount::from_sat(1000),
-            script_pubkey: script.clone(),
+        // ========== SPEND TIME GATED TX BY CUSTODIAN ONLY ===========
+        let locked_vout = 1;
+
+        let input = PreviousOutpoint {
+            amount_in_sats: cloned_psbt.unsigned_tx.output[locked_vout].value,
+            outpoint: OutPoint {
+                txid: result.txid,
+                vout: 1,
+            },
+            script_pubkey: cloned_psbt.unsigned_tx.output[locked_vout]
+                .script_pubkey
+                .clone(),
         };
 
-        tx_builder.add_input(OutPoint {
-            txid: utxo.txid,
-            vout: utxo.vout,
-        });
-        tx_builder.add_raw_output(output.clone());
+        println!("Input: {:?}", input);
 
-        let unsigned_tx = tx_builder.build();
+        let mut unstaked_psbt = TEST_SUITE.build_time_gated_unlocking_psbt(
+            input,
+            TEST_ACCOUNT.public_key(),
+            TEST_ACCOUNT.address().script_pubkey(),
+            sequence,
+            TimeGatedUnlockingType::PartyTimeGated,
+        );
 
-        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
+        let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
 
-        psbt.inputs[0] = Input {
-            witness_utxo: Some(TxOut {
-                value: utxo.amount,
-                script_pubkey,
-            }),
-
-            // TODO: fix this, taproot address: leaf hash, no key origin
-            // TODO: fix this, segwit address: no leaf hash, key origin
-            tap_internal_key: match TEST_ACCOUNT.address().address_type() {
-                Some(AddressType::P2tr) => Some(XOnlyPublicKey::from(TEST_ACCOUNT.public_key())),
-                _ => None,
-            },
-            tap_key_origins: {
-                let mut map = BTreeMap::new();
-                // Note: no need leaf hash when staking
-                map.insert(
-                    XOnlyPublicKey::from(TEST_ACCOUNT.public_key()),
-                    (vec![], ([0u8; 4].into(), DerivationPath::default())),
-                );
-                map
-            },
-            ..Default::default()
-        };
-
+        // for privkey in signing_privkeys {
         <VaultManager as Signing>::sign_psbt_by_single_key(
-            &mut psbt,
-            &TEST_ACCOUNT.private_key().to_bytes(),
+            &mut unstaked_psbt,
+            TEST_ACCOUNT.private_key().to_bytes().as_slice(),
             TEST_SUITE.network_id(),
             true,
         )
         .unwrap();
 
-        let result = TestSuite::send_psbt(&TEST_SUITE.rpc, psbt)
-            .unwrap()
-            .unwrap();
+        println!("b64: {}", base64::encode(&unstaked_psbt.serialize()));
+        // println!("b64: {}", base64::encode(&unstaked_psbt.serialize()));
+        // panic!("")
+        // }
 
-        println!("result: {:?}", result);
+        // // Finalize the PSBT
+        // <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
-        println!("====== FAUCET BTC ======");
+        //  send unstaking tx
+        let result = TEST_SUITE.send_psbt_by_rpc(unstaked_psbt).unwrap().unwrap();
+
+        // println!("\n====== UNLOCKING TIME GATED TX RESULT ======\n");
         log_tx_result(&result);
+    }
 
-        // spend the previout output
-
-        let mut tx_builder = TransactionBuilder::new(false);
-
-        tx_builder.add_input(OutPoint {
-            txid: result.txid,
-            vout: 0,
-        });
-        tx_builder.add_raw_output(TxOut {
-            script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
-            value: output.value - Amount::from_sat(1000),
-        });
-
-        let unsigned_tx = tx_builder.build();
-
-        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
-
-        psbt.inputs[0] = Input {
-            witness_utxo: Some(TxOut {
-                value: output.value,
-                script_pubkey: script.clone(),
-            }),
-
-            // TODO: fix this, taproot address: leaf hash, no key origin
-            // TODO: fix this, segwit address: no leaf hash, key origin
-            tap_internal_key: match TEST_ACCOUNT.address().address_type() {
-                Some(AddressType::P2tr) => Some(XOnlyPublicKey::from(TEST_ACCOUNT.public_key())),
-                _ => None,
-            },
-            tap_key_origins: {
-                let mut map = BTreeMap::new();
-                // Note: no need leaf hash when staking
-                map.insert(
-                    XOnlyPublicKey::from(TEST_ACCOUNT.public_key()),
-                    (vec![], ([0u8; 4].into(), DerivationPath::default())),
-                );
-                map
-            },
-            ..Default::default()
-        };
-
-        <VaultManager as Signing>::sign_psbt_by_single_key(
-            &mut psbt,
-            &TEST_ACCOUNT.private_key().to_bytes(),
-            TEST_SUITE.network_id(),
-            true,
+    #[test]
+    fn test_simple2() {
+        // Parse the leaf script
+        let leaf_script = ScriptBuf::from_hex(
+            "00b275202ae31ea8709aeda8194ba3e2f7e7e95e680e8b65135c8983c0a298d17bc5350aad",
         )
         .unwrap();
 
-        let result = TestSuite::send_psbt(&TEST_SUITE.rpc, psbt)
-            .unwrap()
-            .unwrap();
+        // Parse the control block
+        let control_block_bytes = hex::decode("c050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac05a10a5ec729629c6dd863dc28b7162e18f96b00dedd87f158b228428a298bccb").unwrap();
+        let control_block = ControlBlock::decode(&control_block_bytes).unwrap();
 
-        log_tx_result(&result);
+        // Extract the internal key from the control block
+        let internal_key = control_block.internal_key;
+
+        // Extract the leaf version
+        let leaf_version = control_block.leaf_version;
+
+        println!("Internal Key: {:#?}", internal_key);
+        println!("Leaf Version: {:#?}", leaf_version);
+
+        // // Compute the tap leaf hash
+        // Get taproot spending data
+        let tap_leaf_hash = TapLeafHash::from_script(&leaf_script, LeafVersion::TapScript);
     }
 }

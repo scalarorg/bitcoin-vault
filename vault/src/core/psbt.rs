@@ -15,6 +15,7 @@ use bitcoin::{
     Witness, XOnlyPublicKey,
 };
 
+#[derive(Debug)]
 pub struct SigningKeyMap(BTreeMap<XOnlyPublicKey, PrivateKey>);
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
@@ -460,6 +461,8 @@ impl Utils for Psbt {
                         let signature = secp.sign_schnorr(&msg, &key_pair);
                         #[cfg(not(feature = "rand-std"))]
                         let signature = secp.sign_schnorr_no_aux_rand(&msg, &key_pair);
+
+                        println!("{:?}", signature); // TODO: remove this print late
 
                         let signature = taproot::Signature {
                             signature,
