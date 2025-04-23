@@ -462,8 +462,6 @@ impl Utils for Psbt {
                         #[cfg(not(feature = "rand-std"))]
                         let signature = secp.sign_schnorr_no_aux_rand(&msg, &key_pair);
 
-                        println!("{:?}", signature); // TODO: remove this print late
-
                         let signature = taproot::Signature {
                             signature,
                             sighash_type,

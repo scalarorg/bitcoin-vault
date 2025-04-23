@@ -179,14 +179,15 @@ impl TaprootTree<TimeGatedTree> {
         party: &XOnlyPublicKey,
         custodian_pubkeys: &[XOnlyPublicKey],
         custodian_quorum: u8,
-        sequence: i64,
+        sequence: u16,
     ) -> Result<Self, CoreError> {
         let mut builder = TaprootBuilder::new();
 
         let only_custodian_branch =
             <ScriptBuf as BuildCustodianOnlyBranch>::build(custodian_pubkeys, custodian_quorum)?;
 
-        let csv_branch = <ScriptBuf as BuildPartyWithSequenceVerification>::build(party, sequence)?;
+        let csv_branch =
+            <ScriptBuf as BuildPartyWithSequenceVerification>::build(party, sequence.into())?;
 
         builder = builder.add_leaf(1, csv_branch.clone())?;
         builder = builder.add_leaf(1, only_custodian_branch.clone())?;

@@ -32,7 +32,7 @@ impl TimeGated for VaultManager {
         party: &PublicKey,
         custodian_pubkeys: &[PublicKey],
         custodian_quorum: u8,
-        sequence: i64,
+        sequence: u16,
     ) -> Result<LockingScript, Self::Error> {
         let secp = get_global_secp();
         let party_x_only_pubkey = convert_pubkey_to_x_only_key(party);
@@ -68,7 +68,7 @@ impl TimeGated for VaultManager {
 
         tx_builder.add_input_with_sequence(
             params.input.outpoint,
-            Sequence::from_consensus(params.sequence.try_into().unwrap()),
+            Sequence::from_height(params.sequence),
         );
 
         tx_builder.add_raw_output(TxOut {

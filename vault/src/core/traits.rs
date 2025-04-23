@@ -67,7 +67,7 @@ pub trait TimeGated {
         party_pub_key: &PublicKey,
         custodian_pub_keys: &[PublicKey],
         custodian_quorum: u8,
-        sequence: i64,
+        sequence: u16,
     ) -> Result<LockingScript, Self::Error>;
 }
 pub trait Signing {

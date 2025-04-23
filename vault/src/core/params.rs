@@ -118,7 +118,7 @@ impl CustodianOnlyUnlockingParams {
 #[derive(Debug, Validate)]
 pub struct TimeGatedLockingParams {
     pub locking_amount: u64,
-    pub sequence: i64,
+    pub sequence: u16,
     pub party_pubkey: PublicKey,
     pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
@@ -131,7 +131,7 @@ pub struct TimeGatedUnlockingParams {
     pub script_pubkey: ScriptBuf,
     pub custodian_pubkeys: Vec<PublicKey>,
     pub custodian_quorum: u8,
-    pub sequence: i64,
+    pub sequence: u16,
     pub fee_rate: u64,
     pub typ: TimeGatedUnlockingType,
 }

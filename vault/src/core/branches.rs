@@ -100,7 +100,7 @@ impl BuildPartyWithSequenceVerification for PartyWithSequenceVerification {
             .push_opcode(OP_CSV)
             .push_opcode(OP_DROP)
             .push_x_only_key(x)
-            .push_opcode(OP_CHECKSIGVERIFY)
+            .push_opcode(OP_CHECKSIG)
             .into_script())
     }
 }

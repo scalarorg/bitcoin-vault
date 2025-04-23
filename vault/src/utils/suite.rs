@@ -331,10 +331,10 @@ impl TestSuite {
         &self,
         party_pubkey: PublicKey,
         amount: u64,
-        sequence: i64,
+        sequence: u16,
     ) -> LockingOutput {
         <VaultManager as TimeGated>::build_locking_output(
-            &self.manager(),
+            self.manager(),
             &TimeGatedLockingParams {
                 party_pubkey,
                 custodian_pubkeys: self.custodian_pubkeys(),
@@ -351,7 +351,7 @@ impl TestSuite {
         input: PreviousOutpoint,
         party_pubkey: PublicKey,
         script_pubkey: ScriptBuf,
-        sequence: i64,
+        sequence: u16,
         typ: TimeGatedUnlockingType,
     ) -> Psbt {
         <VaultManager as TimeGated>::build_unlocking_psbt(
