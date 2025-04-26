@@ -8,7 +8,7 @@ use bitcoin::{
     script,
     secp256k1::All,
     taproot::{LeafVersion, TaprootSpendInfo},
-    Amount, ScriptBuf, TapLeafHash, TapSighashType, Transaction, TxOut, XOnlyPublicKey,
+    Amount, FeeRate, ScriptBuf, TapLeafHash, TapSighashType, Transaction, TxOut, XOnlyPublicKey,
 };
 use lazy_static::lazy_static;
 
@@ -262,7 +262,8 @@ impl VaultManager {
         tx_builder.add_outputs(params.outputs);
 
         let change = self.calculate_change(params.total_input_value, params.total_output_value);
-        if change > Amount::ZERO {
+        let dust = FeeRate::DUST.to_sat_per_kwu();
+        if change.to_sat() > dust {
             self.add_change_output_placeholder(&mut tx_builder, params.script);
         }
 

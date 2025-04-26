@@ -73,7 +73,7 @@ mod test_csv {
         let amount_in_sats = Amount::from_sat(9737);
         let sequence = 2;
         let script_pubkey = ScriptBuf::from_hex(
-            "5120ca3cce151096b695132aa1a410bf9125d34fc050f0d8428edcdb280653a2cfae",
+            "51207c5c14f97f99b0af4db1f57a57a0e3c0e31080fea1546ca7139896392cfbc857",
         )
         .unwrap();
 
