@@ -49,6 +49,7 @@ pub struct VaultReturnTxOutput {
     pub destination_chain: DestinationChain,
     pub destination_token_address: DestinationTokenAddress,
     pub destination_recipient_address: DestinationRecipientAddress,
+    pub script_pubkey: ScriptBuf,
     pub session_sequence: u64,
     pub custodian_group_uid: [u8; HASH_SIZE],
 }
@@ -174,6 +175,7 @@ impl TryFrom<&TxOut> for VaultReturnTxOutput {
                     destination_chain,
                     destination_token_address,
                     destination_recipient_address,
+                    script_pubkey: txo.script_pubkey.clone(),
                     ..Default::default()
                 })
             }
