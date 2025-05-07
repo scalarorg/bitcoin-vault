@@ -5,6 +5,7 @@ RUN apk add --no-cache git libc-dev openssl-dev pkgconfig
 WORKDIR /bitcoin-vault
 
 COPY ffi ./ffi
+COPY cmd ./cmd
 COPY macros ./macros
 COPY vault ./vault
 COPY wasm ./wasm
