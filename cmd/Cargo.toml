@@ -1,0 +1,23 @@
+[package]
+name = "cmd"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "cmd"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cmd"
+path = "src/main.rs"
+
+
+[dependencies]
+bitcoin = { package = "bitcoin", version = "0.32.5" }
+clap = { version = "4.5.10", features = ["derive"] }
+serde = { version = "1.0.213", features = ["derive"] }
+serde_json = "1.0.105"
+anyhow = "1.0.89"
+bip39 = "2.1.0"
+rust-mempool = "0.0.5"
+tokio = "1.45.0"
