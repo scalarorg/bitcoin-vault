@@ -232,37 +232,29 @@ impl TryFrom<&Transaction> for VaultTransaction {
         //2. Parse the op_return data
         let return_tx = VaultReturnTxOutput::try_from(&tx.output[0])?;
 
-        match return_tx.transaction_type {
-            VaultReturnTxOutputType::Unlocking => Ok(VaultTransaction {
-                txid,
-                tx_content: hex::encode(tx_content),
-                inputs: tx.input.clone(),
-                outputs: tx.output.clone(),
-                return_tx,
-                lock_tx: None,
-                change_tx: None,
-            }),
+        let (lock_tx, change_tx) = match return_tx.transaction_type {
+            VaultReturnTxOutputType::Unlocking => (None, None),
             VaultReturnTxOutputType::Locking => {
-                //2. Parse the transaction locking outputs
-                let lock_tx = VaultLockTxOutput::from(&tx.output[1]);
-
-                let change_tx = if tx.output.len() == 3 {
-                    Some(VaultChangeTxOutput::from(&tx.output[2]))
-                } else {
-                    None
-                };
-
-                Ok(VaultTransaction {
-                    txid,
-                    tx_content: hex::encode(tx_content),
-                    inputs: tx.input.clone(),
-                    outputs: vec![],
-                    lock_tx: Some(lock_tx),
-                    return_tx,
-                    change_tx,
-                })
+                let lock_tx = tx
+                    .output
+                    .get(1)
+                    .map(|output| VaultLockTxOutput::from(output));
+                let change_tx = tx
+                    .output
+                    .get(2)
+                    .map(|output| VaultChangeTxOutput::from(output));
+                (lock_tx, change_tx)
             }
-        }
+        };
+        Ok(VaultTransaction {
+            txid,
+            tx_content: hex::encode(tx_content),
+            inputs: tx.input.clone(),
+            outputs: tx.output.clone(),
+            lock_tx,
+            return_tx,
+            change_tx,
+        })
     }
 }
 
