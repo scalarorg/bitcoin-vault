@@ -25,7 +25,7 @@ pub fn get_global_secp() -> &'static Secp256k1<All> {
     &SECP
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VaultManager {
     tag: Vec<u8>,
     service_tag: Vec<u8>,

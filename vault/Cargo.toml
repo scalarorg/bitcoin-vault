@@ -16,7 +16,7 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1.0.91"
-bitcoin = { version = "0.32.4" }
+bitcoin = { version = "0.32.6" }
 bitcoincore-rpc = { version = "0.19.0" }
 dotenv = "0.15.0"
 hex = "0.4.3"

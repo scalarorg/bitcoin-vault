@@ -4,8 +4,8 @@ RUN apk add --no-cache git libc-dev openssl-dev pkgconfig
 # Todo: select a specific version
 WORKDIR /bitcoin-vault
 
-COPY ffi ./ffi
 COPY cmd ./cmd
+COPY ffi ./ffi
 COPY macros ./macros
 COPY vault ./vault
 COPY wasm ./wasm
