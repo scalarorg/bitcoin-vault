@@ -16,6 +16,7 @@ mod test_custodians {
         VaultManager, HASH_SIZE,
     };
 
+    use futures::future::join_all;
     use lazy_static::lazy_static;
 
     lazy_static! {
@@ -465,14 +466,16 @@ mod test_custodians {
 
     #[test]
     fn test_collect_all_available_utxos() {
-        let _ = tokio::runtime::Builder::new_multi_thread()
+        use electrum_client::{Client, ElectrumApi};
+
+        let _: Result<(), Box<dyn std::error::Error>> = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
             .build()
             .unwrap()
             .block_on(async {
                 const VOUT: u32 = 1;
-                const LIMIT: usize = 100;
+                const LIMIT: usize = 500;
 
                 let script = <VaultManager as CustodianOnly>::locking_script(
                     &TEST_SUITE.custodian_pubkeys(),
@@ -480,86 +483,113 @@ mod test_custodians {
                 )
                 .unwrap();
 
-                // let address = get_adress(&env.network, &env.address);
                 let network = get_network_from_str(&TEST_SUITE.env().network);
-                let address = Address::from_script(&script.into_script(), network).unwrap();
+                let address = Address::from_script(&script.clone().into_script(), network).unwrap();
 
-                let client = MempoolClient::new(network);
-                let utxos = client.get_address_utxo(&address.to_string()).await.unwrap();
-                if utxos.is_empty() {
-                    return Err("No utxos found".to_string());
-                }
+                println!("address: {:?}", address);
 
-                // // get first <limit> utxos
-                let utxos = utxos
+                let client = Client::new("tcp://127.0.0.1:60001").unwrap();
+
+                let utxos = client.script_list_unspent(&script.into_script()).unwrap();
+
+                let mut utxos = utxos
                     .iter()
+                    .filter(|utxo| utxo.height > 85000)
+                    .collect::<Vec<_>>();
+
+                // sort ascending by block height
+                utxos.reverse();
+
+                let utxos = utxos
+                    .into_iter()
                     .map(|utxo| NeededUtxo {
-                        txid: Txid::from_str(&utxo.txid).unwrap(),
-                        vout: utxo.vout,
+                        txid: utxo.tx_hash,
+                        vout: utxo.tx_pos as u32,
                         amount: Amount::from_sat(utxo.value),
                     })
-                    .collect::<Vec<NeededUtxo>>();
+                    .collect::<Vec<_>>();
 
-                let utxos: Vec<NeededUtxo> = utxos.iter().take(LIMIT).cloned().collect();
+                let batch_futures = utxos.chunks(LIMIT).enumerate().map(|(i, utxos_chunk)| {
+                    // Clone what you need inside the async block
+                    let address = address.clone();
+                    let test_account_address = TEST_ACCOUNT.address().clone();
+                    let manager = TEST_SUITE.manager();
+                    let custodian_pubkeys = TEST_SUITE.custodian_pubkeys();
+                    let custodian_quorum = TEST_SUITE.env().custodian_quorum;
+                    let network_id = TEST_SUITE.network_id();
+                    let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
+                    let client = Client::new("tcp://127.0.0.1:60001").unwrap();
 
-                let total: u64 = utxos.iter().map(|utxo| utxo.amount.to_sat()).sum();
+                    let utxos_chunk: Vec<_> = utxos_chunk.to_vec();
 
-                println!("utxos: {:?}", utxos);
+                    tokio::spawn(async move {
+                        let total: u64 = utxos_chunk.iter().map(|utxo| utxo.amount.to_sat()).sum();
 
-                let mut unstaked_psbt = <VaultManager as CustodianOnly>::build_unlocking_psbt(
-                    &TEST_SUITE.manager(),
-                    &CustodianOnlyUnlockingParams {
-                        inputs: utxos
-                            .iter()
-                            .map(|u| PreviousOutpoint {
-                                outpoint: OutPoint::new(u.txid, VOUT),
-                                amount_in_sats: u.amount,
-                                script_pubkey: address.script_pubkey(),
-                            })
-                            .collect(),
-                        outputs: vec![TxOut {
-                            value: Amount::from_sat(total),
-                            script_pubkey: TEST_ACCOUNT.address().script_pubkey(),
-                        }],
-                        custodian_pubkeys: TEST_SUITE.custodian_pubkeys(),
-                        custodian_quorum: TEST_SUITE.env().custodian_quorum,
-                        fee_rate: 2,
-                        rbf: false,
-                        session_sequence: 0,
-                        custodian_group_uid: [0u8; HASH_SIZE],
-                    },
-                )
-                .unwrap();
+                        println!("Batch {}: Processing {} utxos", i + 1, utxos_chunk.len());
 
-                let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
+                        let mut unstaked_psbt =
+                            match <VaultManager as CustodianOnly>::build_unlocking_psbt(
+                                &manager,
+                                &CustodianOnlyUnlockingParams {
+                                    inputs: utxos_chunk
+                                        .iter()
+                                        .map(|u| PreviousOutpoint {
+                                            outpoint: OutPoint::new(u.txid, VOUT),
+                                            amount_in_sats: u.amount,
+                                            script_pubkey: address.script_pubkey(),
+                                        })
+                                        .collect(),
+                                    outputs: vec![TxOut {
+                                        value: Amount::from_sat(total),
+                                        script_pubkey: test_account_address.script_pubkey(),
+                                    }],
+                                    custodian_pubkeys,
+                                    custodian_quorum,
+                                    fee_rate: 2,
+                                    rbf: false,
+                                    session_sequence: 0,
+                                    custodian_group_uid: [0u8; HASH_SIZE],
+                                },
+                            ) {
+                                Ok(psbt) => psbt,
+                                Err(e) => {
+                                    println!("Failed to build PSBT for batch {}: {}", i + 1, e);
+                                    return;
+                                }
+                            };
 
-                println!("signing_privkeys: {:?}", signing_privkeys);
+                        for privkey in signing_privkeys {
+                            let _ = <VaultManager as Signing>::sign_psbt_by_single_key(
+                                &mut unstaked_psbt,
+                                privkey.as_slice(),
+                                network_id,
+                                false,
+                            )
+                            .unwrap();
+                        }
 
-                for privkey in signing_privkeys {
-                    let _ = <VaultManager as Signing>::sign_psbt_by_single_key(
-                        &mut unstaked_psbt,
-                        privkey.as_slice(),
-                        TEST_SUITE.network_id(),
-                        false,
-                    )
-                    .unwrap();
+                        <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
-                    println!(
-                        "unstaked_psbt[0]: {:?}\n",
-                        unstaked_psbt.inputs[0].tap_script_sigs
-                    );
-                }
+                        let finalized_tx = match unstaked_psbt.extract_tx() {
+                            Ok(tx) => tx,
+                            Err(e) => {
+                                println!("Failed to extract tx for batch {}: {}", i + 1, e);
+                                return;
+                            }
+                        };
 
-                // Finalize the PSBT
-                <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+                        match client.transaction_broadcast(&finalized_tx) {
+                            Ok(tx_id) => {
+                                println!("Batch {} tx_id: {:?}", i + 1, tx_id);
+                            }
+                            Err(e) => {
+                                println!("Broadcast error for batch {}: {:?}", i + 1, e);
+                            }
+                        }
+                    })
+                });
 
-                //  send unstaking tx
-
-                let finalized_tx = unstaked_psbt.extract_tx().unwrap();
-                let tx_hex = finalized_tx.raw_hex();
-
-                let tx_id = client.broadcast_transaction(&tx_hex).await.unwrap();
-                println!("tx_id: {:?}", tx_id);
+                join_all(batch_futures).await;
 
                 Ok(())
             });

@@ -26,7 +26,7 @@ pub struct Env {
     #[env_var(key = "PROTOCOL_PRIVATE_KEY")]
     pub protocol_private_key: String,
 
-    #[validate(length(equal = 5))]
+    #[validate(length(min = 4))]
     #[env_var(key = "CUSTODIAN_PRIVKEYS")]
     pub custodian_private_keys: Vec<String>,
 
