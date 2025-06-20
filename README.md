@@ -225,17 +225,6 @@ const psbtHex =
 
 - More details can be found in `binding/test`
 
-### 🌟 Go Utilities (go-utils)
-
-Golang utilities for blockchain integration.
-This module is used as shared dependencies for other modules, including calculating payload hash for staking and unstaking transactions, formatting **destination chain** specific data.
-
-#### Installation
-
-```bash
-go get github.com/scalarorg/bitcoin-vault/go-utils
-```
-
 ### 🌟 FFI Bindings (ffi)
 
 Foreign Function Interface for language interoperability.
