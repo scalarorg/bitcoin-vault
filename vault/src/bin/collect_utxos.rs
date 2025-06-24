@@ -1,18 +1,29 @@
-use bitcoin::Psbt;
+use bitcoin::consensus::serialize;
+use bitcoin::hex::DisplayHex;
 use bitcoin::{Address, Amount, OutPoint, TxOut};
+use bitcoin::{Network, Psbt};
 use electrum_client::{Client, ElectrumApi};
+use rust_mempool::MempoolClient;
 use std::process;
+use std::sync::Arc;
 use vault::core::*;
 use vault::utils::*;
 
 // export TEST_ENV=testnet4 && cargo run --package vault --bin collect_utxos
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 8)]
 async fn main() {
     const VOUT: u32 = 1;
     const LIMIT: usize = 500;
     const ELECTRUM_PORT: u16 = 60001;
     const ELECTRUM_HOST: &str = "127.0.0.1";
+
+    // Create the client once and wrap in Arc
+    let client = Arc::new(
+        Client::new(format!("tcp://{}:{}", ELECTRUM_HOST, ELECTRUM_PORT).as_str()).unwrap(),
+    );
+
+    let mempool_client = Arc::new(MempoolClient::new(Network::Testnet4));
 
     // Load environment
     let test_suite = TestSuite::new_with_loaded_env("PEPE");
@@ -41,29 +52,27 @@ async fn main() {
         }
     };
     println!("address: {}", address);
+    println!("collect address: {}", test_account.address());
 
     // Connect to Electrum
-    let client = match Client::new(format!("tcp://{}:{}", ELECTRUM_HOST, ELECTRUM_PORT).as_str()) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Failed to connect to Electrum: {}", e);
-            process::exit(1);
-        }
-    };
+
+    println!("Connected to Electrum");
 
     // Fetch UTXOs
-    let utxos = match client.script_list_unspent(&script.into_script()) {
+    let mut utxos = match client.script_list_unspent(&script.into_script()) {
         Ok(u) => u,
         Err(e) => {
             eprintln!("Failed to fetch UTXOs: {}", e);
             process::exit(1);
         }
     };
-    let mut utxos = utxos
-        .iter()
-        .filter(|utxo| utxo.height > 85000)
-        .collect::<Vec<_>>();
+
+    // let mut utxos = utxos
+    //     .iter()
+    //     .filter(|utxo| utxo.height > 85000)
+    //     .collect::<Vec<_>>();
     utxos.reverse();
+
     let utxos = utxos
         .into_iter()
         .map(|utxo| NeededUtxo {
@@ -72,6 +81,13 @@ async fn main() {
             amount: Amount::from_sat(utxo.value),
         })
         .collect::<Vec<_>>();
+
+    let len = utxos.len();
+
+    // not get last 500 utxos
+    let utxos = utxos.into_iter().take(len - 500).collect::<Vec<_>>();
+
+    println!("number of utxos: {}", utxos.len());
 
     // Batch and process
     let batch_futures = utxos.chunks(LIMIT).enumerate().map(|(i, utxos_chunk)| {
@@ -82,8 +98,8 @@ async fn main() {
         let custodian_quorum = test_suite.env().custodian_quorum;
         let network_id = test_suite.network_id();
         let signing_privkeys = test_suite.custodian_privkeys().clone();
-        let client = Client::new("tcp://127.0.0.1:60001").unwrap();
         let utxos_chunk: Vec<_> = utxos_chunk.to_vec();
+        let mempool_client = mempool_client.clone();
         tokio::spawn(async move {
             let total: u64 = utxos_chunk.iter().map(|utxo| utxo.amount.to_sat()).sum();
             println!("Batch {}: Processing {} utxos", i + 1, utxos_chunk.len());
@@ -133,7 +149,14 @@ async fn main() {
                     return;
                 }
             };
-            match client.transaction_broadcast(&finalized_tx) {
+
+            let tx_hex = serialize(&finalized_tx);
+
+            let result = mempool_client
+                .broadcast_transaction(tx_hex.to_lower_hex_string().as_str())
+                .await;
+
+            match result {
                 Ok(tx_id) => {
                     println!("Batch {} tx_id: {:?}", i + 1, tx_id);
                 }
