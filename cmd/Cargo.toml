@@ -21,3 +21,6 @@ anyhow = "1.0.89"
 bip39 = "2.1.0"
 rust-mempool = "0.0.5"
 tokio = "1.45.0"
+vault = { path = "../vault" }
+electrum-client = "0.23.1"
+futures = "0.3.31"

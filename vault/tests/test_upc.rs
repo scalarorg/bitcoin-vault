@@ -1,16 +1,20 @@
 #[cfg(test)]
 mod test_upc {
-    use bitcoin::{secp256k1::All, Psbt};
+    use bitcoin::{
+        hex::DisplayHex, secp256k1::All, Address, Amount, Network, OutPoint, PrivateKey, Psbt,
+        PublicKey, ScriptBuf, TxOut, Txid,
+    };
+    use rust_mempool::MempoolClient;
     use vault::{
-        get_approvable_utxos, helper::log_tx_result, AccountEnv, DestinationInfo,
-        DestinationInfoEnv, SignByKeyMap, Signing, SuiteAccount, TaprootTreeType, TestSuite,
-        UPCUnlockingType, VaultManager,
+        get_approvable_utxos, get_fee_rate, get_global_secp, helper::log_tx_result, AccountEnv,
+        DestinationInfo, DestinationInfoEnv, PreviousOutpoint, SignByKeyMap, Signing, SuiteAccount,
+        TaprootTreeType, TestSuite, UPCUnlockingParams, UPCUnlockingType, VaultManager, UPC,
     };
 
     use lazy_static::lazy_static;
 
     lazy_static! {
-        static ref TEST_SUITE: TestSuite = TestSuite::new_with_loaded_env("PEPE");
+        static ref TEST_SUITE: TestSuite = TestSuite::new_with_loaded_env("upc");
         static ref TEST_ACCOUNT: SuiteAccount =
             SuiteAccount::new(AccountEnv::new(TEST_SUITE.env_path()).unwrap());
         static ref TEST_DESTINATION_INFO: DestinationInfo =
@@ -309,4 +313,158 @@ mod test_upc {
         }
         println!("🚀 ==== DONE ==== 🚀");
     }
+
+    // #[tokio::test]
+    // async fn test_unstake_with_staked_utxos() {
+    //     use std::str::FromStr;
+
+    //     let user_priv_key = std::env::var("USER_PRIVKEY").unwrap();
+    //     let secp = get_global_secp();
+
+    //     for priv_key in TEST_SUITE.env().custodian_private_keys.iter() {
+    //         let priv_key = PrivateKey::from_wif(&priv_key).unwrap();
+    //         // println!("priv_key: {:?}", priv_key.to_bytes().to_lower_hex_string());
+    //         println!(
+    //             "pub_key: {:?}",
+    //             priv_key.public_key(secp).to_bytes().to_lower_hex_string()
+    //         );
+    //     }
+
+    //     let user_privkey = PrivateKey::from_wif(&user_priv_key).unwrap();
+    //     let user_pubkey = user_privkey.public_key(secp);
+    //     println!(
+    //         "user_pubkey: {:?}",
+    //         user_pubkey.to_bytes().to_lower_hex_string()
+    //     );
+
+    //     println!(
+    //         "user_address: {:?}",
+    //         user_pubkey
+    //             .p2wpkh_script_code()
+    //             .unwrap()
+    //             .to_bytes()
+    //             .to_lower_hex_string()
+    //     );
+
+    //     println!(
+    //         "protocol_pubkey: {:?}",
+    //         TEST_SUITE
+    //             .protocol_pubkey()
+    //             .to_bytes()
+    //             .to_lower_hex_string()
+    //     );
+
+    //     let protocol_pubkey = PublicKey::from_str(
+    //         "03a9a3ec96a1051310a80ea9eaaed56cc68b5d7dbe3caa6f145014da88b897e9fa",
+    //     )
+    //     .unwrap();
+
+    //     let script = <VaultManager as UPC>::locking_script(
+    //         &user_pubkey,
+    //         &protocol_pubkey,
+    //         &TEST_SUITE.custodian_pubkeys(),
+    //         TEST_SUITE.env().custodian_quorum,
+    //     )
+    //     .unwrap();
+
+    //     let address =
+    //         Address::from_script(&script.clone().into_script(), Network::Testnet4).unwrap();
+
+    //     let mempool_client = MempoolClient::new(Network::Testnet4);
+
+    //     println!("address: {:?}", address);
+
+    //     let utxo = mempool_client
+    //         .get_address_utxo(&address.to_string())
+    //         .await
+    //         .unwrap();
+
+    //     // let utxo = &utxo[0];
+
+    //     // println!("utxo: {:?}", utxo);
+
+    //     use bitcoin::ScriptBuf;
+
+    //     let user_script_pub_key =
+    //         ScriptBuf::from_hex("00148b59bebf94c43703da1e70d0cd6041f006a18d2b").unwrap();
+
+    //     println!(
+    //         "user_script_pub_key: {:?}",
+    //         user_script_pub_key.to_bytes().to_lower_hex_string()
+    //     );
+
+    //     let protocol_pubkey = PublicKey::from_str(
+    //         "03a9a3ec96a1051310a80ea9eaaed56cc68b5d7dbe3caa6f145014da88b897e9fa",
+    //     )
+    //     .unwrap();
+
+    //     let mut unstaked_psbt = <VaultManager as UPC>::build_unlocking_psbt(
+    //         &TEST_SUITE.manager(),
+    //         &UPCUnlockingParams {
+    //             inputs: vec![PreviousOutpoint {
+    //                 outpoint: OutPoint::new(
+    //                     Txid::from_str(
+    //                         "3e1f9009397aedfdad2456ac1295e746b166878f8f38e31c9a4c6d2050b8fa6d",
+    //                     )
+    //                     .unwrap(),
+    //                     1 as u32,
+    //                 ),
+    //                 amount_in_sats: Amount::from_sat(20_000_000),
+    //                 script_pubkey: script.clone().into_script(),
+    //             }],
+    //             output: TxOut {
+    //                 value: Amount::from_sat(20_000_000),
+    //                 script_pubkey: user_script_pub_key,
+    //             },
+    //             user_pubkey: user_pubkey,
+    //             protocol_pubkey: protocol_pubkey,
+    //             custodian_pubkeys: TEST_SUITE.custodian_pubkeys(),
+    //             custodian_quorum: 3,
+    //             fee_rate: get_fee_rate() * 5,
+    //             rbf: true,
+    //             typ: UPCUnlockingType::CustodianUser,
+    //         },
+    //     )
+    //     .unwrap();
+
+    //     // Sign with user key first
+    //     <VaultManager as Signing>::sign_psbt_by_single_key(
+    //         &mut unstaked_psbt,
+    //         &user_privkey.to_bytes(),
+    //         TEST_SUITE.network_id(),
+    //         false,
+    //     )
+    //     .unwrap();
+
+    //     let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
+
+    //     println!("signing_privkeys: {:?}", signing_privkeys.len());
+
+    //     // Sign with each custodian key in order
+    //     for privkey_bytes in TEST_SUITE.custodian_privkeys() {
+    //         <VaultManager as Signing>::sign_psbt_by_single_key(
+    //             &mut unstaked_psbt,
+    //             privkey_bytes.as_slice(),
+    //             TEST_SUITE.network_id(),
+    //             false,
+    //         )
+    //         .unwrap();
+    //     }
+
+    //     // Finalize the PSBT
+    //     <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+
+    //     // Extract and send
+    //     match TEST_SUITE.send_psbt_by_rpc(unstaked_psbt) {
+    //         Ok(Some(result)) => {
+    //             log_tx_result(&result);
+    //         }
+    //         Ok(None) => {
+    //             panic!("tx not found");
+    //         }
+    //         Err(e) => {
+    //             panic!("tx not found with error: {}", e);
+    //         }
+    //     }
+    // }
 }

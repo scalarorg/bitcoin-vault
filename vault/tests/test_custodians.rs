@@ -16,7 +16,6 @@ mod test_custodians {
         VaultManager, HASH_SIZE,
     };
 
-    use futures::future::join_all;
     use lazy_static::lazy_static;
 
     lazy_static! {
@@ -464,134 +463,134 @@ mod test_custodians {
         // log_tx_result(&result);
     }
 
-    #[test]
-    fn test_collect_all_available_utxos() {
-        use electrum_client::{Client, ElectrumApi};
+    // #[test]
+    // fn test_collect_all_available_utxos() {
+    //     use electrum_client::{Client, ElectrumApi};
 
-        let _: Result<(), Box<dyn std::error::Error>> = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(async {
-                const VOUT: u32 = 1;
-                const LIMIT: usize = 500;
+    //     let _: Result<(), Box<dyn std::error::Error>> = tokio::runtime::Builder::new_multi_thread()
+    //         .worker_threads(2)
+    //         .enable_all()
+    //         .build()
+    //         .unwrap()
+    //         .block_on(async {
+    //             const VOUT: u32 = 1;
+    //             const LIMIT: usize = 500;
 
-                let script = <VaultManager as CustodianOnly>::locking_script(
-                    &TEST_SUITE.custodian_pubkeys(),
-                    TEST_SUITE.env().custodian_quorum,
-                )
-                .unwrap();
+    //             let script = <VaultManager as CustodianOnly>::locking_script(
+    //                 &TEST_SUITE.custodian_pubkeys(),
+    //                 TEST_SUITE.env().custodian_quorum,
+    //             )
+    //             .unwrap();
 
-                let network = get_network_from_str(&TEST_SUITE.env().network);
-                let address = Address::from_script(&script.clone().into_script(), network).unwrap();
+    //             let network = get_network_from_str(&TEST_SUITE.env().network);
+    //             let address = Address::from_script(&script.clone().into_script(), network).unwrap();
 
-                println!("address: {:?}", address);
+    //             println!("address: {:?}", address);
 
-                let client = Client::new("tcp://127.0.0.1:60001").unwrap();
+    //             let client = Client::new("tcp://127.0.0.1:60001").unwrap();
 
-                let utxos = client.script_list_unspent(&script.into_script()).unwrap();
+    //             let utxos = client.script_list_unspent(&script.into_script()).unwrap();
 
-                let mut utxos = utxos
-                    .iter()
-                    .filter(|utxo| utxo.height > 85000)
-                    .collect::<Vec<_>>();
+    //             let mut utxos = utxos
+    //                 .iter()
+    //                 .filter(|utxo| utxo.height > 85000)
+    //                 .collect::<Vec<_>>();
 
-                // sort ascending by block height
-                utxos.reverse();
+    //             // sort ascending by block height
+    //             utxos.reverse();
 
-                let utxos = utxos
-                    .into_iter()
-                    .map(|utxo| NeededUtxo {
-                        txid: utxo.tx_hash,
-                        vout: utxo.tx_pos as u32,
-                        amount: Amount::from_sat(utxo.value),
-                    })
-                    .collect::<Vec<_>>();
+    //             let utxos = utxos
+    //                 .into_iter()
+    //                 .map(|utxo| NeededUtxo {
+    //                     txid: utxo.tx_hash,
+    //                     vout: utxo.tx_pos as u32,
+    //                     amount: Amount::from_sat(utxo.value),
+    //                 })
+    //                 .collect::<Vec<_>>();
 
-                let batch_futures = utxos.chunks(LIMIT).enumerate().map(|(i, utxos_chunk)| {
-                    // Clone what you need inside the async block
-                    let address = address.clone();
-                    let test_account_address = TEST_ACCOUNT.address().clone();
-                    let manager = TEST_SUITE.manager();
-                    let custodian_pubkeys = TEST_SUITE.custodian_pubkeys();
-                    let custodian_quorum = TEST_SUITE.env().custodian_quorum;
-                    let network_id = TEST_SUITE.network_id();
-                    let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
-                    let client = Client::new("tcp://127.0.0.1:60001").unwrap();
+    //             let batch_futures = utxos.chunks(LIMIT).enumerate().map(|(i, utxos_chunk)| {
+    //                 // Clone what you need inside the async block
+    //                 let address = address.clone();
+    //                 let test_account_address = TEST_ACCOUNT.address().clone();
+    //                 let manager = TEST_SUITE.manager();
+    //                 let custodian_pubkeys = TEST_SUITE.custodian_pubkeys();
+    //                 let custodian_quorum = TEST_SUITE.env().custodian_quorum;
+    //                 let network_id = TEST_SUITE.network_id();
+    //                 let signing_privkeys = TEST_SUITE.pick_random_custodian_privkeys();
+    //                 let client = Client::new("tcp://127.0.0.1:60001").unwrap();
 
-                    let utxos_chunk: Vec<_> = utxos_chunk.to_vec();
+    //                 let utxos_chunk: Vec<_> = utxos_chunk.to_vec();
 
-                    tokio::spawn(async move {
-                        let total: u64 = utxos_chunk.iter().map(|utxo| utxo.amount.to_sat()).sum();
+    //                 tokio::spawn(async move {
+    //                     let total: u64 = utxos_chunk.iter().map(|utxo| utxo.amount.to_sat()).sum();
 
-                        println!("Batch {}: Processing {} utxos", i + 1, utxos_chunk.len());
+    //                     println!("Batch {}: Processing {} utxos", i + 1, utxos_chunk.len());
 
-                        let mut unstaked_psbt =
-                            match <VaultManager as CustodianOnly>::build_unlocking_psbt(
-                                &manager,
-                                &CustodianOnlyUnlockingParams {
-                                    inputs: utxos_chunk
-                                        .iter()
-                                        .map(|u| PreviousOutpoint {
-                                            outpoint: OutPoint::new(u.txid, VOUT),
-                                            amount_in_sats: u.amount,
-                                            script_pubkey: address.script_pubkey(),
-                                        })
-                                        .collect(),
-                                    outputs: vec![TxOut {
-                                        value: Amount::from_sat(total),
-                                        script_pubkey: test_account_address.script_pubkey(),
-                                    }],
-                                    custodian_pubkeys,
-                                    custodian_quorum,
-                                    fee_rate: 2,
-                                    rbf: false,
-                                    session_sequence: 0,
-                                    custodian_group_uid: [0u8; HASH_SIZE],
-                                },
-                            ) {
-                                Ok(psbt) => psbt,
-                                Err(e) => {
-                                    println!("Failed to build PSBT for batch {}: {}", i + 1, e);
-                                    return;
-                                }
-                            };
+    //                     let mut unstaked_psbt =
+    //                         match <VaultManager as CustodianOnly>::build_unlocking_psbt(
+    //                             &manager,
+    //                             &CustodianOnlyUnlockingParams {
+    //                                 inputs: utxos_chunk
+    //                                     .iter()
+    //                                     .map(|u| PreviousOutpoint {
+    //                                         outpoint: OutPoint::new(u.txid, VOUT),
+    //                                         amount_in_sats: u.amount,
+    //                                         script_pubkey: address.script_pubkey(),
+    //                                     })
+    //                                     .collect(),
+    //                                 outputs: vec![TxOut {
+    //                                     value: Amount::from_sat(total),
+    //                                     script_pubkey: test_account_address.script_pubkey(),
+    //                                 }],
+    //                                 custodian_pubkeys,
+    //                                 custodian_quorum,
+    //                                 fee_rate: 2,
+    //                                 rbf: false,
+    //                                 session_sequence: 0,
+    //                                 custodian_group_uid: [0u8; HASH_SIZE],
+    //                             },
+    //                         ) {
+    //                             Ok(psbt) => psbt,
+    //                             Err(e) => {
+    //                                 println!("Failed to build PSBT for batch {}: {}", i + 1, e);
+    //                                 return;
+    //                             }
+    //                         };
 
-                        for privkey in signing_privkeys {
-                            let _ = <VaultManager as Signing>::sign_psbt_by_single_key(
-                                &mut unstaked_psbt,
-                                privkey.as_slice(),
-                                network_id,
-                                false,
-                            )
-                            .unwrap();
-                        }
+    //                     for privkey in signing_privkeys {
+    //                         let _ = <VaultManager as Signing>::sign_psbt_by_single_key(
+    //                             &mut unstaked_psbt,
+    //                             privkey.as_slice(),
+    //                             network_id,
+    //                             false,
+    //                         )
+    //                         .unwrap();
+    //                     }
 
-                        <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
+    //                     <Psbt as SignByKeyMap<All>>::finalize(&mut unstaked_psbt);
 
-                        let finalized_tx = match unstaked_psbt.extract_tx() {
-                            Ok(tx) => tx,
-                            Err(e) => {
-                                println!("Failed to extract tx for batch {}: {}", i + 1, e);
-                                return;
-                            }
-                        };
+    //                     let finalized_tx = match unstaked_psbt.extract_tx() {
+    //                         Ok(tx) => tx,
+    //                         Err(e) => {
+    //                             println!("Failed to extract tx for batch {}: {}", i + 1, e);
+    //                             return;
+    //                         }
+    //                     };
 
-                        match client.transaction_broadcast(&finalized_tx) {
-                            Ok(tx_id) => {
-                                println!("Batch {} tx_id: {:?}", i + 1, tx_id);
-                            }
-                            Err(e) => {
-                                println!("Broadcast error for batch {}: {:?}", i + 1, e);
-                            }
-                        }
-                    })
-                });
+    //                     match client.transaction_broadcast(&finalized_tx) {
+    //                         Ok(tx_id) => {
+    //                             println!("Batch {} tx_id: {:?}", i + 1, tx_id);
+    //                         }
+    //                         Err(e) => {
+    //                             println!("Broadcast error for batch {}: {:?}", i + 1, e);
+    //                         }
+    //                     }
+    //                 })
+    //             });
 
-                join_all(batch_futures).await;
+    //             join_all(batch_futures).await;
 
-                Ok(())
-            });
-    }
+    //             Ok(())
+    //         });
+    // }
 }
