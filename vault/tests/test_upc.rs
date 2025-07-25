@@ -2,7 +2,7 @@
 mod test_upc {
     use bitcoin::{
         hex::DisplayHex, secp256k1::All, Address, Amount, Network, OutPoint, PrivateKey, Psbt,
-        PublicKey, ScriptBuf, TxOut, Txid,
+        PublicKey, TxOut, Txid,
     };
     use rust_mempool::MempoolClient;
     use vault::{
